@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 
 const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'});
 
@@ -20,17 +22,24 @@ export const metadata: Metadata = {
   description: "Game server portal for the voz.gg community.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { accessToken: _accessToken, ...initialAuth } = await withAuth();
+  void _accessToken;
+
   return (
     <html
       lang="en"
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-mono", jetbrainsMono.variable)}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthKitProvider initialAuth={initialAuth}>
+          {children}
+        </AuthKitProvider>
+      </body>
     </html>
   );
 }

@@ -23,6 +23,8 @@ Path alias: `@/` → `src/`
 
 **shadcn/ui** — style is `base-vega`, built on Base UI (`@base-ui/react`) primitives rather than Radix. Components use CVA for variants. Configuration in `components.json`.
 
+Don't nest a shadcn Base UI–derived component (`Button`, `Badge`, etc.) inside another Base UI primitive's `render` prop, e.g. `<DialogTrigger render={<Button .../>}>`. Both sides run `useRender` and set `data-slot`; the merge order diverges between SSR and client and produces a hydration mismatch on refresh. Instead, style the outer primitive directly with the inner's CVA classes — `<DialogTrigger className={cn(buttonVariants({ variant, size }))}>` — so there is exactly one `useRender` chain on the rendered element. Same rule applies to `Popover.Trigger`, `Menu.Trigger`, etc.
+
 **React Compiler** — enabled in `next.config.ts`. Avoid manual `useMemo`/`useCallback` unless you have a specific reason.
 
 **MCP servers** configured in `.mcp.json`: `next-devtools` and `shadcn` CLI.

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { NavAuth } from "@/components/nav-auth"
 
 const DOTS = Array.from({ length: 40 }, (_, i) => ({
   cx: (i % 5) * 20 + 10,
@@ -63,9 +63,7 @@ export default function Home() {
           voz.gg
         </h1>
         <p className="text-lg text-white/40">Your servers. Your community.</p>
-        <Button disabled className="mt-2 px-8">
-          Sign In
-        </Button>
+        <NavAuth />
       </div>
       <div className="hidden md:flex flex-1 items-center justify-center bg-[#0d0d14] border-l border-[#1a1a2e]">
         <ServerGraphic />
