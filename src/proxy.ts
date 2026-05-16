@@ -1,11 +1,27 @@
 import { authkitProxy } from '@workos-inc/authkit-nextjs';
+import type { NextProxy, NextRequest } from 'next/server';
 
-export default authkitProxy({
-  middlewareAuth: {
-    enabled: true,
-    unauthenticatedPaths: ['/', '/sign-in', '/auth/callback'],
-  },
-});
+function resolveRedirectUri(request: NextRequest) {
+  const proto =
+    request.headers.get('x-forwarded-proto')?.split(',')[0].trim() ??
+    request.nextUrl.protocol.replace(':', '');
+  const host =
+    request.headers.get('x-forwarded-host')?.split(',')[0].trim() ??
+    request.headers.get('host') ??
+    request.nextUrl.host;
+  return `${proto}://${host}/auth/callback`;
+}
+
+const proxy: NextProxy = (request, event) =>
+  authkitProxy({
+    middlewareAuth: {
+      enabled: true,
+      unauthenticatedPaths: ['/', '/sign-in', '/auth/callback'],
+    },
+    redirectUri: resolveRedirectUri(request),
+  })(request, event);
+
+export default proxy;
 
 export const config = {
   matcher: [
