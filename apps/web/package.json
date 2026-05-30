@@ -14,6 +14,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@voz/shared": "workspace:*",
     "astro": "^6.4.0",
+    "better-auth": "^1.6.12",
     "drizzle-orm": "^0.45.2",
     "tailwindcss": "^4.3.0"
   },
