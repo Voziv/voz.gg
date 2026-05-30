@@ -10,15 +10,20 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.5.0",
+    "@astrojs/react": "^5.0.6",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@tailwindcss/vite": "^4.3.0",
     "@voz/shared": "workspace:*",
     "astro": "^6.4.0",
     "better-auth": "^1.6.12",
     "drizzle-orm": "^0.45.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.10",
     "vitest": "^4.1.7",
     "wrangler": "^4.95.0"

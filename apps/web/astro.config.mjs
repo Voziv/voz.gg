@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
+import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 
 // @astrojs/cloudflare 13 integrates @cloudflare/vite-plugin, which always
@@ -10,6 +11,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   output: 'server',
   adapter: cloudflare(),
+  integrations: [react()],
   vite: {
     plugins: [tailwindcss()],
   },
