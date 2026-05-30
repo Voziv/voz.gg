@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'services/*'
+  - 'tools/*'
+  - 'libs/*'
+
+# nx-go and Astro/Cloudflare native deps need their build scripts to run.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
