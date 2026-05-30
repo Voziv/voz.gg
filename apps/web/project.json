@@ -11,9 +11,13 @@
       "options": { "cwd": "apps/web" },
       "outputs": ["{projectRoot}/dist"]
     },
-    "preview": { "command": "wrangler dev", "options": { "cwd": "apps/web" } },
+    "preview": {
+      "command": "wrangler dev --config dist/server/wrangler.json --persist-to .wrangler/state",
+      "options": { "cwd": "apps/web" },
+      "dependsOn": ["build"]
+    },
     "deploy": {
-      "command": "wrangler deploy",
+      "command": "wrangler deploy --config dist/server/wrangler.json",
       "options": { "cwd": "apps/web" },
       "dependsOn": ["build"]
     }
