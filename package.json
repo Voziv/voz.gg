@@ -9,7 +9,8 @@
   "scripts": {
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
-    "lint": "nx run-many -t lint"
+    "lint": "nx run-many -t lint",
+    "deploy": "nx run web:migrate && nx run-many -t deploy"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

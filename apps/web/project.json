@@ -20,6 +20,18 @@
       "command": "wrangler deploy --config dist/server/wrangler.json",
       "options": { "cwd": "apps/web" },
       "dependsOn": ["build"]
+    },
+    "db:generate": {
+      "command": "drizzle-kit generate",
+      "options": { "cwd": "apps/web" }
+    },
+    "migrate": {
+      "command": "wrangler d1 migrations apply voz-gg --remote",
+      "options": { "cwd": "apps/web" }
+    },
+    "migrate:local": {
+      "command": "wrangler d1 migrations apply voz-gg --local",
+      "options": { "cwd": "apps/web" }
     }
   }
 }
