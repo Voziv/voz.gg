@@ -2,12 +2,18 @@
   "name": "voz-gg",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "packageManager": "pnpm@11.5.0",
   "scripts": {
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@nx-go/nx-go": "^4.0.0",
+    "@nx/eslint": "^22.7.5",
+    "nx": "^22.7.5"
+  }
 }
