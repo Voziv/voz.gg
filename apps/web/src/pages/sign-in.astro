@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import SignIn from '../components/SignIn.tsx';
+if (Astro.locals.user) return Astro.redirect('/dashboard');
+---
+<Base>
+  <main class="min-h-screen flex flex-col items-center justify-center gap-8 bg-[#0a0a0f] text-white p-12">
+    <h1 class="text-4xl font-bold tracking-tight">voz.gg</h1>
+    <SignIn client:load />
+  </main>
+</Base>
