@@ -18,15 +18,20 @@ export const GET: APIRoute = async (ctx) => {
 
   const summary = await fetchSteamSummary(verification.steamId64, env.STEAM_API_KEY);
   const db = createDb(env.DB);
-  await db
-    .update(user)
-    .set({
-      steamId64: verification.steamId64,
-      steamPersona: summary?.personaName ?? null,
-      steamAvatar: summary?.avatarUrl ?? null,
-      updatedAt: new Date(),
-    })
-    .where(eq(user.id, current.id));
+  try {
+    await db
+      .update(user)
+      .set({
+        steamId64: verification.steamId64,
+        steamPersona: summary?.personaName ?? null,
+        steamAvatar: summary?.avatarUrl ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, current.id));
+  } catch (error) {
+    const isConflict = error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
+    return ctx.redirect(isConflict ? '/dashboard?steam=conflict' : '/dashboard?steam=error');
+  }
 
   return ctx.redirect('/dashboard?steam=linked');
 };
