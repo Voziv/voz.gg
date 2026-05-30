@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "voz-gg-web",
+  "compatibility_date": "2026-05-28",
+  "compatibility_flags": ["nodejs_compat"],
+  // `main` and the ASSETS binding are injected by the @astrojs/cloudflare
+  // adapter (it points `main` at its package entrypoint and adds an `ASSETS`
+  // binding). Specifying `main` here as a dist path breaks the build because
+  // @cloudflare/vite-plugin validates the file exists before the build creates it.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "voz-gg",
+      "database_id": "PLACEHOLDER_FILLED_IN_TASK_6",
+      "migrations_dir": "./drizzle/migrations"
+    }
+  ],
+  "observability": { "enabled": true }
+}
