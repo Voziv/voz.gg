@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10",
+    "vitest": "^4.1.7",
     "wrangler": "^4.95.0"
   }
 }

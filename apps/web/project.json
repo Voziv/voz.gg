@@ -32,6 +32,10 @@
     "migrate:local": {
       "command": "wrangler d1 migrations apply voz-gg --local",
       "options": { "cwd": "apps/web" }
+    },
+    "test": {
+      "command": "vitest run",
+      "options": { "cwd": "apps/web" }
     }
   }
 }
