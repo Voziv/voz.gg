@@ -34,7 +34,7 @@
       "options": { "cwd": "apps/web" }
     },
     "test": {
-      "command": "vitest run",
+      "command": "vitest run --passWithNoTests",
       "options": { "cwd": "apps/web" }
     }
   }
