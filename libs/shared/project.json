@@ -1,0 +1,13 @@
+{
+  "name": "shared",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/shared/src",
+  "tags": ["type:lib", "lang:ts"],
+  "targets": {
+    "build": {
+      "command": "tsc -p tsconfig.json --noEmit",
+      "options": { "cwd": "libs/shared" }
+    }
+  }
+}
