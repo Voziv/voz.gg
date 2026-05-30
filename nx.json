@@ -27,6 +27,12 @@
     "libsDir": "libs"
   },
   "plugins": [
-    "@nx-go/nx-go"
+    "@nx-go/nx-go",
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "lint"
+      }
+    }
   ]
 }

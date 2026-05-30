@@ -12,8 +12,12 @@
     "lint": "nx run-many -t lint"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@nx-go/nx-go": "^4.0.0",
     "@nx/eslint": "^22.7.5",
-    "nx": "^22.7.5"
+    "@nx/eslint-plugin": "22.7.5",
+    "eslint": "^10.4.0",
+    "nx": "^22.7.5",
+    "typescript-eslint": "^8.60.0"
   }
 }

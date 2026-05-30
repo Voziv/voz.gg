@@ -6,7 +6,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/health') {
-      let database = 'error';
+      let database: string;
       try {
         await env.DB.prepare('SELECT 1').first();
         database = 'connected';
