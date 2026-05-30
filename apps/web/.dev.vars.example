@@ -1,0 +1,19 @@
+# better-auth
+BETTER_AUTH_URL=http://localhost:4321
+BETTER_AUTH_SECRET=replace-with-32+char-random
+
+# Discord OAuth (https://discord.com/developers) — redirect: <BETTER_AUTH_URL>/api/auth/callback/discord
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+
+# Google OAuth (https://console.cloud.google.com) — redirect: <BETTER_AUTH_URL>/api/auth/callback/google
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Steam (https://steamcommunity.com/dev/apikey)
+STEAM_API_KEY=
+STEAM_REALM=http://localhost:4321
+STEAM_RETURN_URL=http://localhost:4321/api/auth/steam/callback
+
+# Magic-link email transport (Resend)
+RESEND_API_KEY=
