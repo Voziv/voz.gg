@@ -1,0 +1,15 @@
+{
+  "name": "events-ingest",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "services/events-ingest/src",
+  "tags": ["type:service", "lang:ts"],
+  "targets": {
+    "build": {
+      "command": "tsc -p tsconfig.json --noEmit",
+      "options": { "cwd": "services/events-ingest" }
+    },
+    "dev": { "command": "wrangler dev", "options": { "cwd": "services/events-ingest" } },
+    "deploy": { "command": "wrangler deploy", "options": { "cwd": "services/events-ingest" } }
+  }
+}
