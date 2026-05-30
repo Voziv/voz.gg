@@ -10,9 +10,12 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.5.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@tailwindcss/vite": "^4.3.0",
     "@voz/shared": "workspace:*",
     "astro": "^6.4.0",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10",

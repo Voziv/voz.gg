@@ -1,17 +1,83 @@
 ---
 export const prerender = true;
+
+import Base from '../layouts/Base.astro';
+
+const dots = Array.from({ length: 40 }, (_, i) => ({
+  cx: (i % 5) * 20 + 10,
+  cy: Math.floor(i / 5) * 20 + 10,
+  delay: i * 80,
+}));
+
+const racks = [0, 1, 2];
 ---
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>voz.gg</title>
-  </head>
-  <body>
-    <main>
-      <h1>voz.gg</h1>
-      <p>Foundation placeholder. Landing page ports in a later sub-project.</p>
-    </main>
-  </body>
-</html>
+
+<Base>
+  <main class="min-h-screen flex flex-col md:flex-row bg-[#0a0a0f] text-white">
+    <div class="flex-1 flex flex-col items-center justify-center gap-6 p-12">
+      <h1 class="text-8xl font-bold tracking-tight">voz.gg</h1>
+      <p class="text-lg text-white/40">
+        Game servers hosted by Voz for 1LD, WTK, & friends.
+      </p>
+      <button
+        type="button"
+        disabled
+        class="mt-2 inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground opacity-50"
+      >
+        Sign In
+      </button>
+    </div>
+    <div
+      class="hidden md:flex flex-1 items-center justify-center bg-[#0d0d14] border-l border-[#1a1a2e]"
+    >
+      <svg width="220" height="260" viewBox="0 0 220 260" fill="none" aria-hidden="true">
+        {
+          dots.map((dot) => (
+            <circle
+              cx={dot.cx}
+              cy={dot.cy}
+              r="3"
+              fill="#00e5ff"
+              style={`animation: dot-pulse 2s ease-in-out infinite; animation-delay: ${dot.delay}ms;`}
+            />
+          ))
+        }
+        {
+          racks.map((rackIndex) => (
+            <g transform={`translate(0, ${178 + rackIndex * 26})`}>
+              <rect
+                x="10"
+                y="0"
+                width="160"
+                height="18"
+                rx="3"
+                fill="#1a1a2e"
+                stroke="#2a2a3e"
+                stroke-width="1"
+              />
+              <circle
+                cx="182"
+                cy="9"
+                r="4"
+                fill="#00ff88"
+                style={`animation: dot-pulse 3s ease-in-out infinite; animation-delay: ${rackIndex * 600}ms;`}
+              />
+            </g>
+          ))
+        }
+      </svg>
+    </div>
+  </main>
+</Base>
+
+<style is:global>
+  @keyframes dot-pulse {
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+</style>
