@@ -19,3 +19,9 @@ onlyBuiltDependencies:
 
 patchedDependencies:
   kysely@0.29.2: patches/kysely@0.29.2.patch
+
+# drizzle-kit pulls the deprecated @esbuild-kit/core-utils, which pins esbuild
+# 0.18.20 (GHSA-67mh-4wv8-2f99, dev-server CORS). Force the patched line; the
+# transform API drizzle-kit uses is unchanged across these versions.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': '>=0.25.0'

@@ -54,6 +54,18 @@ Every commit must carry a `Signed-off-by: Name <email>` trailer matching the aut
 - Secrets: `.dev.vars` locally (gitignored), `wrangler secret put` in prod; non-secrets in wrangler `vars`.
 - Go services on physical servers authenticate to Worker APIs with a shared Bearer token.
 
+### Schema migrations
+
+The `Deploy` workflow (`.github/workflows/deploy.yml`) runs `nx affected -t migrate` **before** `nx affected -t deploy`, so a push to `main` applies pending D1 migrations to prod and then ships the code. Locally, the targets are separate: `nx run web:migrate` (remote) and `nx run web:migrate:local`.
+
+Because migrations run before the new code, **every migration must be backward-compatible with the code currently running in prod** (expand/contract). Additive changes (new tables/columns, new nullable fields) satisfy this automatically. A **destructive** change (dropping/renaming a column or table, narrowing a type, adding a NOT NULL/UNIQUE constraint) is not backward-compatible and would break the live code the instant the migration lands. Split it across **three separate deploys**, each merged and shipped on its own:
+
+1. **Expand — teach the code both shapes.** Update the code to read/write both the old and the new state (e.g. read from either column, write to both; tolerate the column being absent). No destructive migration yet. Deploy.
+2. **Migrate — the destructive change.** Now that the running code no longer depends on the old state, ship the destructive migration. Deploy.
+3. **Contract — remove the old path.** Delete the now-dead old-state handling from the code. Deploy.
+
+Never collapse these into one PR: doing so reintroduces the window where prod code expects schema that no longer exists. Keep each step in its own commit/PR so the deploy boundary falls between them.
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.

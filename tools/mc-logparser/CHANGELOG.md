@@ -1,3 +1,9 @@
+## 0.1.2 (2026-05-31)
+
+### 🧱 Updated Dependencies
+
+- Updated go-shared to 0.2.1
+
 ## 0.1.1 (2026-05-31)
 
 ### 🧱 Updated Dependencies
