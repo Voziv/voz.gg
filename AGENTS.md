@@ -38,6 +38,15 @@ Conventional commits are mandatory: `<type>(<scope>): <subject>`.
 - **Enforcement:** a local `commit-msg` hook (husky + commitlint) rejects bad messages at author time; CI re-lints **every commit** in the PR range.
 - **Merge model:** rebase + fast-forward (no squash, no merge commits), so **every** commit lands on `main` individually and must comply. `nx release` attributes version bumps to a project by the files each commit changes — granular, well-scoped commits drive accurate independent per-project versioning; a broad multi-project commit bumps every project it touches.
 
+### DCO sign-off (required)
+
+Every commit must carry a `Signed-off-by: Name <email>` trailer matching the author, or the **DCO** check on the PR fails and it cannot merge.
+
+- **Always commit with `git commit -s`.** This is the only reliable rule — it works even when hooks are skipped.
+- A `prepare-commit-msg` hook auto-appends the trailer if you forget `-s`, but it is only a safety net: **`git commit --no-verify` skips it** (and every other hook). If you bypass hooks, you MUST still pass `-s`.
+- Agents/automation: never push a commit without verifying the trailer is present (`git log -1 --format=%B | grep Signed-off-by`). To fix a missing trailer on the last commit: `git commit --amend -s --no-edit` then force-push.
+- The `commit-msg` hook (`pnpm exec commitlint`) can fail in a fresh `git worktree` with `ERR_PNPM_IGNORED_BUILDS` because native build scripts aren't approved there — run `pnpm approve-builds` in the worktree, or use `git commit -s --no-verify` (the `-s` keeps DCO satisfied).
+
 ## Cloudflare / data
 
 - Frontend deploys as Astro SSR via `@astrojs/cloudflare`; the landing page is `export const prerender = true`, dashboard routes are server-rendered. Data is **Cloudflare D1**; Drizzle schema/types/client live in `libs/shared`. Migration artifacts live in `apps/web/drizzle/migrations`.

@@ -1,0 +1,12 @@
+# Append a DCO `Signed-off-by` trailer matching the commit author when one is
+# absent, so commits pass the DCO check even if `git commit -s` was forgotten.
+#
+# Caveat: `git commit --no-verify` skips ALL hooks, including this one. Tooling
+# and agents that bypass hooks MUST still pass `-s`. See AGENTS.md ("DCO").
+
+case "$2" in
+  merge|squash) exit 0 ;;
+esac
+
+signoff="Signed-off-by: $(git var GIT_AUTHOR_IDENT | sed 's/^\(.*>\).*$/\1/')"
+grep -qxsF -- "$signoff" "$1" || printf '\n%s\n' "$signoff" >> "$1"
