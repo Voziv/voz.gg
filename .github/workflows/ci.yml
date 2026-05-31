@@ -32,7 +32,10 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # strictDepBuilds=false: native deps (esbuild/sharp/workerd/nx) ship prebuilt
+        # binaries via optional deps; their ignored postinstall scripts are harmless,
+        # but pnpm 11 treats ignored builds as a fatal error in CI without this.
+        run: pnpm install --frozen-lockfile --config.strictDepBuilds=false
 
       - name: Cache nx
         uses: actions/cache@v4

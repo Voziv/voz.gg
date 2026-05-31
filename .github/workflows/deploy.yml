@@ -29,7 +29,9 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # strictDepBuilds=false: pnpm 11 fails on ignored native build scripts in CI;
+        # those deps ship prebuilt binaries via optional deps, so it's safe to skip.
+        run: pnpm install --frozen-lockfile --config.strictDepBuilds=false
 
       - name: Cache nx
         uses: actions/cache@v4
