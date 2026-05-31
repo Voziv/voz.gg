@@ -1,3 +1,13 @@
+## 0.2.0 (2026-05-31)
+
+### 🚀 Features
+
+- **shared:** add server_status and server_agent tables ([957f8f0](https://github.com/Voziv/voz.gg/commit/957f8f0))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.1.0 (2026-05-31)
 
 ### 🚀 Features

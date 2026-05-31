@@ -1,3 +1,30 @@
+## 0.3.0 (2026-05-31)
+
+### 🚀 Features
+
+- **web:** add status-monitor agent install script ([d045223](https://github.com/Voziv/voz.gg/commit/d045223))
+- **web:** join server status on the servers page and surface install command ([e3c0377](https://github.com/Voziv/voz.gg/commit/e3c0377))
+- **web:** add real StatusBadge and staleness display logic ([e60e80c](https://github.com/Voziv/voz.gg/commit/e60e80c))
+- **web:** mint enrollment token on server create and add regenerate route ([742c5c2](https://github.com/Voziv/voz.gg/commit/742c5c2))
+- **web:** add agent enroll/config/status endpoints ([2bd238e](https://github.com/Voziv/voz.gg/commit/2bd238e))
+- **web:** add pure agent enroll/config/status handlers ([58d5ce4](https://github.com/Voziv/voz.gg/commit/58d5ce4))
+- **web:** add agent data-access layer ([36b4a9d](https://github.com/Voziv/voz.gg/commit/36b4a9d))
+- **web:** add agent token hashing and resolution ([4e69f6d](https://github.com/Voziv/voz.gg/commit/4e69f6d))
+- **web:** add agent config builder and opaque config hash ([c0b7bb3](https://github.com/Voziv/voz.gg/commit/c0b7bb3))
+- **shared:** add server_status and server_agent tables ([957f8f0](https://github.com/Voziv/voz.gg/commit/957f8f0))
+
+### 🩹 Fixes
+
+- **web:** use theme success/destructive/muted tokens in status badge and agent install dialog ([525e3a9](https://github.com/Voziv/voz.gg/commit/525e3a9))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.2.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.2.1 (2026-05-31)
 
 ### 🩹 Fixes
