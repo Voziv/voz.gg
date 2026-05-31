@@ -11,14 +11,17 @@ export default function DeleteServerButton({ id, name }: Props) {
   async function handleClick() {
     if (!confirm(`Delete server "${name}"?`)) return;
     setPending(true);
-    const res = await fetch(`/api/servers/${id}`, { method: 'DELETE' });
-    const r = (await res.json().catch(() => ({ ok: false }))) as { ok: boolean };
-    setPending(false);
-    if (r.ok) {
-      toast.success('Server deleted.');
-      location.reload();
-    } else {
-      toast.error('Could not delete server.');
+    try {
+      const res = await fetch(`/api/servers/${id}`, { method: 'DELETE' });
+      const r = (await res.json().catch(() => ({ ok: false }))) as { ok: boolean };
+      if (r.ok) {
+        toast.success('Server deleted.');
+        location.reload();
+      } else {
+        toast.error('Could not delete server.');
+      }
+    } finally {
+      setPending(false);
     }
   }
 

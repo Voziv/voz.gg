@@ -41,7 +41,6 @@ export default function ServerFormDialog({ server }: Props) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPending(true);
     const form = new FormData(e.currentTarget);
     const body = {
       name: form.get('name'),
@@ -50,26 +49,30 @@ export default function ServerFormDialog({ server }: Props) {
       port: form.get('port'),
       description: form.get('description'),
     };
-    const res = await fetch(isEdit ? `/api/servers/${server!.id}` : '/api/servers', {
-      method: isEdit ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const r = (await res.json().catch(() => ({ ok: false }))) as { ok: boolean; error?: string };
-    setPending(false);
-    if (r.ok) {
-      toast.success(isEdit ? 'Server updated.' : 'Server created.');
-      setOpen(false);
-      location.reload();
-    } else {
-      toast.error(r.error ?? 'Could not save server.');
+    setPending(true);
+    try {
+      const res = await fetch(server ? `/api/servers/${server.id}` : '/api/servers', {
+        method: server ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const r = (await res.json().catch(() => ({ ok: false }))) as { ok: boolean; error?: string };
+      if (r.ok) {
+        toast.success(isEdit ? 'Server updated.' : 'Server created.');
+        setOpen(false);
+        location.reload();
+      } else {
+        toast.error(r.error ?? 'Could not save server.');
+      }
+    } finally {
+      setPending(false);
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        aria-label={isEdit ? `Edit ${server!.name}` : undefined}
+        aria-label={server ? `Edit ${server.name}` : undefined}
         className={cn(buttonVariants(isEdit ? { variant: 'ghost', size: 'icon' } : {}))}
       >
         {isEdit ? (

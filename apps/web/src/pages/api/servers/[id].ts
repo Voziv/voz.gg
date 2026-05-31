@@ -12,7 +12,8 @@ export const PUT: APIRoute = async (ctx) => {
   if (!user) return new Response('Unauthorized', { status: 401 });
   if (!isAdmin(user)) return new Response('Forbidden', { status: 403 });
 
-  const id = ctx.params.id!;
+  const id = ctx.params.id;
+  if (!id) return new Response('Bad Request', { status: 400 });
   const parsed = parseServerInput(await ctx.request.json().catch(() => ({})));
   if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
 
@@ -39,7 +40,9 @@ export const DELETE: APIRoute = async (ctx) => {
   if (!user) return new Response('Unauthorized', { status: 401 });
   if (!isAdmin(user)) return new Response('Forbidden', { status: 403 });
 
+  const id = ctx.params.id;
+  if (!id) return new Response('Bad Request', { status: 400 });
   const db = createDb(env.DB);
-  await db.delete(servers).where(eq(servers.id, ctx.params.id!));
+  await db.delete(servers).where(eq(servers.id, id));
   return Response.json({ ok: true });
 };
