@@ -41,9 +41,16 @@ export const POST: APIRoute = async (ctx) => {
   const profile = await lookupMinecraftProfile(username);
   if (!profile) return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
 
-  await db
-    .update(user)
-    .set({ minecraftUuid: profile.uuid, minecraftName: profile.name, updatedAt: new Date() })
-    .where(eq(user.id, current.id));
+  try {
+    await db
+      .update(user)
+      .set({ minecraftUuid: profile.uuid, minecraftName: profile.name, updatedAt: new Date() })
+      .where(eq(user.id, current.id));
+  } catch (error) {
+    if (error instanceof Error && /UNIQUE constraint failed/i.test(error.message)) {
+      return Response.json({ ok: false, error: 'taken' }, { status: 409 });
+    }
+    throw error;
+  }
   return Response.json({ ok: true, uuid: profile.uuid, name: profile.name });
 };

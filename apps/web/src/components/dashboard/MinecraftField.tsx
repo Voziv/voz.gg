@@ -81,6 +81,7 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
     e.preventDefault();
     const r = await persist(trimmed);
     if (r.ok) { setIsLinked(true); toast.success('Minecraft account linked.'); }
+    else if (r.error === 'taken') toast.error('That Minecraft account is already linked to another user.');
     else toast.error('Could not link account.');
   }
 
