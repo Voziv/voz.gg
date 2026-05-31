@@ -35,5 +35,26 @@
       }
     }
   ],
+  "release": {
+    "projects": ["*"],
+    "projectsRelationship": "independent",
+    "releaseTagPattern": "{projectName}@{version}",
+    "version": {
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
+    },
+    "changelog": {
+      "projectChangelogs": {
+        "createRelease": "github"
+      },
+      "workspaceChangelog": false,
+      "automaticFromRef": true
+    },
+    "git": {
+      "commit": true,
+      "tag": true,
+      "commitMessage": "chore(release): publish [skip ci]"
+    }
+  },
   "analytics": false
 }

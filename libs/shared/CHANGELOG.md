@@ -1,0 +1,13 @@
+## 0.1.0 (2026-05-31)
+
+### 🚀 Features
+
+- **shared:** add theme preference column to user ([6433c66](https://github.com/Voziv/voz.gg/commit/6433c66))
+- **shared:** make minecraft_uuid unique ([e2d9926](https://github.com/Voziv/voz.gg/commit/e2d9926))
+- **shared:** add servers table and GameType ([113b47e](https://github.com/Voziv/voz.gg/commit/113b47e))
+- **shared:** add better-auth drizzle schema (user/session/account/verification) ([2911049](https://github.com/Voziv/voz.gg/commit/2911049))
+- **shared:** add d1 drizzle schema, client, and shared types ([e88e328](https://github.com/Voziv/voz.gg/commit/e88e328))
+
+### ❤️ Thank You
+
+- Voz @Voziv
