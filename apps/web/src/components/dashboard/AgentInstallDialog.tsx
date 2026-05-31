@@ -56,11 +56,11 @@ export default function AgentInstallDialog({ serverId, serverName, initialToken 
           </DialogDescription>
         </DialogHeader>
         {token ? (
-          <pre className="overflow-x-auto rounded-md border border-input bg-black/40 p-3 text-xs text-white/80">
+          <pre className="overflow-x-auto rounded-md border border-input bg-muted p-3 text-xs text-foreground">
             {installCommand(token)}
           </pre>
         ) : (
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-muted-foreground">
             The token is stored hashed and cannot be shown again. Generate a new one to install.
           </p>
         )}
