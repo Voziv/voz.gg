@@ -130,6 +130,12 @@
 .dark {
   color-scheme: dark;
 
+  /* Status colors: brighter in dark mode for AA contrast on the slate-900 surface
+     (the light values wash out on dark). --destructive maps to --danger below. */
+  --success: #41C78C;
+  --warn:    #E0A33B;
+  --danger:  #E26D6D;
+
   --background: var(--slate-900);
   --foreground: var(--slate-50);
   --card: var(--slate-800);
