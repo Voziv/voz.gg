@@ -5,7 +5,11 @@
   "sourceRoot": "services/status-monitor",
   "tags": ["type:service", "lang:go"],
   "targets": {
-    "build": { "executor": "@nx-go/nx-go:build" },
+    "build": {
+      "command": "go build -ldflags \"-X main.version=$(cat VERSION)\" -o dist/status-monitor .",
+      "options": { "cwd": "services/status-monitor" },
+      "outputs": ["{projectRoot}/dist"]
+    },
     "serve": { "executor": "@nx-go/nx-go:serve" },
     "test": { "executor": "@nx-go/nx-go:test" },
     "lint": { "executor": "@nx-go/nx-go:lint" }
