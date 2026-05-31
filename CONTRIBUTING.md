@@ -49,7 +49,17 @@ Signed-off-by: Your Name <your.email@example.com>
 ```
 
 The name and email must match your `git config user.name` and
-`git config user.email`. A DCO check runs on every pull request and blocks
+`git config user.email`.
+
+To add the sign-off automatically on every commit (so you can't forget — it
+even applies under `git commit --no-verify`), install the repo's git hook once:
+
+```sh
+./scripts/install-git-hooks.sh
+```
+
+This installs `.githooks/prepare-commit-msg` into your checkout and covers all
+worktrees. Re-run it after pulling hook changes. A DCO check runs on every pull request and blocks
 merge until all commits are signed off. To sign off commits you already made,
 amend the last one with `git commit --amend -s --no-edit`, or for a range use
 `git rebase --signoff <base>`.
