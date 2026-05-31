@@ -36,7 +36,8 @@ Conventional commits are mandatory: `<type>(<scope>): <subject>`.
 - **Scope (recommended):** a project name — `web`, `events-ingest`, `status-monitor`, `mc-logparser`, `shared`, `go-shared`. Omit the scope for repo-wide changes. Scope is advisory, not enforced as an enum.
 - **Subject:** imperative mood ("add" not "added"), no trailing period, ~50 chars.
 - **Enforcement:** a local `commit-msg` hook (husky + commitlint) rejects bad messages at author time; CI re-lints **every commit** in the PR range.
-- **Merge model:** rebase + fast-forward (no squash, no merge commits), so **every** commit lands on `main` individually and must comply. `nx release` attributes version bumps to a project by the files each commit changes — granular, well-scoped commits drive accurate independent per-project versioning; a broad multi-project commit bumps every project it touches.
+- **PR title:** must itself be a conventional commit (`<type>(<scope>): <subject>`). GitHub is set to use the **PR title** as the merge commit subject (and the PR body as its message), so the title — not just the commits — drives `nx release` and is linted on `main`.
+- **Merge model:** PRs land via a **merge commit** — the only method enabled (rebase and squash are off in repo settings). The merge commit carries the PR title (see above); the branch's own commits are preserved on `main` too, and CI re-lints **every commit** in the PR range, so each must also comply. `nx release` attributes version bumps to a project by the files each commit changes — well-scoped PRs drive accurate independent per-project versioning; a broad multi-project PR bumps every project it touches.
 
 ### DCO sign-off (required)
 
