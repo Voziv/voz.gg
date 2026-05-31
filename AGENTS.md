@@ -45,7 +45,6 @@ Every commit must carry a `Signed-off-by: Name <email>` trailer matching the aut
 - **Always commit with `git commit -s`.** This is the only reliable rule — it works even when hooks are skipped.
 - A `prepare-commit-msg` hook auto-appends the trailer if you forget `-s`, but it is only a safety net: **`git commit --no-verify` skips it** (and every other hook). If you bypass hooks, you MUST still pass `-s`.
 - Agents/automation: never push a commit without verifying the trailer is present (`git log -1 --format=%B | grep Signed-off-by`). To fix a missing trailer on the last commit: `git commit --amend -s --no-edit` then force-push.
-- The `commit-msg` hook (`pnpm exec commitlint`) can fail in a fresh `git worktree` with `ERR_PNPM_IGNORED_BUILDS` because native build scripts aren't approved there — run `pnpm approve-builds` in the worktree, or use `git commit -s --no-verify` (the `-s` keeps DCO satisfied).
 
 ## Cloudflare / data
 
