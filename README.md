@@ -74,7 +74,7 @@ cd apps/web && npx wrangler secret put <NAME>
 ```
 
 Locally, put secrets in `apps/web/.dev.vars` (gitignored). Non-secret config lives
-in each project's `wrangler.jsonc` under `vars`.
+in each project's `wrangler.toml` under `[vars]`.
 
 ### Go services (status-monitor, mc-logparser)
 

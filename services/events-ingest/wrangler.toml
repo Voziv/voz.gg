@@ -1,0 +1,12 @@
+name = "voz-gg-events-ingest"
+main = "src/index.ts"
+compatibility_date = "2026-05-28"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "voz-gg"
+database_id = "845f9113-12a5-4911-8f0f-d96a9133bcc8"

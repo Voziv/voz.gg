@@ -1,0 +1,26 @@
+name = "voz-gg-web"
+compatibility_date = "2026-05-28"
+compatibility_flags = ["nodejs_compat"]
+
+# `main` and the ASSETS binding are injected by the @astrojs/cloudflare
+# adapter (it points `main` at its package entrypoint and adds an `ASSETS`
+# binding). Specifying `main` here as a dist path breaks the build because
+# @cloudflare/vite-plugin validates the file exists before the build creates it.
+
+[observability]
+enabled = true
+
+# Non-secret config. Local dev overrides these via .dev.vars; the production
+# values live here. Secrets (BETTER_AUTH_SECRET, DISCORD_CLIENT_SECRET,
+# GOOGLE_CLIENT_SECRET, STEAM_API_KEY, RESEND_API_KEY) and the OAuth client IDs
+# are set with `wrangler secret put`.
+[vars]
+BETTER_AUTH_URL = "https://voz.gg"
+STEAM_REALM = "https://voz.gg"
+STEAM_RETURN_URL = "https://voz.gg/api/auth/steam/callback"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "voz-gg"
+database_id = "845f9113-12a5-4911-8f0f-d96a9133bcc8"
+migrations_dir = "./drizzle/migrations"
