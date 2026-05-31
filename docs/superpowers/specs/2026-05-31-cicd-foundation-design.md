@@ -190,16 +190,21 @@ pnpm store, nx cache, and Go caches.
 - Branch protection on `main`: require the `ci.yml` checks; require linear
   history (consistent with rebase+ff).
 - The release job needs to push to protected `main`; use a **GitHub App
-  installation token** (preferred) or a PAT with `contents: write`, added to repo
-  secrets, and granted a protection bypass for that actor. (The default
-  `GITHUB_TOKEN` cannot push past branch protection.)
+  installation token** minted in-workflow by `actions/create-github-app-token@v3`
+  from the app's **`client-id`** (stored as the Actions **variable**
+  `VOZ_GG_APP_CLIENT_ID`) + **`private-key`** (stored as the secret
+  `VOZ_GG_APP_PRIVATE_KEY`). The app needs **Contents: Read and write** and must
+  be in the `main` ruleset's **bypass list** (the default `GITHUB_TOKEN` cannot
+  push past branch protection). `checkout` uses the minted token (with
+  `fetch-depth: 0`); `nx release` gets it via `GITHUB_TOKEN`/`GH_TOKEN`.
 
 ### G. Secrets (maintainer adds in GitHub)
 
-`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and the release-push token
-(`RELEASE_APP_ID`/`RELEASE_APP_PRIVATE_KEY` for a GitHub App, or
-`RELEASE_TOKEN` PAT). Worker runtime secrets remain in `wrangler secret put` —
-CI never handles them.
+- Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and the release-push
+  GitHub App private key **`VOZ_GG_APP_PRIVATE_KEY`**.
+- Actions variable: **`VOZ_GG_APP_CLIENT_ID`** (the app's client id — a variable,
+  not a secret), consumed via `actions/create-github-app-token@v3`'s `client-id`.
+- Worker runtime secrets remain in `wrangler secret put` — CI never handles them.
 
 ## Release / CI flow
 
