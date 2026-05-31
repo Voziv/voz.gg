@@ -1,3 +1,15 @@
+/* =============================================================
+   voz.gg — Design System tokens
+   Two layers:
+     1. Raw scales (--blue-*, --slate-*) — the leerobert.ca
+        palette. Never reference these directly in app code.
+     2. Semantic tokens (--background, --primary, ...) — mapped
+        onto the scales, exposed to Tailwind via @theme inline as
+        bg-background / text-foreground / etc. USE THESE.
+   Dark mode is the `.dark` class on <html>, set before paint by
+   the inline script in Base.astro. Full reference:
+   apps/web/docs/design-system.md
+   ============================================================= */
 @import "tailwindcss";
 @import "tw-animate-css";
 
