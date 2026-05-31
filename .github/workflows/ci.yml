@@ -10,22 +10,28 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read # nx-set-shas reads prior workflow runs to derive the base SHA
+
 jobs:
   affected:
     name: Lint, test, build (affected)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
 
+      # Pinned to v5: setup-go@v6 breaks nx's Go project-graph inference in CI
+      # (`nx affected` fails with "Failed to process project graph").
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
@@ -38,7 +44,7 @@ jobs:
         run: pnpm install --frozen-lockfile --config.strictDepBuilds=false
 
       - name: Cache nx
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .nx/cache
           key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
@@ -47,7 +53,7 @@ jobs:
             nx-${{ runner.os }}-
 
       - name: Derive nx SHAs
-        uses: nrwl/nx-set-shas@v4
+        uses: nrwl/nx-set-shas@v5
 
       - name: Lint, test, build affected projects
         run: pnpm exec nx affected -t lint test build
