@@ -1,3 +1,13 @@
+## 0.2.0 (2026-05-31)
+
+### 🚀 Features
+
+- **web:** type custom auth fields via inferAdditionalFields ([4c7dc4e](https://github.com/Voziv/voz.gg/commit/4c7dc4e))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.1.0 (2026-05-31)
 
 ### 🚀 Features
