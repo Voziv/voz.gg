@@ -1,3 +1,13 @@
+## 0.2.1 (2026-05-31)
+
+### 🩹 Fixes
+
+- **web:** brighten status colors in dark mode for contrast ([7f0d55e](https://github.com/Voziv/voz.gg/commit/7f0d55e))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.2.0 (2026-05-31)
 
 ### 🚀 Features
