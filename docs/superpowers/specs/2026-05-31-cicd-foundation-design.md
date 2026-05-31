@@ -114,32 +114,50 @@ Dev deps (pnpm, root): `@commitlint/cli`, `@commitlint/config-conventional`,
 
 ```jsonc
 "release": {
+  "projects": ["*"],                      // all projects (the default set is only
+                                          // public libs; ours are apps/private libs)
   "projectsRelationship": "independent",
   "releaseTagPattern": "{projectName}@{version}",
   "version": {
-    "conventionalCommits": true
+    "conventionalCommits": true,
+    "fallbackCurrentVersionResolver": "disk"  // first release of a project: no tag
+                                              // yet, read current from manifest
   },
   "changelog": {
-    "projectChangelogs": true,            // per-project CHANGELOG.md
-    "workspaceChangelog": false
+    "projectChangelogs": { "createRelease": "github" },  // per-project CHANGELOG.md
+                                                         // + a GitHub Release
+    "workspaceChangelog": false,
+    "automaticFromRef": true               // first changelog walks back to the first
+                                           // commit (no --first-release flag needed)
   },
-  "git": { "commit": true, "tag": true }
+  "git": {
+    "commit": true,
+    "tag": true,
+    "commitMessage": "chore(release): publish [skip ci]"  // don't re-trigger CI
+  }
 }
 ```
 
 - Bumps are computed from conventional commits since each project's last
   `{projectName}@{version}` tag, scoped by the project graph (files changed).
-- TS projects: version lives in their `package.json` (nx bumps it).
+- TS projects: version lives in their `package.json` (the default `@nx/js`
+  version actions bump it). `@nx/js` is installed as a dev dependency for this.
 - Go projects: see (D) — version lives in a `VERSION` file; a custom
-  `versionActions`/post-version step keeps it in sync.
+  `versionActions` implementation reads and writes it.
+- `createRelease: "github"` makes `nx release` push the version commit + tags and
+  create a per-project GitHub Release; `release.yml` then attaches binaries (E.3).
 
-### D. Go project versioning (`VERSION` file + ldflags)
+### D. Go project versioning (custom `versionActions` + `VERSION` file + ldflags)
 
-- Each releasable Go project (`status-monitor`, and later `mc-logparser`) gets a
+- Each releasable Go project (`status-monitor`, `mc-logparser`, `go-shared`) gets a
   **`VERSION`** file at its root (e.g. `services/status-monitor/VERSION` → `0.1.0`).
-- `nx release` updates that file for Go projects (via a custom version actor or a
-  small post-version script that writes the computed version into `VERSION`), and
-  tags `status-monitor@<version>`.
+- A custom nx-release version-actions implementation,
+  `tools/release/go-version-actions.cjs` (extends `VersionActions` from
+  `nx/release`), reads the current version from `VERSION` and writes the computed
+  new version back to it. Each Go project opts in via its `project.json`:
+  `"release": { "version": { "versionActions": "tools/release/go-version-actions.cjs" } }`.
+  TS projects keep the default `@nx/js` (package.json) actions. `nx release` then
+  bumps `VERSION` and tags `status-monitor@<version>` natively in the same pass.
 - The Go `build`/release compile passes
   `-ldflags "-X main.version=$(cat VERSION)"`; `main` exposes a `--version` flag
   that prints it. This makes the deployed agent self-identifying and gives the

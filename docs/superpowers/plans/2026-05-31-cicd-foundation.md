@@ -17,17 +17,20 @@
 - The `status-monitor` build target is currently `@nx-go/nx-go:build` with no ldflags. This plan adds version wiring **idempotently** — it replaces the executor with an explicit `go build` command that injects ldflags, so re-running is safe.
 - Conventional-commit scope is **advisory** (recommended = a project name), not enforced as an enum, because `nx release` attributes bumps by changed files, not by the scope string.
 
+> **Implementation note — Go versioning approach (supersedes the original Task 7 + parts of Tasks 1, 4, 8, 11).** The original plan synced Go `VERSION` files with a post-version runner script (`tools/release/release.mjs`) called via an npm `release` script. During execution that approach hit a wall: nx 22.7.5's `releaseVersion` cannot resolve a Go project's *current* version (no manifest). The chosen replacement (approach **A**) is a **custom nx-release `versionActions`** — `tools/release/go-version-actions.cjs` — wired per Go project in `project.json`, with `@nx/js` installed for the default TS (`package.json`) actions. Releasing is then plain `nx release` (no runner script, no `release` npm script). The authoritative release config + workflow are spec sections **C/D/E** and **Task 7** / **Task 11** below; where Tasks 1/4/8 still mention `release.mjs` or `node tools/release/release.mjs`, read them as superseded by this note. Also: commit signing **is** available (GPG + DCO sign-off), so commits are `-S` signed and `-s` signed-off rather than `--no-gpg-sign`.
+
 ---
 
 ## File structure
 
 | Path | Action | Responsibility |
 |------|--------|----------------|
-| `package.json` | Modify | Add `@commitlint/cli`, `@commitlint/config-conventional`, `husky` dev deps; add `prepare` script (`husky`); add `release` script (`node tools/release/release.mjs`). |
+| `package.json` | Modify | Add `@commitlint/cli`, `@commitlint/config-conventional`, `husky`, and `@nx/js` (default TS version actions) dev deps; add `prepare` script (`husky`). |
 | `commitlint.config.js` | Create | Extends `@commitlint/config-conventional`; scope advisory; allowed types pinned. |
 | `.husky/commit-msg` | Create | Author-time hook running `pnpm exec commitlint --edit "$1"`. |
 | `nx.json` | Modify | Add the `release` block (independent, conventionalCommits, per-project changelogs, git commit+tag). |
-| `tools/release/release.mjs` | Create | Programmatic `nx release` runner: computes versions, writes Go `VERSION` files from `projectsVersionData`, writes changelogs, commits + tags. |
+| `tools/release/go-version-actions.cjs` | Create | Custom nx-release `versionActions` for Go projects: reads/writes the per-project `VERSION` file (Go has no `package.json`). |
+| `tools/{mc-logparser}/VERSION`, `libs/{go-shared}/VERSION` | Create | Seed `0.0.0`; version source for the other releasable Go projects. |
 | `services/status-monitor/VERSION` | Create | Seed `0.0.0`; the Go version source bumped by `nx release`. |
 | `services/status-monitor/main.go` | Modify | Add `var version = "dev"` + a `--version` flag that prints it. |
 | `services/status-monitor/version_test.go` | Create | Asserts the `--version` flag prints the embedded version. |
@@ -282,39 +285,47 @@ Edit `nx.json` to add a top-level `"release"` key (sibling of `"plugins"`). The 
     }
   ],
   "release": {
+    "projects": ["*"],
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}@{version}",
     "version": {
-      "conventionalCommits": true
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
     },
     "changelog": {
-      "projectChangelogs": true,
-      "workspaceChangelog": false
+      "projectChangelogs": {
+        "createRelease": "github"
+      },
+      "workspaceChangelog": false,
+      "automaticFromRef": true
     },
     "git": {
       "commit": true,
-      "tag": true
+      "tag": true,
+      "commitMessage": "chore(release): publish [skip ci]"
     }
   },
   "analytics": false
 }
 ```
 
+`projects: ["*"]` is required: nx release's default project set is only *public libraries*, but every voz.gg project is an app or a private/no-`package.json` lib, so the default matches nothing. `fallbackCurrentVersionResolver: "disk"` + `automaticFromRef: true` make the first release of each project work without a manual `--first-release` flag. `createRelease: "github"` makes `nx release` push and create a GitHub Release per project; `[skip ci]` on the release commit stops it re-triggering `deploy.yml`/`release.yml`.
+
 - [ ] **Step 2: Verify nx parses the release config**
 
 Run:
 
 ```bash
-npx nx show projects --json >/dev/null && node -e "const n=require('./nx.json'); const r=n.release; if(r.projectsRelationship!=='independent'||r.releaseTagPattern!=='{projectName}@{version}'||!r.version.conventionalCommits||!r.changelog.projectChangelogs||r.changelog.workspaceChangelog!==false||!r.git.commit||!r.git.tag){throw new Error('release config wrong')} console.log('release config ok')"
+npx nx show projects --json >/dev/null && pnpm exec nx release --dry-run >/dev/null 2>&1 && echo "release config ok"
 ```
 
-Expected: `release config ok`; `nx show projects` exits 0 (proves `nx.json` is still valid JSON nx accepts).
+Expected: `release config ok` — `nx show projects` proves `nx.json` is valid, and the dry-run proves every project resolves a version (Go via the custom actions, TS via `@nx/js`) with no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add nx.json
-git -c commit.gpgsign=false commit -m "ci: add nx release config for independent per-project releases"
+git commit -s -m "ci: add nx release config for independent per-project releases"
 ```
 
 ---
@@ -502,116 +513,89 @@ git -c commit.gpgsign=false commit -m "ci(status-monitor): inject version ldflag
 
 ---
 
-## Task 7: Add the programmatic release runner (Go VERSION sync)
+## Task 7: Version Go projects via a custom nx-release `versionActions`
 
 **Files:**
-- Create: `tools/release/release.mjs`
+- Create: `tools/release/go-version-actions.cjs`
+- Create: `tools/mc-logparser/VERSION`, `libs/go-shared/VERSION`
+- Modify: `services/status-monitor/project.json`, `tools/mc-logparser/project.json`, `libs/go-shared/project.json`
 
-**Why a script, not raw `nx release`:** nx's built-in `conventionalCommits` versioning bumps `package.json` for JS projects, but Go projects have no `package.json` for nx to write. The robust mechanism is the `nx/release` programmatic API: `releaseVersion()` returns `projectsVersionData` mapping each project to its computed `newVersion`. The script writes that version into each Go project's `VERSION` file **before** the changelog/commit/tag step, so the `VERSION` change is captured in the same release commit and tag. JS projects are handled natively by `releaseVersion`.
+**Why custom version actions, not a post-version script:** nx's `conventionalCommits` versioning bumps a per-project manifest. For TS projects that manifest is `package.json`, handled by the default `@nx/js` version actions (Task 1 installs `@nx/js`). Go projects have no `package.json`; their version lives in a plain `VERSION` file. nx release resolves a per-project `versionActions` module — configurable in `project.json` — so we implement one that reads and writes `VERSION`. This is the nx-native mechanism: the `VERSION` change is computed and written by `nx release` itself, landing in the same release commit and tag, with no separate runner script to keep in sync.
 
-- [ ] **Step 1: Write the release runner**
+- [ ] **Step 1: Write the version actions** (`tools/release/go-version-actions.cjs`)
 
-Create `tools/release/release.mjs` with exactly:
+CommonJS, because the workspace is ESM (`"type": "module"`) and nx loads version actions via `require()`; a `.cjs` extension forces CommonJS. nx uses `module.exports` (the class) directly.
 
 ```js
-#!/usr/bin/env node
-/**
- * Programmatic nx release runner.
- *
- * nx release's conventionalCommits versioning bumps package.json for JS
- * projects but has no manifest to write for Go projects. This script runs
- * releaseVersion to compute per-project versions, writes the computed version
- * into each Go project's VERSION file, then runs releaseChangelog so the
- * VERSION change, changelog, commit, and tag all land together.
- *
- * Go projects are identified as projects with a VERSION file and no
- * package.json at their root.
- *
- * Usage:
- *   node tools/release/release.mjs            # real release
- *   node tools/release/release.mjs --dry-run  # compute + preview, no writes/tags
- */
-import { existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { createProjectGraphAsync } from '@nx/devkit';
-import { releaseChangelog, releaseVersion } from 'nx/release';
+const { join } = require('node:path');
+const { VersionActions } = require('nx/release');
 
-const dryRun = process.argv.includes('--dry-run');
+class GoVersionActions extends VersionActions {
+  validManifestFilenames = ['VERSION'];
 
-async function run() {
-  const graph = await createProjectGraphAsync({ exitOnError: true });
-
-  const { workspaceVersion, projectsVersionData } = await releaseVersion({
-    dryRun,
-    verbose: true,
-  });
-
-  for (const [projectName, data] of Object.entries(projectsVersionData)) {
-    const newVersion = data?.newVersion;
-    if (!newVersion) {
-      continue; // no releasable commits for this project
-    }
-    const root = graph.nodes[projectName]?.data?.root;
-    if (!root) {
-      continue;
-    }
-    const versionFile = join(root, 'VERSION');
-    const hasVersionFile = existsSync(versionFile);
-    const hasPackageJson = existsSync(join(root, 'package.json'));
-    if (hasVersionFile && !hasPackageJson) {
-      if (dryRun) {
-        console.log(`[dry-run] would write ${newVersion} to ${versionFile}`);
-      } else {
-        writeFileSync(versionFile, `${newVersion}\n`);
-        console.log(`wrote ${newVersion} to ${versionFile}`);
-      }
-    }
+  manifestPath() {
+    return join(this.projectGraphNode.data.root, 'VERSION');
   }
 
-  await releaseChangelog({
-    dryRun,
-    verbose: true,
-    versionData: projectsVersionData,
-    version: workspaceVersion,
-  });
+  async readCurrentVersionFromSourceManifest(tree) {
+    const manifestPath = this.manifestPath();
+    const contents = tree.read(manifestPath, 'utf-8');
+    if (contents === null) return null;
+    return { currentVersion: contents.trim(), manifestPath };
+  }
 
-  process.exit(0);
+  async readCurrentVersionFromRegistry() {
+    return null; // Go projects are not published to a registry
+  }
+
+  async readCurrentVersionOfDependency() {
+    return { currentVersion: null, dependencyCollection: null };
+  }
+
+  async updateProjectVersion(tree, newVersion) {
+    const manifestPath = this.manifestPath();
+    tree.write(manifestPath, `${newVersion}\n`);
+    return [`Updated ${manifestPath} to ${newVersion}`];
+  }
+
+  async updateProjectDependencies() {
+    return [];
+  }
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = GoVersionActions;
 ```
 
-- [ ] **Step 2: Confirm `@nx/devkit` is resolvable**
+(Full file includes explanatory comments; the logic is exactly the above.)
 
-Run:
+- [ ] **Step 2: Give the binary-less Go projects a VERSION file**
+
+`status-monitor` already has one (Task 5). Add the others:
 
 ```bash
-node -e "require.resolve('@nx/devkit'); require.resolve('nx/release'); console.log('imports resolvable')"
+printf '0.0.0\n' > tools/mc-logparser/VERSION
+printf '0.0.0\n' > libs/go-shared/VERSION
 ```
 
-Expected: `imports resolvable`. If `@nx/devkit` is not present, run `pnpm add -D -w @nx/devkit@22.7.5` and amend Task 1's commit note; `nx/release` ships with `nx` (already installed).
+- [ ] **Step 3: Opt each Go project in**
 
-- [ ] **Step 3: Syntax-check the script**
+Add this block (sibling of `"tags"`) to `services/status-monitor/project.json`, `tools/mc-logparser/project.json`, and `libs/go-shared/project.json`:
 
-Run:
-
-```bash
-node --check tools/release/release.mjs && echo "syntax ok"
+```json
+"release": {
+  "version": {
+    "versionActions": "tools/release/go-version-actions.cjs"
+  }
+}
 ```
-
-Expected: `syntax ok`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add tools/release/release.mjs
-git -c commit.gpgsign=false commit -m "ci: add programmatic nx release runner syncing Go VERSION files"
+git add tools/release/go-version-actions.cjs tools/mc-logparser/VERSION libs/go-shared/VERSION \
+        services/status-monitor/project.json tools/mc-logparser/project.json libs/go-shared/project.json
+git commit -s -m "ci: version Go projects via custom nx release versionActions"
 ```
-
-(If Step 2 required adding `@nx/devkit`, also `git add package.json pnpm-lock.yaml` in this commit.)
 
 ---
 
