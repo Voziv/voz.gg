@@ -1,6 +1,9 @@
 ---
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
+import { THEME_STORAGE_KEY } from '../lib/theme';
+
+const profileTheme = Astro.locals.user?.theme ?? null;
 ---
 
 <!doctype html>
@@ -10,8 +13,37 @@ import '../styles/global.css';
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>voz.gg — Your servers. Your community.</title>
     <meta name="description" content="Game server portal for the voz.gg community." />
+    <script is:inline define:vars={{ profileTheme, storageKey: THEME_STORAGE_KEY }}>
+      (function () {
+        try {
+          var stored = null;
+          try { stored = localStorage.getItem(storageKey); } catch (e) {}
+          var valid = function (v) { return v === 'light' || v === 'dark' || v === 'system'; };
+          var mode = valid(profileTheme) ? profileTheme : valid(stored) ? stored : 'system';
+          // Profile preference wins: keep localStorage in sync when it differs.
+          if (valid(profileTheme) && profileTheme !== stored) {
+            try { localStorage.setItem(storageKey, mode); } catch (e) {}
+          }
+          var mql = window.matchMedia('(prefers-color-scheme: dark)');
+          var apply = function () {
+            var current = mode;
+            try { current = localStorage.getItem(storageKey) || mode; } catch (e) {}
+            var resolved = current === 'dark' || (current !== 'light' && mql.matches) ? 'dark' : 'light';
+            var root = document.documentElement;
+            root.classList.toggle('dark', resolved === 'dark');
+            root.style.colorScheme = resolved;
+          };
+          apply();
+          mql.addEventListener('change', function () {
+            var current = mode;
+            try { current = localStorage.getItem(storageKey) || mode; } catch (e) {}
+            if (current === 'system') apply();
+          });
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="font-mono">
+  <body class="font-mono bg-background text-foreground">
     <slot />
   </body>
 </html>
