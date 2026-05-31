@@ -21,6 +21,7 @@
     "@nx-go/nx-go": "^4.0.0",
     "@nx/eslint": "^22.7.5",
     "@nx/eslint-plugin": "22.7.5",
+    "@nx/js": "22.7.5",
     "eslint": "^10.4.0",
     "husky": "^9.1.7",
     "js-yaml": "^4.1.1",
