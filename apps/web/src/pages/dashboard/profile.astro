@@ -1,0 +1,64 @@
+---
+export const prerender = false;
+import Dashboard from '../../layouts/Dashboard.astro';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card.tsx';
+import ProfileForm from '../../components/dashboard/ProfileForm.tsx';
+import MinecraftField from '../../components/dashboard/MinecraftField.tsx';
+import SteamLinkCard from '../../components/dashboard/SteamLinkCard.tsx';
+
+const user = Astro.locals.user!;
+const steam = Astro.url.searchParams.get('steam'); // linked | conflict | error
+const steamBanner =
+  steam === 'linked' ? { kind: 'success', text: 'Steam account linked.' }
+  : steam === 'conflict' ? { kind: 'error', text: 'That Steam account is already linked to another user.' }
+  : steam === 'error' ? { kind: 'error', text: 'Steam linking failed. Try again.' }
+  : null;
+---
+<Dashboard>
+  <div class="mx-auto grid max-w-3xl gap-6">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Profile</h1>
+      <p class="mt-1 text-white/40">Tell people about yourself and link your game accounts.</p>
+    </div>
+
+    {steamBanner && (
+      <div
+        class:list={['rounded-md border px-4 py-3 text-sm',
+          steamBanner.kind === 'error'
+            ? 'border-red-500/30 bg-red-500/10 text-red-300'
+            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300']}
+        role={steamBanner.kind === 'error' ? 'alert' : 'status'}
+      >{steamBanner.text}</div>
+    )}
+
+    <Card className="border-[#1a1a2e] bg-[#0d0d14]">
+      <CardHeader>
+        <CardTitle className="text-white">About you</CardTitle>
+        <CardDescription className="text-white/40">Display name and bio shown to other users.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ProfileForm client:load defaultDisplayName={user.displayName ?? ''} defaultBio={user.bio ?? ''} />
+      </CardContent>
+    </Card>
+
+    <Card className="border-[#1a1a2e] bg-[#0d0d14]">
+      <CardHeader>
+        <CardTitle className="text-white">Minecraft</CardTitle>
+        <CardDescription className="text-white/40">We verify the username via the Mojang API.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <MinecraftField client:load defaultUsername={user.minecraftName ?? ''} defaultUuid={user.minecraftUuid ?? null} />
+      </CardContent>
+    </Card>
+
+    <Card className="border-[#1a1a2e] bg-[#0d0d14]">
+      <CardHeader>
+        <CardTitle className="text-white">Steam</CardTitle>
+        <CardDescription className="text-white/40">Link via Steam OpenID to prove ownership of your account.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <SteamLinkCard client:load steamId64={user.steamId64 ?? null} persona={user.steamPersona ?? null} avatarUrl={user.steamAvatar ?? null} />
+      </CardContent>
+    </Card>
+  </div>
+</Dashboard>

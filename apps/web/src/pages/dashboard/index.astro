@@ -1,12 +1,4 @@
 ---
 export const prerender = false;
-import Base from '../../layouts/Base.astro';
-const { user } = Astro.locals;
+return Astro.redirect('/dashboard/profile');
 ---
-<Base>
-  <main class="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#0a0a0f] text-white">
-    <h1 class="text-3xl font-bold">Dashboard</h1>
-    <p class="text-white/60">Signed in as {user?.displayName ?? user?.name ?? user?.email}</p>
-    <p class="text-white/30 text-sm">Placeholder — built out in sub-project #4.</p>
-  </main>
-</Base>
