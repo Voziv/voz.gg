@@ -91,3 +91,25 @@ export const servers = sqliteTable('servers', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const serverStatus = sqliteTable('server_status', {
+  serverId: text('server_id')
+    .primaryKey()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  status: text('status').notNull(), // 'online' | 'offline' | 'unknown'
+  players: integer('players'),
+  maxPlayers: integer('max_players'),
+  version: text('version'),
+  latencyMs: integer('latency_ms'),
+  checkedAt: integer('checked_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const serverAgent = sqliteTable('server_agent', {
+  serverId: text('server_id')
+    .primaryKey()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  enrollmentTokenHash: text('enrollment_token_hash'),
+  agentTokenHash: text('agent_token_hash'),
+  enrolledAt: integer('enrolled_at', { mode: 'timestamp' }),
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }),
+});
