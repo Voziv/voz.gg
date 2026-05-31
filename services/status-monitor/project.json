@@ -4,6 +4,11 @@
   "projectType": "application",
   "sourceRoot": "services/status-monitor",
   "tags": ["type:service", "lang:go"],
+  "release": {
+    "version": {
+      "versionActions": "tools/release/go-version-actions.cjs"
+    }
+  },
   "targets": {
     "build": {
       "command": "go build -ldflags \"-X main.version=$(cat VERSION)\" -o dist/status-monitor .",
