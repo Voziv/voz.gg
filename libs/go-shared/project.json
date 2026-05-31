@@ -4,6 +4,11 @@
   "projectType": "library",
   "sourceRoot": "libs/go-shared",
   "tags": ["type:lib", "lang:go"],
+  "release": {
+    "version": {
+      "versionActions": "tools/release/go-version-actions.cjs"
+    }
+  },
   "targets": {
     "test": { "executor": "@nx-go/nx-go:test" },
     "lint": { "executor": "@nx-go/nx-go:lint" }

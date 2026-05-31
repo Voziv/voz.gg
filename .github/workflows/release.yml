@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+# Serialize releases so two pushes never version/tag/push concurrently.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release affected projects
+    runs-on: ubuntu-latest
+    steps:
+      # Mint an installation token for the release app. The default GITHUB_TOKEN
+      # cannot push the version commit + tags past branch protection on main;
+      # this app is on the ruleset bypass list. client-id is a repo variable,
+      # private-key is a secret.
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.VOZ_GG_APP_CLIENT_ID }}
+          private-key: ${{ secrets.VOZ_GG_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          # Check out the branch (not the detached SHA) so `nx release`'s
+          # `git push --follow-tags` has an upstream to push to.
+          ref: ${{ github.ref_name }}
+          # Full history + tags: conventional-commit versioning and changelog
+          # generation walk back to each project's last {projectName}@{version} tag.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Install dependencies
+        # strictDepBuilds=false: pnpm 11 fails on ignored native build scripts in CI;
+        # those deps ship prebuilt binaries via optional deps, so it's safe to skip.
+        run: pnpm install --frozen-lockfile --config.strictDepBuilds=false
+
+      - name: Configure git identity
+        run: |
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+
+      # Computes per-project bumps from conventional commits, writes versions
+      # (package.json / VERSION) and per-project changelogs, commits, tags,
+      # pushes to main, and creates a GitHub Release per released project.
+      # The release commit subject carries [skip ci] so it does not re-trigger
+      # this workflow (or deploy.yml).
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: pnpm exec nx release --yes
+
+      # status-monitor is the only project that ships a downloadable binary.
+      # If it was released this run, cross-compile the support matrix, attach the
+      # assets to its versioned release, and refresh the moving
+      # `status-monitor-latest` release that the agent install script downloads from.
+      - name: Publish status-monitor binaries
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          tag=$(git tag --points-at HEAD | grep '^status-monitor@' || true)
+          if [ -z "$tag" ]; then
+            echo "status-monitor was not released this run; nothing to publish."
+            exit 0
+          fi
+          version=${tag#status-monitor@}
+          echo "Publishing status-monitor ${version} binaries"
+
+          mkdir -p dist
+          for target in "linux amd64" "linux arm64" "darwin arm64"; do
+            set -- ${target}
+            os=$1
+            arch=$2
+            CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go build \
+              -ldflags "-X main.version=${version}" \
+              -o "dist/status-monitor-${os}-${arch}" ./services/status-monitor
+          done
+
+          # Attach to the versioned release nx created.
+          gh release upload "${tag}" dist/status-monitor-* --clobber
+
+          # Refresh the rolling "latest" release at a stable tag/URL. Independent
+          # releasing means GitHub's /releases/latest can point at a different
+          # project, so the install script targets this fixed tag instead.
+          gh release delete status-monitor-latest --yes --cleanup-tag || true
+          gh release create status-monitor-latest dist/status-monitor-* \
+            --title "status-monitor (latest)" \
+            --notes "Rolling latest status-monitor binaries (currently ${version})." \
+            --latest=false \
+            --target "$(git rev-parse HEAD)"
