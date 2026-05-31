@@ -4,6 +4,11 @@
   "projectType": "application",
   "sourceRoot": "tools/mc-logparser",
   "tags": ["type:tool", "lang:go"],
+  "release": {
+    "version": {
+      "versionActions": "tools/release/go-version-actions.cjs"
+    }
+  },
   "targets": {
     "build": { "executor": "@nx-go/nx-go:build" },
     "serve": { "executor": "@nx-go/nx-go:serve" },
