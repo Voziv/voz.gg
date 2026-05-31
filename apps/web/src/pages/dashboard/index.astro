@@ -1,4 +1,4 @@
 ---
 export const prerender = false;
-return Astro.redirect('/dashboard/profile');
+return Astro.redirect('/dashboard/profile' + Astro.url.search);
 ---

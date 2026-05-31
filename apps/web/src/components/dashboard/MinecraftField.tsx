@@ -41,6 +41,7 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
       : null,
   );
   const [pending, setPending] = useState(false);
+  const [isLinked, setIsLinked] = useState<boolean>(Boolean(defaultUuid));
 
   useEffect(() => {
     const v = value.trim();
@@ -79,13 +80,13 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const r = await persist(trimmed);
-    if (r.ok) toast.success('Minecraft account linked.');
+    if (r.ok) { setIsLinked(true); toast.success('Minecraft account linked.'); }
     else toast.error('Could not link account.');
   }
 
   async function handleUnlink() {
     const r = await persist('');
-    if (r.ok) { setValue(''); setServerResult(null); toast.success('Minecraft account unlinked.'); }
+    if (r.ok) { setValue(''); setServerResult(null); setIsLinked(false); toast.success('Minecraft account unlinked.'); }
     else toast.error('Could not unlink.');
   }
 
@@ -127,7 +128,7 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
         >
           {pending ? 'Saving…' : 'Link Minecraft account'}
         </Button>
-        {defaultUuid && (
+        {isLinked && (
           <Button type="button" variant="outline" disabled={pending} onClick={handleUnlink}>Unlink</Button>
         )}
       </div>

@@ -22,10 +22,14 @@ export async function lookupMinecraftProfile(
 ): Promise<MojangProfile | null> {
   if (!isValidMinecraftUsernameSyntax(username)) return null;
   const url = `https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`;
-  const res = await fetchFn(url, { headers: { Accept: 'application/json' } });
-  if (res.status === 404 || res.status === 204) return null;
-  if (!res.ok) return null;
-  const json = (await res.json()) as { id?: string; name?: string };
-  if (!json.id || !json.name) return null;
-  return { uuid: dashUuid(json.id), name: json.name };
+  try {
+    const res = await fetchFn(url, { headers: { Accept: 'application/json' } });
+    if (res.status === 404 || res.status === 204) return null;
+    if (!res.ok) return null;
+    const json = (await res.json()) as { id?: string; name?: string };
+    if (!json.id || !json.name) return null;
+    return { uuid: dashUuid(json.id), name: json.name };
+  } catch {
+    return null;
+  }
 }

@@ -40,4 +40,14 @@ describe('lookupMinecraftProfile', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({})));
     expect(await lookupMinecraftProfile('Notch', fetchMock)).toBeNull();
   });
+
+  it('returns null when the fetch rejects', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('network down'));
+    expect(await lookupMinecraftProfile('Notch', fetchMock)).toBeNull();
+  });
+
+  it('returns null when the ok response body is not valid json', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('<html>not json</html>', { status: 200 }));
+    expect(await lookupMinecraftProfile('Notch', fetchMock)).toBeNull();
+  });
 });
