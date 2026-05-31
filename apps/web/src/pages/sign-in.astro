@@ -2,10 +2,14 @@
 export const prerender = false;
 import Base from '../layouts/Base.astro';
 import SignIn from '../components/SignIn.tsx';
+import ThemeToggle from '../components/ThemeToggle.tsx';
 if (Astro.locals.user) return Astro.redirect('/dashboard');
 ---
 <Base>
-  <main class="min-h-screen flex flex-col items-center justify-center gap-8 bg-[#0a0a0f] text-white p-12">
+  <main class="min-h-screen flex flex-col items-center justify-center gap-8 bg-background text-foreground p-12">
+    <div class="fixed right-4 top-4 z-50">
+      <ThemeToggle client:load />
+    </div>
     <h1 class="text-4xl font-bold tracking-tight">voz.gg</h1>
     <SignIn client:load />
   </main>

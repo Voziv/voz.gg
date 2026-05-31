@@ -2,6 +2,7 @@
 import Base from './Base.astro';
 import SignOut from '../components/dashboard/SignOut.tsx';
 import { Toaster } from '../components/ui/sonner.tsx';
+import ThemeToggle from '../components/ThemeToggle.tsx';
 
 const { user } = Astro.locals;
 const path = Astro.url.pathname;
@@ -13,30 +14,31 @@ const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
 const label = user?.displayName ?? user?.name ?? user?.email ?? '';
 ---
 <Base>
-  <div class="flex min-h-screen bg-[#0a0a0f] text-white">
-    <aside class="hidden w-60 shrink-0 border-r border-[#1a1a2e] md:block">
+  <div class="flex min-h-screen bg-background text-foreground">
+    <aside class="hidden w-60 shrink-0 border-r border-border md:block">
       <nav class="flex flex-col gap-1 p-4">
-        <a href="/" class="mb-6 px-2 py-1 text-2xl font-bold tracking-tight text-white" style="text-shadow: 0 0 24px rgba(0,229,255,0.35)">voz.gg</a>
+        <a href="/" class="mb-6 px-2 py-1 text-2xl font-bold tracking-tight text-foreground">voz.gg</a>
         {nav.map((item) => (
           <a
             href={item.href}
             class:list={[
               'rounded-md px-3 py-2 text-sm transition-colors',
               isActive(item.href)
-                ? 'bg-[#00e5ff]/10 text-[#00e5ff] ring-1 ring-[#00e5ff]/30'
-                : 'text-white/60 hover:bg-white/5 hover:text-white',
+                ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             ]}
           >{item.label}</a>
         ))}
       </nav>
     </aside>
     <div class="flex flex-1 flex-col">
-      <header class="flex items-center justify-end gap-3 border-b border-[#1a1a2e] px-6 py-3 text-sm">
-        <span class="text-white/60">{label}</span>
+      <header class="flex items-center justify-end gap-3 border-b border-border px-6 py-3 text-sm">
+        <span class="text-muted-foreground">{label}</span>
+        <ThemeToggle client:load />
         <SignOut client:load />
       </header>
       <main class="flex-1 p-6 md:p-10"><slot /></main>
     </div>
-    <Toaster client:load theme="dark" position="bottom-right" />
+    <Toaster client:load position="bottom-right" />
   </div>
 </Base>
