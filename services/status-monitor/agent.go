@@ -66,12 +66,12 @@ func (a *Agent) RunCycle(ctx context.Context) error {
 	}
 
 	if resp.ConfigHash != "" && resp.ConfigHash != a.Config.ConfigHash {
-		return a.pullConfig(resp.ConfigHash)
+		return a.pullConfig()
 	}
 	return nil
 }
 
-func (a *Agent) pullConfig(expectedHash string) error {
+func (a *Agent) pullConfig() error {
 	req, err := http.NewRequest(http.MethodGet, a.Config.WorkerBaseURL+"/api/agents/config", nil)
 	if err != nil {
 		return err

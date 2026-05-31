@@ -74,6 +74,43 @@ func TestSLPOfflineWhenNothingListening(t *testing.T) {
 	}
 }
 
+func TestSLPRejectsOversizedPacket(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 256)
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		_, _ = conn.Read(buf)
+		// Advertise a 5 MB packet length, then hold the connection open without
+		// sending the payload. A correct parser must reject the oversized length
+		// immediately rather than buffering up to that amount for the full timeout.
+		_, _ = conn.Write(encodeVarInt(5 * 1024 * 1024))
+		time.Sleep(3 * time.Second)
+	}()
+
+	port := parsePort(t, ln.Addr().String())
+	start := time.Now()
+	st, err := SLP{Timeout: 2 * time.Second}.Probe(context.Background(), "127.0.0.1", port, 0)
+	if err != nil {
+		t.Fatalf("Probe: %v", err)
+	}
+	if st.Status != "offline" {
+		t.Fatalf("status = %q, want offline for oversized packet", st.Status)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("Probe took %v, expected early rejection without buffering", elapsed)
+	}
+}
+
 func TestEncodeDecodeVarIntRoundTrip(t *testing.T) {
 	for _, v := range []int{0, 1, 127, 128, 255, 300, 25565, 2097151} {
 		b := encodeVarInt(v)

@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// maxPacketSize caps the advertised SLP packet length. It is well above any real
+// status response, so a hostile server cannot force a large allocation by drip-
+// feeding bytes against a huge advertised length.
+const maxPacketSize = 128 * 1024
+
 // SLP implements the Minecraft Java Server List Ping handshake, ported from the
 // source TypeScript implementation in src/lib/status/minecraft.ts.
 type SLP struct {
@@ -125,26 +130,32 @@ func readStatusJSON(conn net.Conn) ([]byte, error) {
 	buf := make([]byte, 0, 1024)
 	tmp := make([]byte, 1024)
 	for {
-		// Try to parse what we have.
-		if pktLen, pktLenSize, perr := decodeVarInt(buf, 0); perr == nil && len(buf) >= pktLenSize+pktLen {
-			off := pktLenSize
-			pktID, idSize, err := decodeVarInt(buf, off)
-			if err != nil {
-				return nil, err
+		// Try to parse what we have. As soon as the leading length VarInt decodes,
+		// reject an oversized advertised length before buffering toward it.
+		if pktLen, pktLenSize, perr := decodeVarInt(buf, 0); perr == nil {
+			if pktLen < 0 || pktLen > maxPacketSize {
+				return nil, errors.New("packet length exceeds limit")
 			}
-			off += idSize
-			if pktID != 0x00 {
-				return nil, errors.New("unexpected packet id")
+			if len(buf) >= pktLenSize+pktLen {
+				off := pktLenSize
+				pktID, idSize, err := decodeVarInt(buf, off)
+				if err != nil {
+					return nil, err
+				}
+				off += idSize
+				if pktID != 0x00 {
+					return nil, errors.New("unexpected packet id")
+				}
+				jsonLen, jsonLenSize, err := decodeVarInt(buf, off)
+				if err != nil {
+					return nil, err
+				}
+				off += jsonLenSize
+				if len(buf) < off+jsonLen {
+					return nil, errors.New("truncated json")
+				}
+				return buf[off : off+jsonLen], nil
 			}
-			jsonLen, jsonLenSize, err := decodeVarInt(buf, off)
-			if err != nil {
-				return nil, err
-			}
-			off += jsonLenSize
-			if len(buf) < off+jsonLen {
-				return nil, errors.New("truncated json")
-			}
-			return buf[off : off+jsonLen], nil
 		}
 		n, err := conn.Read(tmp)
 		if n > 0 {
