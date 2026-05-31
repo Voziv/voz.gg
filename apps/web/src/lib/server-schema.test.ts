@@ -30,7 +30,7 @@ describe('parseServerInput', () => {
   });
 
   it('omits description entirely → null', () => {
-    const { description: _omit, ...noDesc } = valid;
+    const noDesc = { name: valid.name, gameType: valid.gameType, host: valid.host, port: valid.port };
     const r = parseServerInput(noDesc);
     expect(r.ok && r.data.description).toBeNull();
   });
