@@ -1,16 +1,25 @@
 ---
 export const prerender = false;
 import { env } from 'cloudflare:workers';
-import { createDb, servers, type GameType } from '@voz/shared';
+import { eq } from 'drizzle-orm';
+import { createDb, servers, serverStatus, type GameType } from '@voz/shared';
+import { displayStatus } from '../../lib/status-display';
 import Dashboard from '../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../components/ui/card.tsx';
 import StatusBadge from '../../components/dashboard/StatusBadge.tsx';
 import ServerFormDialog from '../../components/dashboard/ServerFormDialog.tsx';
 import DeleteServerButton from '../../components/dashboard/DeleteServerButton.tsx';
+import AgentInstallDialog from '../../components/dashboard/AgentInstallDialog.tsx';
 
+const POLL_INTERVAL_SECONDS = 30;
 const db = createDb(env.DB);
-const all = await db.select().from(servers).all();
+const rows = await db
+  .select({ server: servers, status: serverStatus })
+  .from(servers)
+  .leftJoin(serverStatus, eq(serverStatus.serverId, servers.id))
+  .all();
 const admin = Astro.locals.user?.role === 'admin';
+const now = new Date();
 
 const GAME_LABELS: Record<GameType, string> = {
   'minecraft-java': 'Minecraft (Java)',
@@ -30,7 +39,7 @@ const GAME_LABELS: Record<GameType, string> = {
       {admin && <ServerFormDialog client:load />}
     </div>
 
-    {all.length === 0 ? (
+    {rows.length === 0 ? (
       <Card className="border-border bg-card">
         <CardContent className="py-12 text-center text-muted-foreground">
           No servers configured yet.{admin ? ' Click "Add server" to create one.' : ''}
@@ -49,7 +58,9 @@ const GAME_LABELS: Record<GameType, string> = {
             </tr>
           </thead>
           <tbody>
-            {all.map((s) => (
+            {rows.map(({ server: s, status }) => {
+              const display = displayStatus(status, POLL_INTERVAL_SECONDS, now);
+              return (
               <tr class="border-t border-border">
                 <td class="px-4 py-3">
                   <div class="font-medium text-foreground">{s.name}</div>
@@ -57,10 +68,13 @@ const GAME_LABELS: Record<GameType, string> = {
                 </td>
                 <td class="px-4 py-3 text-muted-foreground">{GAME_LABELS[s.gameType] ?? s.gameType}</td>
                 <td class="px-4 py-3 font-mono text-muted-foreground">{s.host}:{s.port}</td>
-                <td class="px-4 py-3"><StatusBadge /></td>
+                <td class="px-4 py-3">
+                  <StatusBadge status={display.status} players={display.players} maxPlayers={display.maxPlayers} />
+                </td>
                 {admin && (
                   <td class="px-4 py-3">
                     <div class="flex justify-end gap-1">
+                      <AgentInstallDialog client:load serverId={s.id} serverName={s.name} />
                       <ServerFormDialog
                         client:load
                         server={{ id: s.id, name: s.name, gameType: s.gameType, host: s.host, port: s.port, description: s.description }}
@@ -70,7 +84,8 @@ const GAME_LABELS: Record<GameType, string> = {
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

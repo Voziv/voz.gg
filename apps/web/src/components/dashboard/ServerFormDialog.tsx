@@ -56,9 +56,19 @@ export default function ServerFormDialog({ server }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const r = (await res.json().catch(() => ({ ok: false }))) as { ok: boolean; error?: string };
+      const r = (await res.json().catch(() => ({ ok: false }))) as {
+        ok: boolean;
+        error?: string;
+        enrollmentToken?: string;
+      };
       if (r.ok) {
-        toast.success(isEdit ? 'Server updated.' : 'Server created.');
+        if (!isEdit && r.enrollmentToken) {
+          const command = `curl -fsSL ${location.origin}/install-agent.sh | sh -s -- ${r.enrollmentToken}`;
+          await navigator.clipboard?.writeText(command).catch(() => undefined);
+          toast.success('Server created. Install command copied — paste it on the host.', { duration: 8000 });
+        } else {
+          toast.success(isEdit ? 'Server updated.' : 'Server created.');
+        }
         setOpen(false);
         location.reload();
       } else {

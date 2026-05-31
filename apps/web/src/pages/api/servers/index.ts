@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { nanoid } from 'nanoid';
-import { createDb, servers } from '@voz/shared';
+import { createDb, servers, serverAgent } from '@voz/shared';
 import { isAdmin } from '../../../lib/admin';
 import { parseServerInput } from '../../../lib/server-schema';
+import { generateToken, hashToken } from '../../../lib/agent-auth';
 
 export const prerender = false;
 
@@ -29,5 +30,12 @@ export const POST: APIRoute = async (ctx) => {
     createdAt: now,
     updatedAt: now,
   });
-  return Response.json({ ok: true, id });
+
+  const enrollmentToken = generateToken();
+  await db.insert(serverAgent).values({
+    serverId: id,
+    enrollmentTokenHash: await hashToken(enrollmentToken),
+  });
+
+  return Response.json({ ok: true, id, enrollmentToken });
 };
