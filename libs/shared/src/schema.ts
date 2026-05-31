@@ -31,6 +31,7 @@ export const user = sqliteTable('user', {
   steamId64: text('steam_id_64').unique(),
   steamPersona: text('steam_persona'),
   steamAvatar: text('steam_avatar'),
+  theme: text('theme'),
 });
 
 export const session = sqliteTable('session', {

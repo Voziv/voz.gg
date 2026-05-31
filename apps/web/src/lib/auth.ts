@@ -30,6 +30,7 @@ export function getAuth(env: Env) {
         steamId64: { type: 'string', required: false, input: false, unique: true },
         steamPersona: { type: 'string', required: false, input: false },
         steamAvatar: { type: 'string', required: false, input: false },
+        theme: { type: 'string', required: false, input: true },
       },
     },
     plugins: [
