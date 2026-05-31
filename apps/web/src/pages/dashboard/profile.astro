@@ -18,7 +18,7 @@ const steamBanner =
   <div class="mx-auto grid max-w-3xl gap-6">
     <div>
       <h1 class="text-3xl font-bold tracking-tight">Profile</h1>
-      <p class="mt-1 text-white/40">Tell people about yourself and link your game accounts.</p>
+      <p class="mt-1 text-muted-foreground">Tell people about yourself and link your game accounts.</p>
     </div>
 
     {steamBanner && (
@@ -31,30 +31,30 @@ const steamBanner =
       >{steamBanner.text}</div>
     )}
 
-    <Card className="border-[#1a1a2e] bg-[#0d0d14]">
+    <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-white">About you</CardTitle>
-        <CardDescription className="text-white/40">Display name and bio shown to other users.</CardDescription>
+        <CardTitle className="text-foreground">About you</CardTitle>
+        <CardDescription className="text-muted-foreground">Display name and bio shown to other users.</CardDescription>
       </CardHeader>
       <CardContent>
         <ProfileForm client:load defaultDisplayName={user.displayName ?? ''} defaultBio={user.bio ?? ''} />
       </CardContent>
     </Card>
 
-    <Card className="border-[#1a1a2e] bg-[#0d0d14]">
+    <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-white">Minecraft</CardTitle>
-        <CardDescription className="text-white/40">We verify the username via the Mojang API.</CardDescription>
+        <CardTitle className="text-foreground">Minecraft</CardTitle>
+        <CardDescription className="text-muted-foreground">We verify the username via the Mojang API.</CardDescription>
       </CardHeader>
       <CardContent>
         <MinecraftField client:load defaultUsername={user.minecraftName ?? ''} defaultUuid={user.minecraftUuid ?? null} />
       </CardContent>
     </Card>
 
-    <Card className="border-[#1a1a2e] bg-[#0d0d14]">
+    <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-white">Steam</CardTitle>
-        <CardDescription className="text-white/40">Link via Steam OpenID to prove ownership of your account.</CardDescription>
+        <CardTitle className="text-foreground">Steam</CardTitle>
+        <CardDescription className="text-muted-foreground">Link via Steam OpenID to prove ownership of your account.</CardDescription>
       </CardHeader>
       <CardContent>
         <SteamLinkCard client:load steamId64={user.steamId64 ?? null} persona={user.steamPersona ?? null} avatarUrl={user.steamAvatar ?? null} />

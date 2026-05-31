@@ -24,18 +24,18 @@ export default function ProfileForm({ defaultDisplayName, defaultBio }: Props) {
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="displayName" className="text-white/70">Display name</Label>
+        <Label htmlFor="displayName" className="text-muted-foreground">Display name</Label>
         <Input
           id="displayName"
           value={displayName}
           maxLength={80}
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="How should we address you?"
-          className="bg-[#0a0a0f] text-white"
+          className="bg-background text-foreground"
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="bio" className="text-white/70">Bio</Label>
+        <Label htmlFor="bio" className="text-muted-foreground">Bio</Label>
         <textarea
           id="bio"
           value={bio}
@@ -43,7 +43,7 @@ export default function ProfileForm({ defaultDisplayName, defaultBio }: Props) {
           rows={4}
           onChange={(e) => setBio(e.target.value)}
           placeholder="A short blurb about you."
-          className="rounded-md border border-input bg-[#0a0a0f] px-3 py-2 text-sm text-white outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
         />
       </div>
       <div>
