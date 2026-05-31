@@ -68,3 +68,25 @@ export const verification = sqliteTable('verification', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const GAME_TYPES = [
+  'minecraft-java',
+  'minecraft-bedrock',
+  'source',
+  'generic-tcp',
+  'unknown',
+] as const;
+
+export type GameType = (typeof GAME_TYPES)[number];
+
+export const servers = sqliteTable('servers', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  gameType: text('game_type').notNull().$type<GameType>(),
+  host: text('host').notNull(),
+  port: integer('port').notNull(),
+  description: text('description'),
+  createdBy: text('created_by').notNull().references(() => user.id),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
