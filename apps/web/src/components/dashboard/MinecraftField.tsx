@@ -28,8 +28,8 @@ function deriveLookup(trimmed: string, server: ServerResult | null): Lookup {
 
 function StatusIcon({ state }: { state: Lookup['state'] }) {
   if (state === 'checking') return <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Checking" />;
-  if (state === 'ok') return <Check className="size-4 text-emerald-400" aria-label="Valid" />;
-  if (state === 'err') return <X className="size-4 text-red-400" aria-label="Invalid" />;
+  if (state === 'ok') return <Check className="size-4 text-success" aria-label="Valid" />;
+  if (state === 'err') return <X className="size-4 text-destructive" aria-label="Invalid" />;
   return <span className="size-4" aria-hidden />;
 }
 
@@ -119,8 +119,8 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
         </div>
       </div>
       <div className="min-h-5 text-xs">
-        {lookup.state === 'ok' && <span className="text-emerald-400">Verified as {lookup.name}.</span>}
-        {lookup.state === 'err' && <span className="text-red-400">{lookup.message}</span>}
+        {lookup.state === 'ok' && <span className="text-success">Verified as {lookup.name}.</span>}
+        {lookup.state === 'err' && <span className="text-destructive">{lookup.message}</span>}
       </div>
       <div className="flex gap-2">
         <Button
