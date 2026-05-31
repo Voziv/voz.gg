@@ -49,5 +49,13 @@ jobs:
       - name: Derive nx SHAs
         uses: nrwl/nx-set-shas@v5
 
+      # Apply D1 migrations BEFORE deploying new code. This ordering is only safe
+      # because migrations are kept backward-compatible with the currently-running
+      # code (expand/contract). Destructive schema changes must therefore be split
+      # across separate deploys — see "Schema migrations" in AGENTS.md. Runs only
+      # when an affected project defines a `migrate` target (today: web).
+      - name: Apply D1 migrations (affected)
+        run: pnpm exec nx affected -t migrate
+
       - name: Deploy affected Workers
         run: pnpm exec nx affected -t deploy
