@@ -70,7 +70,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: pnpm exec nx release --yes
+        # --skip-publish (not --yes): nothing is published to a registry — Go
+        # projects have no publish target and the TS packages are private. The
+        # default `nx release` would otherwise fail the publish phase.
+        run: pnpm exec nx release --skip-publish
 
       # status-monitor is the only project that ships a downloadable binary.
       # If it was released this run, cross-compile the support matrix, attach the
@@ -89,10 +92,9 @@ jobs:
           echo "Publishing status-monitor ${version} binaries"
 
           mkdir -p dist
-          for target in "linux amd64" "linux arm64" "darwin arm64"; do
-            set -- ${target}
-            os=$1
-            arch=$2
+          for pair in linux:amd64 linux:arm64 darwin:arm64; do
+            os=${pair%%:*}
+            arch=${pair##*:}
             CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go build \
               -ldflags "-X main.version=${version}" \
               -o "dist/status-monitor-${os}-${arch}" ./services/status-monitor
