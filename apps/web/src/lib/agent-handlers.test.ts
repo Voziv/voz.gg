@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { handleEnroll, handleConfig, handleStatus } from './agent-handlers';
-import { hashToken } from './agent-auth';
 import { buildAgentConfig, configHash } from './agent-config';
 import type { AgentDao, ServerRow, StatusUpsert } from './agent-dao';
 
