@@ -55,6 +55,12 @@ describe('parseServerInput', () => {
     if (!r.ok) expect(r.error).toMatch(/invalid host/i);
   });
 
+  it('rejects a host containing a port (colon)', () => {
+    const r = parseServerInput({ ...valid, host: 'mc.example.com:25565' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/invalid host/i);
+  });
+
   it.each(['0', '70000', '12.5', 'abc'])('rejects port %s', (port) => {
     expect(parseServerInput({ ...valid, port }).ok).toBe(false);
   });

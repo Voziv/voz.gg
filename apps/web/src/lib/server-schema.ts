@@ -9,7 +9,7 @@ const serverSchema = z.object({
     .trim()
     .min(1, 'Host is required.')
     .max(253)
-    .regex(/^[A-Za-z0-9.\-_:]+$/, 'Invalid host.'),
+    .regex(/^[A-Za-z0-9.\-_]+$/, 'Invalid host.'),
   port: z.coerce.number().int().min(1).max(65535),
   description: z
     .string()
