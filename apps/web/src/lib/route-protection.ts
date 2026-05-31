@@ -1,4 +1,4 @@
-const PUBLIC_EXACT = new Set(['/', '/sign-in']);
+const PUBLIC_EXACT = new Set(['/', '/sign-in', '/api/agents/enroll', '/api/agents/config', '/api/status']);
 
 export function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
