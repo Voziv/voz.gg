@@ -211,9 +211,12 @@ Served as a static asset at `<site>/install-agent.sh` (same origin as the
 Worker). Usage: `curl -fsSL <site>/install-agent.sh | sh -s -- <enrollmentToken>`.
 Steps:
 1. Detect OS/arch (`uname -s/-m`).
-2. Download the matching binary from the **public GitHub Release**
-   (`https://github.com/<owner>/voz.gg/releases/latest/download/status-monitor-<os>-<arch>`),
-   install to `/usr/local/bin/voz-status-monitor`.
+2. Download the matching binary from the **public GitHub Release**. Because the
+   CI/CD foundation releases projects *independently*, `/releases/latest/` is not
+   project-specific; the install script uses the stable moving-tag URL the release
+   workflow maintains:
+   `https://github.com/<owner>/voz.gg/releases/download/status-monitor-latest/status-monitor-<os>-<arch>`.
+   Install to `/usr/local/bin/voz-status-monitor`.
 3. `POST /api/agents/enroll` with the token → receive `{ agentToken, config }`;
    write `/etc/voz-status-monitor/config.json`.
 4. Install + enable a `systemd` unit (`voz-status-monitor.service`) and start it.
