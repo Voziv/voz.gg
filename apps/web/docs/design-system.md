@@ -24,8 +24,13 @@ Google sign-in buttons).
 | primary | blue-500 | blue-400 |
 | muted / muted-foreground | slate-100 / slate-600 | slate-700 / slate-300 |
 | border, input | slate-200 | slate-700 |
-| destructive | danger | danger |
-| success | `#2E9D6A` | `#2E9D6A` |
+| destructive | danger `#C24545` | danger `#E26D6D` |
+| success | `#2E9D6A` | `#41C78C` |
+| warn | `#C98415` | `#E0A33B` |
+
+Status colors (`--success`, `--warn`, `--danger`/`--destructive`) are brightened in
+dark mode so they keep AA contrast on the slate-900 surface; the light values wash
+out on dark.
 
 ## Theming
 
