@@ -35,20 +35,5 @@
       }
     }
   ],
-  "release": {
-    "projectsRelationship": "independent",
-    "releaseTagPattern": "{projectName}@{version}",
-    "version": {
-      "conventionalCommits": true
-    },
-    "changelog": {
-      "projectChangelogs": true,
-      "workspaceChangelog": false
-    },
-    "git": {
-      "commit": true,
-      "tag": true
-    }
-  },
   "analytics": false
 }

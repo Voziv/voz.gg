@@ -23,9 +23,6 @@ importers:
       '@nx-go/nx-go':
         specifier: ^4.0.0
         version: 4.0.0(nx@22.7.5)
-      '@nx/devkit':
-        specifier: 22.7.5
-        version: 22.7.5(nx@22.7.5)
       '@nx/eslint':
         specifier: ^22.7.5
         version: 22.7.5(@babel/traverse@7.29.7)(@zkochan/js-yaml@0.0.7)(eslint@10.4.0(jiti@2.7.0))(nx@22.7.5)
