@@ -62,8 +62,8 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
 
   const trimmed = value.trim();
   const lookup = deriveLookup(trimmed, serverResult);
-  const avatarUuid =
-    lookup.state === 'ok' ? lookup.uuid : trimmed === defaultUsername && defaultUuid ? defaultUuid : null;
+  const avatarName =
+    lookup.state === 'ok' ? lookup.name : trimmed === defaultUsername && defaultUuid ? defaultUsername : null;
 
   async function persist(username: string) {
     setPending(true);
@@ -95,9 +95,9 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
     <form onSubmit={handleSubmit} className="grid gap-3">
       <Label htmlFor="username" className="text-white/70">Minecraft username</Label>
       <div className="flex items-center gap-3">
-        {avatarUuid ? (
+        {avatarName ? (
           <img
-            src={`https://crafatar.com/avatars/${avatarUuid}?size=48&overlay`}
+            src={`https://minotar.net/avatar/${encodeURIComponent(avatarName)}/96`}
             alt=""
             width={48}
             height={48}
