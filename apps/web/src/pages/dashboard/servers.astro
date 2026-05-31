@@ -25,21 +25,21 @@ const GAME_LABELS: Record<GameType, string> = {
     <div class="mb-8 flex items-end justify-between">
       <div>
         <h1 class="text-3xl font-bold tracking-tight">Servers</h1>
-        <p class="mt-1 text-white/40">Connection details for community game servers.</p>
+        <p class="mt-1 text-muted-foreground">Connection details for community game servers.</p>
       </div>
       {admin && <ServerFormDialog client:load />}
     </div>
 
     {all.length === 0 ? (
-      <Card className="border-[#1a1a2e] bg-[#0d0d14]">
-        <CardContent className="py-12 text-center text-white/40">
+      <Card className="border-border bg-card">
+        <CardContent className="py-12 text-center text-muted-foreground">
           No servers configured yet.{admin ? ' Click "Add server" to create one.' : ''}
         </CardContent>
       </Card>
     ) : (
-      <div class="overflow-hidden rounded-lg border border-[#1a1a2e] bg-[#0d0d14]">
+      <div class="overflow-hidden rounded-lg border border-border bg-card">
         <table class="w-full text-sm">
-          <thead class="bg-[#0a0a0f] text-left text-xs uppercase tracking-wide text-white/40">
+          <thead class="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th class="px-4 py-3 font-medium">Name</th>
               <th class="px-4 py-3 font-medium">Game</th>
@@ -50,13 +50,13 @@ const GAME_LABELS: Record<GameType, string> = {
           </thead>
           <tbody>
             {all.map((s) => (
-              <tr class="border-t border-[#1a1a2e]">
+              <tr class="border-t border-border">
                 <td class="px-4 py-3">
-                  <div class="font-medium text-white">{s.name}</div>
-                  {s.description && <div class="text-xs text-white/40">{s.description}</div>}
+                  <div class="font-medium text-foreground">{s.name}</div>
+                  {s.description && <div class="text-xs text-muted-foreground">{s.description}</div>}
                 </td>
-                <td class="px-4 py-3 text-white/70">{GAME_LABELS[s.gameType] ?? s.gameType}</td>
-                <td class="px-4 py-3 font-mono text-white/70">{s.host}:{s.port}</td>
+                <td class="px-4 py-3 text-muted-foreground">{GAME_LABELS[s.gameType] ?? s.gameType}</td>
+                <td class="px-4 py-3 font-mono text-muted-foreground">{s.host}:{s.port}</td>
                 <td class="px-4 py-3"><StatusBadge /></td>
                 {admin && (
                   <td class="px-4 py-3">

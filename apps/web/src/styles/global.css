@@ -1,3 +1,15 @@
+/* =============================================================
+   voz.gg — Design System tokens
+   Two layers:
+     1. Raw scales (--blue-*, --slate-*) — the leerobert.ca
+        palette. Never reference these directly in app code.
+     2. Semantic tokens (--background, --primary, ...) — mapped
+        onto the scales, exposed to Tailwind via @theme inline as
+        bg-background / text-foreground / etc. USE THESE.
+   Dark mode is the `.dark` class on <html>, set before paint by
+   the inline script in Base.astro. Full reference:
+   apps/web/docs/design-system.md
+   ============================================================= */
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -26,6 +38,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -48,70 +62,103 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.845 0.143 164.978);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.596 0.145 163.225);
-  --chart-4: oklch(0.508 0.118 165.612);
-  --chart-5: oklch(0.432 0.095 166.913);
+  /* ---- Raw scales (leerobert.ca palette; do not use directly in app code) ---- */
+  --blue-50:  #EEF4FB;
+  --blue-100: #D6E4F4;
+  --blue-200: #AEC9E9;
+  --blue-300: #82AADC;
+  --blue-400: #5C8ECB;
+  --blue-500: #3572B9;
+  --blue-600: #2A5C99;
+  --blue-700: #214779;
+  --blue-800: #19355C;
+  --blue-900: #112440;
+
+  --slate-0:   #FFFFFF;
+  --slate-50:  #F7F9FC;
+  --slate-100: #EEF1F6;
+  --slate-200: #DCE2EC;
+  --slate-300: #BCC5D4;
+  --slate-400: #8E99AC;
+  --slate-500: #64708A;
+  --slate-600: #475067;
+  --slate-700: #2F374A;
+  --slate-800: #1C2231;
+  --slate-900: #0E121C;
+
+  --success: #2E9D6A;
+  --warn:    #C98415;
+  --danger:  #C24545;
+
+  color-scheme: light;
+
+  /* ---- Semantic tokens (light) ---- */
+  --background: var(--slate-0);
+  --foreground: var(--slate-900);
+  --card: var(--slate-0);
+  --card-foreground: var(--slate-900);
+  --popover: var(--slate-0);
+  --popover-foreground: var(--slate-900);
+  --primary: var(--blue-500);
+  --primary-foreground: var(--slate-0);
+  --secondary: var(--slate-100);
+  --secondary-foreground: var(--slate-900);
+  --muted: var(--slate-100);
+  --muted-foreground: var(--slate-600);
+  --accent: var(--slate-100);
+  --accent-foreground: var(--slate-900);
+  --destructive: var(--danger);
+  --border: var(--slate-200);
+  --input: var(--slate-200);
+  --ring: var(--blue-400);
+  --chart-1: var(--blue-300);
+  --chart-2: var(--blue-400);
+  --chart-3: var(--blue-500);
+  --chart-4: var(--blue-600);
+  --chart-5: var(--blue-700);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--slate-50);
+  --sidebar-foreground: var(--slate-900);
+  --sidebar-primary: var(--blue-500);
+  --sidebar-primary-foreground: var(--slate-0);
+  --sidebar-accent: var(--slate-100);
+  --sidebar-accent-foreground: var(--slate-900);
+  --sidebar-border: var(--slate-200);
+  --sidebar-ring: var(--blue-400);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.424 0.199 265.638);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.845 0.143 164.978);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.596 0.145 163.225);
-  --chart-4: oklch(0.508 0.118 165.612);
-  --chart-5: oklch(0.432 0.095 166.913);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+
+  --background: var(--slate-900);
+  --foreground: var(--slate-50);
+  --card: var(--slate-800);
+  --card-foreground: var(--slate-50);
+  --popover: var(--slate-800);
+  --popover-foreground: var(--slate-50);
+  --primary: var(--blue-400);
+  --primary-foreground: var(--slate-900);
+  --secondary: var(--slate-700);
+  --secondary-foreground: var(--slate-50);
+  --muted: var(--slate-700);
+  --muted-foreground: var(--slate-300);
+  --accent: var(--slate-700);
+  --accent-foreground: var(--slate-50);
+  --destructive: var(--danger);
+  --border: var(--slate-700);
+  --input: var(--slate-700);
+  --ring: var(--blue-400);
+  --chart-1: var(--blue-300);
+  --chart-2: var(--blue-400);
+  --chart-3: var(--blue-500);
+  --chart-4: var(--blue-600);
+  --chart-5: var(--blue-700);
+  --sidebar: var(--slate-800);
+  --sidebar-foreground: var(--slate-50);
+  --sidebar-primary: var(--blue-400);
+  --sidebar-primary-foreground: var(--slate-900);
+  --sidebar-accent: var(--slate-700);
+  --sidebar-accent-foreground: var(--slate-50);
+  --sidebar-border: var(--slate-700);
+  --sidebar-ring: var(--blue-400);
 }
