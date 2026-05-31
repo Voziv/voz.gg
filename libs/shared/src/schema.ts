@@ -26,7 +26,7 @@ export const user = sqliteTable('user', {
   // custom profile/link fields (server-populated except displayName/bio)
   displayName: text('display_name'),
   bio: text('bio'),
-  minecraftUuid: text('minecraft_uuid'),
+  minecraftUuid: text('minecraft_uuid').unique(),
   minecraftName: text('minecraft_name'),
   steamId64: text('steam_id_64').unique(),
   steamPersona: text('steam_persona'),

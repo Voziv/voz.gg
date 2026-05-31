@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `user_minecraft_uuid_unique` ON `user` (`minecraft_uuid`);
