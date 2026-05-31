@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# Auto-append a DCO "Signed-off-by" trailer using the commit author identity.
+#
+# This runs even under `git commit --no-verify` (that flag bypasses the
+# pre-commit and commit-msg hooks, not prepare-commit-msg), so commits made by
+# automation and AI agents are signed off too. `--if-exists doNothing` keeps
+# amends and rebases from adding a duplicate trailer.
+#
+# Install with: ./scripts/install-git-hooks.sh
+set -euo pipefail
+
+commit_message_file="$1"
+
+signoff=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
+[ -n "$signoff" ] || exit 0
+
+git interpret-trailers --in-place --if-exists doNothing \
+  --trailer "$signoff" "$commit_message_file"
