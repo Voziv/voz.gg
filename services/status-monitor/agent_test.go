@@ -52,8 +52,10 @@ func TestRunCyclePostsStatusAndPullsConfigOnMismatch(t *testing.T) {
 			ConfigHash:    "OLD",
 			Server:        ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
 		},
-		Client:      srv.Client(),
-		ProberForFn: func(string) prober.Prober { return fakeProber{st: prober.Status{Status: "online", Players: &online, MaxPlayers: &max, Version: "1.21"}} },
+		Client: srv.Client(),
+		ProberForFn: func(string) prober.Prober {
+			return fakeProber{st: prober.Status{Status: "online", Players: &online, MaxPlayers: &max, Version: "1.21"}}
+		},
 	}
 
 	if err := agent.RunCycle(context.Background()); err != nil {

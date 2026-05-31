@@ -10,7 +10,7 @@ import (
 
 func a2sInfoReply(name, mapName string, players, max byte) []byte {
 	out := []byte{0xFF, 0xFF, 0xFF, 0xFF, 0x49} // header + 'I'
-	out = append(out, 17)                        // protocol
+	out = append(out, 17)                       // protocol
 	out = append(out, []byte(name)...)
 	out = append(out, 0)
 	out = append(out, []byte(mapName)...)
