@@ -4,18 +4,15 @@ packages:
   - 'tools/*'
   - 'libs/*'
 
+# nx-go and Astro/Cloudflare native deps need their postinstall build scripts
+# to run. pnpm v11 gates these behind allowBuilds (it replaced the removed
+# onlyBuiltDependencies); anything left unreviewed fails install with
+# ERR_PNPM_IGNORED_BUILDS under the default strictDepBuilds.
 allowBuilds:
-  esbuild: set this to true or false
-  nx: set this to true or false
-  sharp: set this to true or false
-  workerd: set this to true or false
-
-# nx-go and Astro/Cloudflare native deps need their build scripts to run.
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
-  - workerd
-  - nx
+  esbuild: true
+  nx: true
+  sharp: true
+  workerd: true
 
 patchedDependencies:
   kysely@0.29.2: patches/kysely@0.29.2.patch
