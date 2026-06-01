@@ -1,3 +1,13 @@
+## 0.3.2 (2026-06-01)
+
+### 🩹 Fixes
+
+- **web:** skip auth on prerendered routes ([7bc76a6](https://github.com/Voziv/voz.gg/commit/7bc76a6))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.3.1 (2026-05-31)
 
 ### 🧱 Updated Dependencies
