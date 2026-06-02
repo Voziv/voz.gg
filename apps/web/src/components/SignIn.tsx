@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { authClient } from '../lib/auth-client';
 import Turnstile from './Turnstile';
 
@@ -22,11 +23,17 @@ export default function SignIn({ error }: Props) {
     if (!token) return;
     setPending(true);
     try {
-      await authClient.signIn.magicLink(
+      const result = await authClient.signIn.magicLink(
         { email, callbackURL: '/dashboard', errorCallbackURL: '/sign-in?error=no_invite' },
         { headers: { 'x-captcha-response': token } },
       );
+      if (result?.error) {
+        toast.error(result.error.message ?? 'Could not send the sign-in link. Please try again.');
+        return;
+      }
       setSent(true);
+    } catch {
+      toast.error('Could not send the sign-in link. Please try again.');
     } finally {
       setPending(false);
     }
