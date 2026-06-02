@@ -38,7 +38,11 @@ sign-in method (Discord, Google, magic link).
 - **Admin UI:** a new admin-only **Admin** nav group with an **Invite requests**
   page at `/dashboard/admin/invites`.
 - **Lifecycle:** block duplicate *pending* requests; allow a new request after a
-  denial; optional deny reason; no denial email.
+  denial; **a `denied` request can be re-approved** (e.g. after the requester
+  reaches out on Discord); optional deny reason; no denial email.
+- **Emails:** approved requesters receive a distinct, nicely-designed HTML
+  "you're approved" email; the magic-link sign-in email is also a designed HTML
+  template. All outbound mail must send from `noreply@mail.voz.gg`.
 - **Gating mechanism:** Approach A — an allowlist gate in better-auth's
   `databaseHooks.user.create.before`, keyed off approved `invite_request` rows.
 
@@ -166,25 +170,51 @@ theme-aware widget, exposing the token to its parent form. Shared by
   reason field (follow the Base UI hydration guidance in AGENTS.md; reuse the
   Servers page dialog pattern).
 - `apps/web/src/pages/api/invite-requests/[id]/approve.ts` — `POST`, `isAdmin`
-  gated: set `status = approved`, `reviewed_by`, `reviewed_at`; then send the
-  magic-link invite email.
+  gated. Allowed when the row is `pending` **or** `denied` (re-approval). Set
+  `status = approved`, `reviewed_by`, `reviewed_at`; then send the magic-link
+  invite email (see below).
 - `apps/web/src/pages/api/invite-requests/[id]/deny.ts` — `POST`, `isAdmin`
-  gated: body `{ reason?: string }`; set `status = denied`, `deny_reason`,
-  `reviewed_by`, `reviewed_at`. No email.
+  gated. Allowed when the row is `pending`. Body `{ reason?: string }`; set
+  `status = denied`, `deny_reason`, `reviewed_by`, `reviewed_at`. No email.
 
-**Invite email on approval**
+### Email sending — `apps/web/src/lib/email.ts` + new templates
 
-Reuse the existing magic-link email template (better-auth's `sendMagicLink` has
-no per-call context, so one template serves both first-time invites and returning
-sign-ins). On approval, trigger a magic-link send for the approved email with
-`callbackURL: '/dashboard'`.
+**FROM address fix (prerequisite tweak).** The sole sender config is the
+hardcoded `FROM` constant in `lib/email.ts`, currently `voz.gg
+<noreply@voz.gg>`. Resend rejects this because the verified sending domain is
+`mail.voz.gg`. Change it to `voz.gg <noreply@mail.voz.gg>`. This single line fixes
+every outbound mail, including the better-auth magic-link emails (which route
+through the same `sendEmail`). Land this as its own atomic commit.
 
-> Implementation risk to verify: whether a server-side `auth.api.signInMagicLink`
-> call trips the captcha hook (since `/sign-in/magic-link` is captcha-protected).
-> If it does, the fallback is to pass the Turnstile test token, scope the captcha
-> hook to client requests only, or call the underlying magic-link generation
-> directly. Resolve during implementation using the cloudflare / better-auth
-> skills.
+**Designed HTML templates.** Introduce a small templates module (e.g.
+`lib/email-templates.ts`) returning `{ subject, html }`:
+
+- `magicLinkSignInEmail({ url })` — the returning-user sign-in link.
+- `inviteApprovedEmail({ url })` — the distinct "you're approved" invite, with
+  welcoming copy and the same one-click link.
+
+Both are responsive, table-based HTML with inline styles and voz.gg branding
+(the project has no prior HTML email template to follow). `magicLink`'s
+`sendMagicLink` callback and the approval flow call these instead of the current
+inline `<p>` string.
+
+**Distinguishing invite vs. sign-in.** On approval the handler calls
+better-auth's server-side magic-link send so the link is verifiable, passing an
+invite-context signal (a custom header, e.g. `x-invite-approval`, on the
+`auth.api.signInMagicLink` call). `sendMagicLink({ email, url }, request)` reads
+that header: present → `inviteApprovedEmail`; absent → `magicLinkSignInEmail`.
+The header is the only reliable per-call context better-auth exposes to the
+callback.
+
+> Implementation risks to verify (cloudflare / better-auth skills):
+> 1. Whether the server-side `auth.api.signInMagicLink` call trips the captcha
+>    hook (since `/sign-in/magic-link` is captcha-protected). Likely bypassed —
+>    captcha plugins typically skip when there is no incoming HTTP request — but
+>    confirm. Fallbacks: scope the captcha hook to requests carrying the captcha
+>    header, or call the lower-level magic-link generation directly.
+> 2. That `sendMagicLink` receives the `request` (and thus the custom header) on
+>    a server-side `auth.api` call. If not, fall back to a dedicated approval
+>    code path that generates the token and sends `inviteApprovedEmail` directly.
 
 ### Route protection — `apps/web/src/lib/route-protection.ts`
 
@@ -212,9 +242,9 @@ handler (matching the existing Servers API).
 
 - Invite-request endpoint: 400 on missing/invalid fields, 403/400 on failed
   Turnstile verification, 409 on an existing pending request, 500 on DB failure.
-- Approve/deny endpoints: 403 if not admin, 404 if the id is unknown, 409 if the
-  request is not in a state that can transition (default: only `pending` rows can
-  be approved or denied), 500 on failure.
+- Approve/deny endpoints: 403 if not admin, 404 if the id is unknown, 409 on an
+  invalid transition — approve is rejected only when the row is already
+  `approved`; deny is rejected when the row is not `pending`. 500 on failure.
 - Magic-link send failure during approval: surface the error to the admin and do
   not silently mark approved without an email attempt; the status update and the
   send should be ordered so a failed send is visible (exact ordering decided in
@@ -225,8 +255,12 @@ handler (matching the existing Servers API).
 - `lib/turnstile.ts` — `verifyTurnstile` success/failure with mocked fetch;
   test-secret fallback.
 - Invite DAO — create blocks duplicate `pending`; allows a new request after a
-  `denied` row exists; `isEmailApproved` true only for `approved`; approve/deny
-  state transitions.
+  `denied` row exists; `isEmailApproved` true only for `approved`; approve
+  transitions from both `pending` and `denied`; deny only from `pending`;
+  invalid transitions rejected.
+- Email templates — `inviteApprovedEmail` and `magicLinkSignInEmail` render the
+  link and return distinct subjects/HTML; `sendEmail` posts with the
+  `noreply@mail.voz.gg` FROM.
 - Account-creation gate — `before` hook returns `false` for unapproved email,
   passes for approved email (using the DAO helper).
 - `route-protection` — `/request-invite` and `/api/invite-requests` are public;
@@ -236,6 +270,6 @@ handler (matching the existing Servers API).
 
 - Exact better-auth captcha plugin client wiring and the error code surfaced when
   `create.before` aborts (confirm against better-auth docs / skill).
-- Whether server-side `auth.api.signInMagicLink` is subject to the captcha hook
-  (see risk note above).
-- Whether to allow re-approving/denying a non-pending request (default: no).
+- Whether server-side `auth.api.signInMagicLink` is subject to the captcha hook,
+  and whether `sendMagicLink` receives the custom invite-context header on that
+  call (see risk notes above).
