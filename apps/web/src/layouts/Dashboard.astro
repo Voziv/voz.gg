@@ -14,7 +14,10 @@ const nav = [
 const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
 const label = user?.displayName ?? user?.name ?? user?.email ?? '';
 const isUserAdmin = isAdmin(user);
-const adminNav = [{ href: '/dashboard/admin/invites', label: 'Invite requests' }];
+const adminNav = [
+  { href: '/dashboard/admin/users', label: 'Users' },
+  { href: '/dashboard/admin/invites', label: 'Invite requests' },
+];
 ---
 <Base>
   <div class="flex min-h-screen bg-background text-foreground">

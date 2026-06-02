@@ -1,0 +1,43 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import { isAdmin } from '../../../lib/admin';
+import { toRole } from '../../../lib/permissions';
+import { getAuth } from '../../../lib/auth';
+import Dashboard from '../../../layouts/Dashboard.astro';
+import UsersTable from '../../../components/dashboard/UsersTable.tsx';
+import type { AdminUserRow } from '../../../components/dashboard/UsersTable.tsx';
+
+const actorUser = Astro.locals.user;
+if (!isAdmin(actorUser)) return Astro.redirect('/dashboard/profile');
+
+const auth = getAuth(env as Env);
+const result = await auth.api.listUsers({
+  headers: Astro.request.headers,
+  query: { limit: 200, offset: 0, sortBy: 'createdAt', sortDirection: 'desc' },
+});
+
+const users: AdminUserRow[] = result.users.map((u) => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  role: toRole(u.role),
+  banned: !!u.banned,
+  banReason: u.banReason ?? null,
+  banExpires: u.banExpires ? new Date(u.banExpires).getTime() : null,
+  minecraftName: (u as { minecraftName?: string | null }).minecraftName ?? null,
+  steamPersona: (u as { steamPersona?: string | null }).steamPersona ?? null,
+  createdAt: new Date(u.createdAt).getTime(),
+}));
+
+const actor = { id: actorUser!.id, role: toRole(actorUser!.role) };
+---
+<Dashboard>
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">Users</h1>
+      <p class="mt-1 text-muted-foreground">Manage accounts, roles, and bans.</p>
+    </div>
+    <UsersTable client:load users={users} actor={actor} />
+  </div>
+</Dashboard>
