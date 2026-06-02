@@ -172,8 +172,11 @@ New table `adminAuditLog` in `libs/shared/src/schema.ts`:
 - Every mutation route writes one row. Best-effort ordering: write audit before
   delegating the mutation, except `delete` where the target row's existence is
   irrelevant to the audit row (target id is a plain column, not an FK cascade).
-- v1 surfaces a **read-only** recent-activity view on the users page (a panel or
-  sub-tab) showing actor, action, target, when. No editing.
+- v1 surfaces a **separate read-only audit page** at
+  `apps/web/src/pages/dashboard/admin/audit.astro` (gated by `isAdmin`),
+  listing recent entries (actor, action, target, details, when), newest first,
+  paginated. No editing. A "Audit log" nav item is added to the admin section
+  in `Dashboard.astro` alongside "Users" and "Invite requests".
 
 ## UI
 
