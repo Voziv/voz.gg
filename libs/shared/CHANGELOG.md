@@ -1,3 +1,13 @@
+## 0.3.0 (2026-06-02)
+
+### 🚀 Features
+
+- **shared:** add invite_request table ([822b156](https://github.com/Voziv/voz.gg/commit/822b156))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.2.1 (2026-05-31)
 
 This was a version bump only for shared to align it with other projects, there were no code changes.

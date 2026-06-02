@@ -1,3 +1,37 @@
+## 0.4.0 (2026-06-02)
+
+### 🚀 Features
+
+- **web:** add request-invite CTA to landing page ([dd0ea30](https://github.com/Voziv/voz.gg/commit/dd0ea30))
+- **web:** add admin invite-requests review UI ([4f9ca40](https://github.com/Voziv/voz.gg/commit/4f9ca40))
+- **web:** add Turnstile and invite messaging to sign-in ([e69073b](https://github.com/Voziv/voz.gg/commit/e69073b))
+- **web:** add invite-request form and page ([dd48ad2](https://github.com/Voziv/voz.gg/commit/dd48ad2))
+- **web:** add Turnstile widget island ([86fb75c](https://github.com/Voziv/voz.gg/commit/86fb75c))
+- **web:** add admin approve/deny invite endpoints ([dc96e7c](https://github.com/Voziv/voz.gg/commit/dc96e7c))
+- **web:** add public invite-request submission endpoint ([af2393a](https://github.com/Voziv/voz.gg/commit/af2393a))
+- **web:** make invite-request routes public ([b5375e3](https://github.com/Voziv/voz.gg/commit/b5375e3))
+- **web:** gate account creation to approved invites ([f30d497](https://github.com/Voziv/voz.gg/commit/f30d497))
+- **web:** add invite-request data-access layer ([5b5792c](https://github.com/Voziv/voz.gg/commit/5b5792c))
+- **web:** source mail FROM from env and add HTML templates ([03f4256](https://github.com/Voziv/voz.gg/commit/03f4256))
+- **web:** add Turnstile site-key resolver ([92daf1c](https://github.com/Voziv/voz.gg/commit/92daf1c))
+- **web:** add Turnstile server-side verification ([54cbfc4](https://github.com/Voziv/voz.gg/commit/54cbfc4))
+- **web:** add invite status-transition guards ([18cc66c](https://github.com/Voziv/voz.gg/commit/18cc66c))
+- **web:** add invite-request input validation ([99f6f57](https://github.com/Voziv/voz.gg/commit/99f6f57))
+- **shared:** add invite_request table ([822b156](https://github.com/Voziv/voz.gg/commit/822b156))
+
+### 🩹 Fixes
+
+- **web:** follow page theme in Turnstile and fix light-mode social buttons ([4383ad6](https://github.com/Voziv/voz.gg/commit/4383ad6))
+- **web:** surface magic-link errors on sign-in ([8b3995d](https://github.com/Voziv/voz.gg/commit/8b3995d))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.3.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.3.2 (2026-06-01)
 
 ### 🩹 Fixes
