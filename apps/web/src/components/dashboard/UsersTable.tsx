@@ -23,7 +23,6 @@ export type AdminUserRow = {
   role: AdminUserRole;
   banned: boolean;
   banReason: string | null;
-  banExpires: number | null;
   minecraftName: string | null;
   steamPersona: string | null;
   createdAt: number;
@@ -62,9 +61,18 @@ function canManage(actor: Props['actor'], target: AdminUserRow): boolean {
   return target.role === 'user'; // admins act only on regular users
 }
 
-function BanDialog({ user, onDone }: { user: AdminUserRow; onDone: () => void }) {
+function BanDialog({
+  user,
+  onDone,
+  pending,
+  setPending,
+}: {
+  user: AdminUserRow;
+  onDone: () => void;
+  pending: boolean;
+  setPending: (value: boolean) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -82,7 +90,10 @@ function BanDialog({ user, onDone }: { user: AdminUserRow; onDone: () => void })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={cn(buttonVariants({ variant: 'destructive', size: 'sm' }))}>Ban</DialogTrigger>
+      <DialogTrigger
+        disabled={pending}
+        className={cn(buttonVariants({ variant: 'destructive', size: 'sm' }), pending && 'pointer-events-none opacity-50')}
+      >Ban</DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -133,7 +144,7 @@ function RowActions({ actor, user, reload }: { actor: Props['actor']; user: Admi
         <Button type="button" size="sm" variant="outline" disabled={pending}
           onClick={() => run('unban', `Unban ${user.email}?`)}>Unban</Button>
       ) : (
-        <BanDialog user={user} onDone={reload} />
+        <BanDialog user={user} onDone={reload} pending={pending} setPending={setPending} />
       )}
       <Button type="button" size="sm" variant="ghost" disabled={pending}
         onClick={() => run('revoke-sessions', `Sign ${user.email} out of all sessions?`)}>Sign out</Button>

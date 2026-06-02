@@ -24,7 +24,6 @@ const users: AdminUserRow[] = result.users.map((u) => ({
   role: toRole(u.role),
   banned: !!u.banned,
   banReason: u.banReason ?? null,
-  banExpires: u.banExpires ? new Date(u.banExpires).getTime() : null,
   minecraftName: (u as { minecraftName?: string | null }).minecraftName ?? null,
   steamPersona: (u as { steamPersona?: string | null }).steamPersona ?? null,
   createdAt: new Date(u.createdAt).getTime(),
