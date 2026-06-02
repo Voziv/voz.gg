@@ -191,15 +191,18 @@ emails (same `sendEmail`). Land it as its own atomic commit.
 
 Typing/local-dev wiring:
 
-- `worker-configuration.d.ts` is committed and hand-maintained (the project has
-  no `wrangler types` script or nx target). Manually add `FROM_EMAIL: string;`
-  and `TURNSTILE_SECRET_KEY: string;` to the `__BaseEnv_Env` interface so
-  `env.FROM_EMAIL` / `env.TURNSTILE_SECRET_KEY` are typed. (If `wrangler types`
-  is ever run later it will reproduce these from `.dev.vars`; until then the edit
-  is manual.)
+- A `types` nx target (`wrangler types`, cwd `apps/web`) generates
+  `worker-configuration.d.ts`. Run `nx run web:types` after adding env keys so
+  `env.FROM_EMAIL` / `env.TURNSTILE_SECRET_KEY` are typed.
 - Add `FROM_EMAIL=` and a commented `TURNSTILE_SECRET_KEY=` (optional locally,
   falls back to the test secret) to `.dev.vars.example` as placeholders — never
   the real address.
+- **Gotcha:** `wrangler types` infers *secret* types from `.dev.vars`. If
+  `.dev.vars` is absent or incomplete (e.g. a fresh git worktree, where it is
+  gitignored and not copied), the regen silently **drops** every secret type
+  (`BETTER_AUTH_SECRET`, `RESEND_API_KEY`, …), breaking typechecking. Always run
+  it with a complete `.dev.vars` present. The committed `.dev.vars.example`
+  documents the full key set.
 
 **Designed HTML templates.** Introduce a small templates module (e.g.
 `lib/email-templates.ts`) returning `{ subject, html }`:
