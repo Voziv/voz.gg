@@ -1,3 +1,13 @@
+## 0.4.1 (2026-06-02)
+
+### 🩹 Fixes
+
+- **web:** keep Google sign-in button opaque on hover ([033f4d4](https://github.com/Voziv/voz.gg/commit/033f4d4))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.4.0 (2026-06-02)
 
 ### 🚀 Features
