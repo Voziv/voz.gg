@@ -12,6 +12,8 @@ const nav = [
 ];
 const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
 const label = user?.displayName ?? user?.name ?? user?.email ?? '';
+const isUserAdmin = user?.role === 'admin';
+const adminNav = [{ href: '/dashboard/admin/invites', label: 'Invite requests' }];
 ---
 <Base>
   <div class="flex min-h-screen bg-background text-foreground">
@@ -29,6 +31,22 @@ const label = user?.displayName ?? user?.name ?? user?.email ?? '';
             ]}
           >{item.label}</a>
         ))}
+        {isUserAdmin && (
+          <>
+            <div class="mt-4 px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Admin</div>
+            {adminNav.map((item) => (
+              <a
+                href={item.href}
+                class:list={[
+                  'rounded-md px-3 py-2 text-sm transition-colors',
+                  isActive(item.href)
+                    ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                ]}
+              >{item.label}</a>
+            ))}
+          </>
+        )}
       </nav>
     </aside>
     <div class="flex flex-1 flex-col">
