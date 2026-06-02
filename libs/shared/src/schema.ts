@@ -130,3 +130,26 @@ export const inviteRequest = sqliteTable('invite_request', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const ADMIN_AUDIT_ACTIONS = [
+  'ban',
+  'unban',
+  'set-role',
+  'delete',
+  'revoke-sessions',
+  'transfer-ownership',
+] as const;
+
+export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
+
+// Immutable history of admin actions. actorId/targetUserId are plain columns (no
+// FK cascade) so entries survive deletion of either user — the log must outlive
+// the accounts it references.
+export const adminAuditLog = sqliteTable('admin_audit_log', {
+  id: text('id').primaryKey(),
+  actorId: text('actor_id').notNull(),
+  action: text('action').notNull().$type<AdminAuditAction>(),
+  targetUserId: text('target_user_id').notNull(),
+  details: text('details'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
