@@ -1,3 +1,42 @@
+## 0.6.0 (2026-06-02)
+
+### 🚀 Features
+
+- **web:** add admin audit dao ([b1be6f1](https://github.com/Voziv/voz.gg/commit/b1be6f1))
+- **web:** migrate admin_audit_log table ([3aa3e7f](https://github.com/Voziv/voz.gg/commit/3aa3e7f))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.4.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
+## 0.5.0 (2026-06-02)
+
+### 🚀 Features
+
+- **web:** gate admin nav with isAdmin so owner sees it ([39b5bd7](https://github.com/Voziv/voz.gg/commit/39b5bd7))
+- **web:** register owner/admin/user roles with better-auth ([8404222](https://github.com/Voziv/voz.gg/commit/8404222))
+- **web:** treat owner as admin and add isOwner ([1775382](https://github.com/Voziv/voz.gg/commit/1775382))
+- **web:** add user-admin authorization guards ([92fae1e](https://github.com/Voziv/voz.gg/commit/92fae1e))
+- **web:** add access-control roles and permissions module ([d879a10](https://github.com/Voziv/voz.gg/commit/d879a10))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
+## 0.4.1 (2026-06-02)
+
+### 🩹 Fixes
+
+- **web:** keep Google sign-in button opaque on hover ([033f4d4](https://github.com/Voziv/voz.gg/commit/033f4d4))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.4.0 (2026-06-02)
 
 ### 🚀 Features
