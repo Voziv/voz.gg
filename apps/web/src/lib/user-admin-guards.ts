@@ -1,4 +1,4 @@
-import { type Role } from './permissions';
+import { ADMIN_ROLES, type Role } from './permissions';
 
 export const USER_ADMIN_ACTIONS = ['ban', 'unban', 'set-role', 'delete', 'revoke-sessions'] as const;
 export type UserAdminAction = (typeof USER_ADMIN_ACTIONS)[number];
@@ -15,8 +15,7 @@ export type GuardResult = { ok: true } | { ok: false; status: number; error: str
 const ALLOW: GuardResult = { ok: true };
 const deny = (status: number, error: string): GuardResult => ({ ok: false, status, error });
 
-const ADMIN_ROLES: readonly Role[] = ['admin', 'owner'];
-const isActorAdmin = (ctx: GuardContext) => ADMIN_ROLES.includes(ctx.actorRole);
+const isActorAdmin = (ctx: GuardContext) => (ADMIN_ROLES as readonly Role[]).includes(ctx.actorRole);
 
 // Actions an admin may NOT perform on their own account (would risk lockout).
 const SELF_BLOCKED: readonly UserAdminAction[] = ['ban', 'delete', 'set-role'];
