@@ -50,10 +50,10 @@ export default function SignIn({ error }: Props) {
           <a className="underline" href="/request-invite">Request one</a>.
         </p>
       )}
-      <button onClick={() => social('discord')} className="rounded bg-[#5865F2] py-2 font-semibold">
+      <button onClick={() => social('discord')} className="rounded bg-[#5865F2] py-2 font-semibold text-white hover:bg-[#4752c4]">
         Continue with Discord
       </button>
-      <button onClick={() => social('google')} className="rounded bg-white text-black py-2 font-semibold">
+      <button onClick={() => social('google')} className="rounded border border-black/15 bg-white py-2 font-semibold text-black hover:bg-black/5">
         Continue with Google
       </button>
       <form onSubmit={magicLink} className="flex flex-col gap-2">
