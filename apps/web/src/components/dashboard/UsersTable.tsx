@@ -1,0 +1,222 @@
+import { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Button, buttonVariants } from '../ui/button';
+import { cn } from '../../lib/utils';
+
+export type AdminUserRole = 'user' | 'admin' | 'owner';
+
+export type AdminUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: AdminUserRole;
+  banned: boolean;
+  banReason: string | null;
+  banExpires: number | null;
+  minecraftName: string | null;
+  steamPersona: string | null;
+  createdAt: number;
+};
+
+type Props = {
+  users: AdminUserRow[];
+  actor: { id: string; role: AdminUserRole };
+};
+
+const ROLE_STYLES: Record<AdminUserRole, string> = {
+  owner: 'bg-primary/15 text-primary',
+  admin: 'bg-success/15 text-success',
+  user: 'bg-muted text-muted-foreground',
+};
+
+async function post(url: string, body?: unknown): Promise<boolean> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const r = (await res.json().catch(() => ({ ok: false, error: 'Request failed.' }))) as {
+    ok: boolean;
+    error?: string;
+  };
+  if (!r.ok) toast.error(r.error ?? 'Action failed.');
+  return r.ok;
+}
+
+// Mirror of the server guards (UX only — the routes are authoritative).
+function canManage(actor: Props['actor'], target: AdminUserRow): boolean {
+  if (target.role === 'owner') return false;
+  if (actor.id === target.id) return false;
+  if (actor.role === 'owner') return true;
+  return target.role === 'user'; // admins act only on regular users
+}
+
+function BanDialog({ user, onDone }: { user: AdminUserRow; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const reason = String(new FormData(e.currentTarget).get('reason') ?? '');
+    setPending(true);
+    try {
+      if (await post(`/api/admin/users/${user.id}/ban`, { reason })) {
+        toast.success(`${user.email} banned.`);
+        onDone();
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ variant: 'destructive', size: 'sm' }))}>Ban</DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Ban {user.email}</DialogTitle>
+            <DialogDescription>Record a reason. The user is signed out immediately.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 py-4">
+            <Label htmlFor={`reason-${user.id}`}>Reason</Label>
+            <Input id={`reason-${user.id}`} name="reason" maxLength={500} required />
+          </div>
+          <DialogFooter>
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending ? 'Banning…' : 'Ban user'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RowActions({ actor, user, reload }: { actor: Props['actor']; user: AdminUserRow; reload: () => void }) {
+  const [pending, setPending] = useState(false);
+
+  async function run(action: string, confirmText: string, body?: unknown) {
+    if (!confirm(confirmText)) return;
+    setPending(true);
+    try {
+      if (await post(`/api/admin/users/${user.id}/${action}`, body)) {
+        toast.success('Done.');
+        reload();
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (user.role === 'owner') {
+    return <span className="text-xs text-muted-foreground">Owner (locked)</span>;
+  }
+  if (!canManage(actor, user)) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  return (
+    <div className="flex justify-end gap-2">
+      {user.banned ? (
+        <Button type="button" size="sm" variant="outline" disabled={pending}
+          onClick={() => run('unban', `Unban ${user.email}?`)}>Unban</Button>
+      ) : (
+        <BanDialog user={user} onDone={reload} />
+      )}
+      <Button type="button" size="sm" variant="ghost" disabled={pending}
+        onClick={() => run('revoke-sessions', `Sign ${user.email} out of all sessions?`)}>Sign out</Button>
+      {actor.role === 'owner' && user.role === 'user' && (
+        <Button type="button" size="sm" variant="outline" disabled={pending}
+          onClick={() => run('set-role', `Make ${user.email} an admin?`, { role: 'admin' })}>Make admin</Button>
+      )}
+      {actor.role === 'owner' && user.role === 'admin' && (
+        <Button type="button" size="sm" variant="outline" disabled={pending}
+          onClick={() => run('set-role', `Demote ${user.email} to a regular user?`, { role: 'user' })}>Demote</Button>
+      )}
+      {actor.role === 'owner' && (
+        <Button type="button" size="sm" variant="outline" disabled={pending}
+          onClick={() => run('transfer-ownership', `Transfer ownership to ${user.email}? You will become an admin.`)}>Make owner</Button>
+      )}
+      <Button type="button" size="sm" variant="destructive" disabled={pending}
+        onClick={() => run('delete', `Permanently delete ${user.email}? This cannot be undone.`)}>Delete</Button>
+    </div>
+  );
+}
+
+export default function UsersTable({ users, actor }: Props) {
+  const [query, setQuery] = useState('');
+  const reload = () => location.reload();
+
+  const filtered = query
+    ? users.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(query.toLowerCase()))
+    : users;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Input
+        placeholder="Search by name or email…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="max-w-sm"
+      />
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 font-medium">User</th>
+              <th className="px-4 py-3 font-medium">Role</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Linked</th>
+              <th className="px-4 py-3 font-medium">Joined</th>
+              <th className="px-4 py-3 font-medium" aria-label="Actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((u) => (
+              <tr className="border-t border-border" key={u.id}>
+                <td className="px-4 py-3">
+                  <div className="text-foreground">{u.name}</div>
+                  <div className="font-mono text-xs text-muted-foreground">{u.email}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={cn('rounded px-2 py-0.5 text-xs font-medium', ROLE_STYLES[u.role])}>{u.role}</span>
+                </td>
+                <td className="px-4 py-3">
+                  {u.banned ? (
+                    <span className="rounded bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive">banned</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">active</span>
+                  )}
+                  {u.banned && u.banReason && <div className="mt-1 text-xs text-muted-foreground">{u.banReason}</div>}
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {[u.minecraftName && `MC: ${u.minecraftName}`, u.steamPersona && `Steam: ${u.steamPersona}`]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {new Date(u.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3">
+                  <RowActions actor={actor} user={u} reload={reload} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
