@@ -66,6 +66,15 @@ Because migrations run before the new code, **every migration must be backward-c
 
 Never collapse these into one PR: doing so reintroduces the window where prod code expects schema that no longer exists. Keep each step in its own commit/PR so the deploy boundary falls between them.
 
+### Roles & the owner
+
+User roles are `user`, `admin`, and a single `owner` (better-auth access-control; see `apps/web/src/lib/permissions.ts`). The `owner` is a super-admin that no other admin can ban/delete/demote; only the owner can change roles and transfer ownership. A migration promotes the earliest-created `admin` to `owner` on existing installs. On a **fresh install** with no admins, promote the first account manually, then set the owner:
+
+```sh
+npx wrangler d1 execute voz-gg --remote --command \
+  "UPDATE \"user\" SET role='owner' WHERE email='you@example.com'"
+```
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.
