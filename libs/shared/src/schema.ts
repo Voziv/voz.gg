@@ -113,3 +113,20 @@ export const serverAgent = sqliteTable('server_agent', {
   enrolledAt: integer('enrolled_at', { mode: 'timestamp' }),
   lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }),
 });
+
+export const INVITE_REQUEST_STATUSES = ['pending', 'approved', 'denied'] as const;
+
+export type InviteRequestStatus = (typeof INVITE_REQUEST_STATUSES)[number];
+
+export const inviteRequest = sqliteTable('invite_request', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  discordName: text('discord_name').notNull(),
+  email: text('email').notNull(),
+  status: text('status').notNull().$type<InviteRequestStatus>().default('pending'),
+  denyReason: text('deny_reason'),
+  reviewedBy: text('reviewed_by').references(() => user.id),
+  reviewedAt: integer('reviewed_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});

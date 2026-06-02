@@ -17,3 +17,11 @@ STEAM_RETURN_URL=http://localhost:4321/api/auth/steam/callback
 
 # Magic-link email transport (Resend)
 RESEND_API_KEY=
+
+# Outbound mail sender. Domain must be verified in Resend.
+# Format: "Display Name <user@domain>"
+FROM_EMAIL=
+
+# Cloudflare Turnstile secret (server-side verification).
+# Optional locally: when unset, code falls back to the always-passes test secret.
+# TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA

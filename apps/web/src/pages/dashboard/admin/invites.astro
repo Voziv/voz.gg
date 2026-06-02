@@ -1,0 +1,32 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import { createDb } from '@voz/shared';
+import { createInviteDao } from '../../../lib/invite-dao';
+import { isAdmin } from '../../../lib/admin';
+import Dashboard from '../../../layouts/Dashboard.astro';
+import InviteRequestsTable from '../../../components/dashboard/InviteRequestsTable.tsx';
+
+if (!isAdmin(Astro.locals.user)) return Astro.redirect('/dashboard/profile');
+
+const db = createDb(env.DB);
+const dao = createInviteDao(db);
+const requests = (await dao.listAll()).map((r) => ({
+  id: r.id,
+  name: r.name,
+  discordName: r.discordName,
+  email: r.email,
+  status: r.status,
+  denyReason: r.denyReason,
+  createdAt: r.createdAt.getTime(),
+}));
+---
+<Dashboard>
+  <div class="mx-auto max-w-5xl">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">Invite requests</h1>
+      <p class="mt-1 text-muted-foreground">Approve to email a magic-link invite, or deny.</p>
+    </div>
+    <InviteRequestsTable client:load requests={requests} />
+  </div>
+</Dashboard>

@@ -4,7 +4,12 @@ export interface SendEmailInput {
   html: string;
 }
 
-const FROM = 'voz.gg <noreply@voz.gg>';
+export function resolveFromAddress(env: { FROM_EMAIL?: string }): string {
+  if (!env.FROM_EMAIL) {
+    throw new Error('FROM_EMAIL is not set; cannot send email.');
+  }
+  return env.FROM_EMAIL;
+}
 
 export async function sendEmail(env: Env, input: SendEmailInput): Promise<void> {
   const response = await fetch('https://api.resend.com/emails', {
@@ -14,7 +19,7 @@ export async function sendEmail(env: Env, input: SendEmailInput): Promise<void> 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: FROM,
+      from: resolveFromAddress(env),
       to: input.to,
       subject: input.subject,
       html: input.html,
