@@ -1,3 +1,18 @@
+## 0.6.0 (2026-06-02)
+
+### 🚀 Features
+
+- **web:** add admin audit dao ([b1be6f1](https://github.com/Voziv/voz.gg/commit/b1be6f1))
+- **web:** migrate admin_audit_log table ([3aa3e7f](https://github.com/Voziv/voz.gg/commit/3aa3e7f))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.4.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.5.0 (2026-06-02)
 
 ### 🚀 Features
