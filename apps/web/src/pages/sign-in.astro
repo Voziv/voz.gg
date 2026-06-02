@@ -4,6 +4,7 @@ import Base from '../layouts/Base.astro';
 import SignIn from '../components/SignIn.tsx';
 import ThemeToggle from '../components/ThemeToggle.tsx';
 if (Astro.locals.user) return Astro.redirect('/dashboard');
+const error = Astro.url.searchParams.get('error');
 ---
 <Base>
   <main class="min-h-screen flex flex-col items-center justify-center gap-8 bg-background text-foreground p-12">
@@ -11,6 +12,6 @@ if (Astro.locals.user) return Astro.redirect('/dashboard');
       <ThemeToggle client:load />
     </div>
     <h1 class="text-4xl font-bold tracking-tight">voz.gg</h1>
-    <SignIn client:load />
+    <SignIn client:load error={error} />
   </main>
 </Base>
