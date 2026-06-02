@@ -7,6 +7,7 @@ import { sendEmail } from './email';
 import { magicLinkSignInEmail, inviteApprovedEmail } from './email-templates';
 import { createInviteDao } from './invite-dao';
 import { resolveTurnstileSecret } from './turnstile';
+import { ac, roles } from './permissions';
 
 export function getAuth(env: Env) {
   const db = createDb(env.DB);
@@ -47,7 +48,7 @@ export function getAuth(env: Env) {
       },
     },
     plugins: [
-      admin(),
+      admin({ ac, roles, adminRoles: ['admin', 'owner'] }),
       // Bot-protect the magic-link email request. This is an onRequest HTTP
       // middleware keyed on the `x-captcha-response` header; server-side
       // `auth.api.signInMagicLink` calls (used by invite approval) bypass it.

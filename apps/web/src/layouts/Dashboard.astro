@@ -3,6 +3,7 @@ import Base from './Base.astro';
 import SignOut from '../components/dashboard/SignOut.tsx';
 import { Toaster } from '../components/ui/sonner.tsx';
 import ThemeToggle from '../components/ThemeToggle.tsx';
+import { isAdmin } from '../lib/admin';
 
 const { user } = Astro.locals;
 const path = Astro.url.pathname;
@@ -12,7 +13,7 @@ const nav = [
 ];
 const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
 const label = user?.displayName ?? user?.name ?? user?.email ?? '';
-const isUserAdmin = user?.role === 'admin';
+const isUserAdmin = isAdmin(user);
 const adminNav = [{ href: '/dashboard/admin/invites', label: 'Invite requests' }];
 ---
 <Base>
