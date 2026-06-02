@@ -25,6 +25,10 @@
       "command": "drizzle-kit generate",
       "options": { "cwd": "apps/web" }
     },
+    "types": {
+      "command": "wrangler types",
+      "options": { "cwd": "apps/web" }
+    },
     "migrate": {
       "command": "wrangler d1 migrations apply voz-gg --remote",
       "options": { "cwd": "apps/web" }
