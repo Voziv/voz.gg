@@ -43,6 +43,13 @@
       "when": 1780249200670,
       "tag": "0005_worried_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1780372358893,
+      "tag": "0006_funny_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }
