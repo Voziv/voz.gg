@@ -1,3 +1,13 @@
+## 0.10.0 (2026-06-03)
+
+### 🚀 Features
+
+- **web:** add read-only audit log page and nav ([8a96e7f](https://github.com/Voziv/voz.gg/commit/8a96e7f))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.9.0 (2026-06-03)
 
 ### 🚀 Features
