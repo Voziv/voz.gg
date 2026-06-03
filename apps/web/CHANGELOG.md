@@ -1,3 +1,18 @@
+## 0.9.0 (2026-06-03)
+
+### 🚀 Features
+
+- **web:** add user administration page and nav ([33f7f1a](https://github.com/Voziv/voz.gg/commit/33f7f1a))
+- **web:** add users admin table island ([d850a30](https://github.com/Voziv/voz.gg/commit/d850a30))
+
+### 🩹 Fixes
+
+- **web:** unify row pending state and drop unused banExpires ([4d5d959](https://github.com/Voziv/voz.gg/commit/4d5d959))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.8.0 (2026-06-03)
 
 ### 🚀 Features
