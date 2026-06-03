@@ -1,3 +1,17 @@
+## 0.7.0 (2026-06-03)
+
+### 🚀 Features
+
+- **web:** add set-role user-admin route ([b3d1d66](https://github.com/Voziv/voz.gg/commit/b3d1d66))
+- **web:** add delete and revoke-sessions user-admin routes ([78dfcd3](https://github.com/Voziv/voz.gg/commit/78dfcd3))
+- **web:** add ban/unban user-admin routes ([9771754](https://github.com/Voziv/voz.gg/commit/9771754))
+- **web:** add shared user-admin route helper ([e337399](https://github.com/Voziv/voz.gg/commit/e337399))
+- **web:** add user dao with byId lookup ([49553c2](https://github.com/Voziv/voz.gg/commit/49553c2))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.6.0 (2026-06-02)
 
 ### 🚀 Features
