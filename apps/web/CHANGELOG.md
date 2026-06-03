@@ -1,3 +1,13 @@
+## 0.11.0 (2026-06-03)
+
+### 🚀 Features
+
+- **web:** promote earliest admin to owner via migration ([d9ea9a3](https://github.com/Voziv/voz.gg/commit/d9ea9a3))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.10.0 (2026-06-03)
 
 ### 🚀 Features
