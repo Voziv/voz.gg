@@ -1,3 +1,13 @@
+## 0.4.0 (2026-06-02)
+
+### 🚀 Features
+
+- **shared:** add admin_audit_log table ([bc680be](https://github.com/Voziv/voz.gg/commit/bc680be))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.3.0 (2026-06-02)
 
 ### 🚀 Features
