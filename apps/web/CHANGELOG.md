@@ -1,3 +1,14 @@
+## 0.8.0 (2026-06-03)
+
+### 🚀 Features
+
+- **web:** add ownership transfer route ([b8c7700](https://github.com/Voziv/voz.gg/commit/b8c7700))
+- **web:** add transferOwnership to user dao ([f422b9d](https://github.com/Voziv/voz.gg/commit/f422b9d))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.7.0 (2026-06-03)
 
 ### 🚀 Features
