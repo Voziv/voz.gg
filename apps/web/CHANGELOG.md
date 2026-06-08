@@ -1,3 +1,13 @@
+## 0.11.1 (2026-06-08)
+
+### 🩹 Fixes
+
+- **web:** gate server management with isAdmin so owner can manage ([e078bd9](https://github.com/Voziv/voz.gg/commit/e078bd9))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.11.0 (2026-06-03)
 
 ### 🚀 Features
