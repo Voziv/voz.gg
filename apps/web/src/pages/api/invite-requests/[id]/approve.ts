@@ -30,7 +30,12 @@ export const POST: APIRoute = async (ctx) => {
   // after `approve` below has committed, so the create-gate sees `approved`.
   const auth = getAuth(env as Env);
   try {
+    // signInMagicLink is `requireHeaders: true`, so headers must be passed or
+    // better-call throws "Headers is required". The captcha plugin is an
+    // onRequest hook that runs only on HTTP ingress, not on this server-side
+    // auth.api call, so forwarding the admin's headers does not trigger it.
     await auth.api.signInMagicLink({
+      headers: ctx.request.headers,
       body: {
         email: row.email,
         callbackURL: '/dashboard',
