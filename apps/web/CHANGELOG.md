@@ -1,3 +1,13 @@
+## 0.11.2 (2026-06-09)
+
+### 🩹 Fixes
+
+- **web:** log and mask internal error on invite approval failure ([fa435a2](https://github.com/Voziv/voz.gg/commit/fa435a2))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.11.1 (2026-06-08)
 
 ### 🩹 Fixes
