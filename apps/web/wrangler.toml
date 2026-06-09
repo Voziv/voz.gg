@@ -13,7 +13,8 @@ enabled = true
 # Non-secret config. Local dev overrides these via .dev.vars; the production
 # values live here. Secrets (BETTER_AUTH_SECRET, DISCORD_CLIENT_SECRET,
 # GOOGLE_CLIENT_SECRET, STEAM_API_KEY, RESEND_API_KEY) and the OAuth client IDs
-# are set with `wrangler secret put`.
+# are set with `wrangler secret put`. FROM_EMAIL (the Resend sender address) is
+# also set with `wrangler secret put` to keep it out of source control.
 [vars]
 BETTER_AUTH_URL = "https://voz.gg"
 STEAM_REALM = "https://voz.gg"
