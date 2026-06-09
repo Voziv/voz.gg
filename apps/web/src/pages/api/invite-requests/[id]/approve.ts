@@ -5,6 +5,7 @@ import { isAdmin } from '../../../../lib/admin';
 import { createInviteDao } from '../../../../lib/invite-dao';
 import { canApprove } from '../../../../lib/invite-transitions';
 import { getAuth } from '../../../../lib/auth';
+import { reportInternalError } from '../../../../lib/api-errors';
 
 export const prerender = false;
 
@@ -28,14 +29,25 @@ export const POST: APIRoute = async (ctx) => {
   // state so the admin can retry. The user opens the email seconds later, well
   // after `approve` below has committed, so the create-gate sees `approved`.
   const auth = getAuth(env as Env);
-  await auth.api.signInMagicLink({
-    body: {
-      email: row.email,
-      callbackURL: '/dashboard',
-      errorCallbackURL: '/sign-in?error=no_invite',
-      metadata: { invite: true },
-    },
-  });
+  try {
+    await auth.api.signInMagicLink({
+      body: {
+        email: row.email,
+        callbackURL: '/dashboard',
+        errorCallbackURL: '/sign-in?error=no_invite',
+        metadata: { invite: true },
+      },
+    });
+  } catch (error) {
+    // Email transport failed (e.g. Resend rejected the request). The row is left
+    // pending so the admin can retry; surface a generic message and log the cause.
+    return reportInternalError(
+      'invite-approve',
+      error,
+      'Could not send the invite email. Please try again.',
+      502,
+    );
+  }
 
   await dao.approve(id, user.id, new Date());
 
