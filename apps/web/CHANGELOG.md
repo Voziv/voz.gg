@@ -1,3 +1,13 @@
+## 0.11.3 (2026-06-09)
+
+### 🩹 Fixes
+
+- **web:** pass headers to signInMagicLink so invite approval works ([1cf8168](https://github.com/Voziv/voz.gg/commit/1cf8168))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.11.2 (2026-06-09)
 
 ### 🩹 Fixes
