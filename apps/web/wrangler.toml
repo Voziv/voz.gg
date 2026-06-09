@@ -18,6 +18,7 @@ enabled = true
 BETTER_AUTH_URL = "https://voz.gg"
 STEAM_REALM = "https://voz.gg"
 STEAM_RETURN_URL = "https://voz.gg/api/auth/steam/callback"
+FROM_EMAIL = "voz.gg <noreply@mail.voz.gg>"
 
 [[d1_databases]]
 binding = "DB"
