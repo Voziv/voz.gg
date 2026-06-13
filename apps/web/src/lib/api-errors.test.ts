@@ -17,12 +17,10 @@ describe('mapAuthApiError', () => {
     expect(await body(res)).toEqual({ ok: false, error: 'User not found.' });
   });
 
-  it('falls back to the generic message when a 4xx APIError has no body message', async () => {
-    const res = mapAuthApiError('test', new APIError('BAD_REQUEST'), 'fallback');
+  it('falls back to the generic message when a 4xx APIError has an empty body message', async () => {
+    const res = mapAuthApiError('test', new APIError('BAD_REQUEST', { message: '' }), 'fallback');
     expect(res.status).toBe(400);
-    const parsed = await body(res);
-    expect(parsed.ok).toBe(false);
-    expect(typeof parsed.error).toBe('string');
+    expect(await body(res)).toEqual({ ok: false, error: 'fallback' });
   });
 
   it('hides a 5xx APIError behind the generic message and a 500', async () => {

@@ -25,7 +25,7 @@ export function reportInternalError(
 // internals, so it is logged and reported with the generic fallback message.
 export function mapAuthApiError(context: string, error: unknown, fallbackMessage: string): Response {
   if (error instanceof APIError && error.statusCode >= 400 && error.statusCode < 500) {
-    const message = error.body?.message ?? error.message ?? fallbackMessage;
+    const message = error.body?.message || error.message || fallbackMessage;
     return Response.json({ ok: false, error: message }, { status: error.statusCode });
   }
   return reportInternalError(context, error, fallbackMessage);
