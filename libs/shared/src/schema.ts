@@ -193,7 +193,7 @@ export const presenceEvents = sqliteTable('presence_events', {
 export const player = sqliteTable('player', {
   id: text('id').primaryKey(),
   displayName: text('display_name'),
-  userId: text('user_id').references(() => user.id),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
   notes: text('notes'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
