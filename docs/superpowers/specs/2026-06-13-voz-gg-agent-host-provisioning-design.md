@@ -31,26 +31,30 @@ service account and no hardening. We want to:
   (`mc-logparser`). We therefore model it as a per-capability grant, not a
   blanket grant on the shared user.
 - The installer runs as `curl -fsSL <site>/install-agent.sh | sh -s -- <token>`,
-  so the script arrives on **stdin via the pipe**. Interactive prompts would
-  need `/dev/tty` and break in non-interactive contexts. The chosen design is
-  **non-interactive**: run-as values come from the web UI via the enroll
-  response (with env-var overrides), so no `/dev/tty` handling is required.
-- The web app / Worker **cannot enumerate the target host's accounts**. Host
-  user/group selection is therefore text fields with smart defaults, not a live
-  picker. (A host-side interactive picker was considered and dropped.)
+  so the **script** arrives on stdin via the pipe and cannot read interactive
+  input from stdin. The provisioning **binary**, however, can open `/dev/tty`
+  directly — so all interactivity lives in `voz-gg-agent setup`, not the shell.
+  The shell is a thin bootstrap (detect OS/arch, download, `chmod`, exec).
+- The web app / Worker **cannot enumerate the target host's accounts** or paths.
+  So the web UI provides defaults; any host-specific discovery (e.g. scanning for
+  the log directory, picking an existing user) happens interactively in
+  `voz-gg-agent setup` via `/dev/tty` when a tty is present, falling back to
+  flags/enroll/defaults otherwise.
 
 ## Decisions
 
 | Decision | Choice |
 | --- | --- |
 | Packaging | **Single `voz-gg-agent` binary, one privilege-scoped systemd unit per enabled capability.** |
+| Installer split | **Thin `install-agent.sh`** (detect OS/arch, download, `chmod`, exec) **+ a `voz-gg-agent setup` subcommand** that does all provisioning (enroll, users, configs, units, cleanup). |
+| Interactivity | `setup` opens `/dev/tty` when present (confirm/scan/pick); non-interactive via flags/enroll/defaults otherwise. |
 | Schema scope | **Reserve full plumbing now** (run-as user/group, game-server user, log path, per-capability enable flags). |
 | Run-as default | Dedicated `voz-gg` system user + `voz-gg` group. |
 | Game-server user default | Per game-type (`minecraft-*` → `minecraft`); blank for others. |
 | `voz-gg` creation | Created as a **system** account if missing. |
 | `gameServerUser` creation | **Non-creating** — warn and skip the grant if absent (never fabricate a game account). |
 | Secondary group mechanism | systemd `SupplementaryGroups=` on the **log-parser unit only**, not `usermod` on the shared user. |
-| No-TTY / automation | Non-interactive; env overrides `VOZ_RUN_AS_USER` / `VOZ_RUN_AS_GROUP` / `VOZ_GAME_SERVER_USER`; hard fallback `voz-gg`. |
+| No-TTY / automation | `setup --non-interactive` (auto-detected when no `/dev/tty`); flag/env overrides `--run-as-user` / `--run-as-group` / `--game-server-user`; hard fallback `voz-gg`. |
 | Legacy installs | Best-effort cleanup of the old `voz-status-monitor` unit on upgrade. |
 
 ## Architecture
@@ -69,18 +73,26 @@ under `monitor` unchanged.
 | `voz-status-monitor.service` | `voz-gg-agent-monitor.service` |
 | release tag `status-monitor-latest`, asset `status-monitor-<os>-<arch>` | `voz-gg-agent-latest`, asset `voz-gg-agent-<os>-<arch>` |
 
-Subcommands / flags:
+Subcommands:
 
+- `voz-gg-agent setup --enrollment-token <tok> --worker-base-url <url> [overrides]`
+  — the provisioning entrypoint the thin installer execs. It performs enroll,
+  resolves the capability policy, creates the `voz-gg` account, writes each
+  enabled capability's config + unit, enables them, and cleans up legacy units.
+  Interactive over `/dev/tty` when present (confirm values, scan for log dir,
+  pick an existing user); non-interactive otherwise. Idempotent — re-running it
+  reconciles an existing install (the upgrade/repair path). JSON parsing,
+  user/group creation, and unit templating all live here, in Go — not in shell.
 - `voz-gg-agent monitor -config <path>` — the current daemon loop (network prober,
   status reporting, config refresh on hash change).
 - `voz-gg-agent logparse -config <path>` — **reserved**; scaffolded but not
   implemented in this spec (returns "not implemented" / hidden). Folding the
-  existing `tools/mc-logparser` in is future work.
-- `voz-gg-agent -write-config -config <path> -worker-base-url <url>` — shared
-  bootstrap: read an enroll response from stdin, persist the monitoring config.
-- `voz-gg-agent -print-provisioning` — shared bootstrap: read an enroll response
-  from stdin, print resolved provisioning values for the install script to
-  consume (keeps JSON parsing in Go; no `jq` dependency, no `eval`).
+  existing `tools/mc-logparser` in is future work. Its interactive log-directory
+  scan (default: scan `/home/<gameServerUser>`) is part of `setup` and lands with
+  this capability.
+
+`setup` subsumes the previously-planned `-write-config` / `-print-provisioning`
+bootstrap flags — there is no longer any provisioning JSON parsed in shell.
 
 The runtime `Config` / `ServerConfig` structs are unchanged — provisioning data
 is **not** persisted into the monitoring config; it is install-time only.
@@ -136,19 +148,35 @@ hashed `config`:
 ```
 
 `logParser.enabled` is driven by `logParserEnabled` (default false). The group is
-**not** computed server-side (the Worker does not know host groups); the script
+**not** computed server-side (the Worker does not know host groups); `setup`
 resolves the game-server user's primary group on the host.
 
 `/api/agents/config` (runtime refresh) is unchanged — it returns only the opaque
 monitoring config.
 
-### Install script (`apps/web/public/install-agent.sh`)
+### Thin installer (`apps/web/public/install-agent.sh`)
 
-Non-interactive, idempotent, capability-driven. Per value, precedence is
-**env override > enroll `provisioning` > hard default (`voz-gg`)**.
+A ~20-line bootstrap with **no provisioning logic**:
 
-1. Resolve run-as values and capability policy. Fetch the binary
-   (`voz-gg-agent-<os>-<arch>` from `voz-gg-agent-latest`) to `/usr/local/bin/voz-gg-agent`.
+1. Require root (or re-exec under `sudo`).
+2. Detect OS/arch; download `voz-gg-agent-<os>-<arch>` from `voz-gg-agent-latest`
+   to `/usr/local/bin/voz-gg-agent`; `chmod +x`.
+3. `exec /usr/local/bin/voz-gg-agent setup --enrollment-token "<tok>"
+   --worker-base-url "<origin>" "$@"` — handing the terminal to the binary so it
+   can use `/dev/tty`.
+
+The auto-generated copy/paste (`AgentInstallDialog`) carries only the
+**enrollment token** (and origin); everything else is fetched via enroll or
+resolved interactively. Power users can append flags (e.g. `--non-interactive`,
+`--run-as-user`) which pass through to `setup`.
+
+### `voz-gg-agent setup` (provisioning, in Go)
+
+Idempotent, capability-driven. Per value, precedence is
+**flag/env override > enroll `provisioning` > hard default (`voz-gg`)**.
+
+1. POST `/api/agents/enroll` with the token; receive `agentToken`, `config`,
+   `configHash`, and the `provisioning` policy.
 2. Ensure shared account: create group `runAsGroup`, then user `runAsUser`, as a
    **system** account if missing
    (`useradd --system --no-create-home --shell /usr/sbin/nologin -g <group>`).
@@ -159,18 +187,19 @@ Non-interactive, idempotent, capability-driven. Per value, precedence is
      `ProtectHome=true`, `PrivateTmp=true`,
      `ReadWritePaths=/etc/voz-gg-agent`). No supplementary groups.
    - **logParser** (`voz-gg-agent-logparse.service`, only when enabled — *not in
-     this spec's runtime path*): resolve `LOG_GROUP="$(id -gn "$gameServerUser")"`;
-     if `gameServerUser` is absent, **warn and skip** this capability. Unit gets
-     `SupplementaryGroups=$LOG_GROUP`, `ReadOnlyPaths=$logPath`, and relaxed
-     `ProtectHome` so it can reach the game user's home. Only this unit gains the
-     file access.
+     this spec's runtime path*): resolve the game-server user's primary group; if
+     `gameServerUser` is absent, **warn and skip** this capability. Interactively
+     scan `/home/<gameServerUser>` for the log directory (confirm/override via
+     `/dev/tty`), defaulting to the enroll `logPath`. Unit gets
+     `SupplementaryGroups=<group>`, `ReadOnlyPaths=<logPath>`, and relaxed
+     `ProtectHome`. Only this unit gains the file access.
 4. `chown -R runAsUser:runAsGroup /etc/voz-gg-agent`; config files stay `0600`.
 5. `systemctl daemon-reload` then `enable --now` each installed unit.
 6. **Upgrade cleanup:** if `voz-status-monitor.service` exists, `disable --now`
    and remove it (and the old binary/config dir) — best effort, ignore errors.
 
-`config.json` parsing in the script is avoided: provisioning values come from
-`voz-gg-agent -print-provisioning`.
+All JSON parsing, account creation, unit templating, and `/dev/tty` interaction
+live here, in testable Go — the shell does none of it.
 
 ### UI (`apps/web` create/edit server form + API)
 
@@ -205,10 +234,11 @@ omitted.
 2. **Enroll policy** in the Worker (`agent-handlers.ts`, `agent-config.ts`).
 3. **`voz-gg-agent` Go restructure**: rename `services/status-monitor` →
    `voz-gg-agent`, `monitor` subcommand wraps existing loop, reserved `logparse`,
-   shared `-write-config` / `-print-provisioning`; update `project.json`, tags,
-   and the release/CI workflow asset names + tag.
-4. **Install script rewrite** (`install-agent.sh`): shared user, capability
-   loop, hardened units, legacy cleanup.
+   and the new **`setup`** subcommand (enroll, account creation, config/unit
+   templating, `/dev/tty` interaction, legacy cleanup); update `project.json`,
+   tags, and the release/CI workflow asset names + tag.
+4. **Thin installer rewrite** (`install-agent.sh`): detect OS/arch, download,
+   `chmod`, `exec voz-gg-agent setup …` — no provisioning logic in shell.
 5. **UI form fields + server API** persistence.
 6. **Docs**: update `AGENTS.md` (taxonomy: `voz-gg-agent` is the unified host
    agent; `status-monitor` capability lives inside it) and the install dialog
@@ -217,22 +247,25 @@ omitted.
 ## Testing
 
 - **Go:** existing `status-monitor` tests move with the `monitor` capability and
-  must still pass. Add tests for `-print-provisioning` output and for
-  provisioning-value precedence parsing.
+  must still pass. For `setup`, unit-test the value-precedence resolution
+  (flag/env > enroll > default), capability-skip when `gameServerUser` is absent,
+  and unit-file rendering. Factor `setup`'s side effects (run command, write file,
+  open `/dev/tty`) behind interfaces so the logic is testable without root or a
+  real systemd; cover the privileged path with a manual checklist on a throwaway
+  Linux box.
 - **Worker:** unit-test the enroll handler emits the `provisioning` block with
   correct capability enablement per game type and applied `GAME_TYPE_DEFAULTS`.
-- **Install script:** shell test / lint (`sh -n`, shellcheck) for the
-  non-interactive path, user-creation idempotency, capability skip when
-  `gameServerUser` is absent, and legacy-unit cleanup. Manual verification on a
-  throwaway Linux box for systemd behavior.
+- **Installer:** `sh -n` + shellcheck the thin bootstrap (OS/arch detection,
+  download, exec). It carries no provisioning logic to test.
 - **Schema:** migration applies cleanly (`web:migrate:local`) and is additive.
 
 ## Out of scope (future)
 
-- Implementing the `logparse` capability (the actual log parser). This spec only
-  reserves its subcommand, schema columns, enroll shape, and install path.
+- Implementing the `logparse` capability (the actual log parser) and its
+  interactive log-directory scan. This spec reserves the `setup` scan hook,
+  subcommand, schema columns, enroll shape, and install path, but `setup` does
+  not yet scan or install a logparse unit (enabled=false).
 - Folding the existing `tools/mc-logparser` into `voz-gg-agent`.
-- A host-side interactive user picker (`/dev/tty`).
 
 ## Open items resolved
 
