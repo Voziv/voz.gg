@@ -525,7 +525,7 @@ const join = (key: string, ts: string): IngestEvent => ({
 describe('buildDedupeKey', () => {
   it('coalesces a null identity to empty and uses epoch seconds', () => {
     expect(buildDedupeKey('srv1', 'server_stop', null, new Date('2026-06-13T10:00:00Z'))).toBe(
-      'srv1|server_stop||1781776800',
+      'srv1|server_stop||1781344800',
     );
   });
 });
@@ -563,7 +563,7 @@ describe('handlePresenceBatch', () => {
 describe('parsePresenceBody', () => {
   it('accepts a well-formed batch and coerces occurredAt (epoch seconds) to Date', () => {
     const parsed = parsePresenceBody({
-      events: [{ type: 'join', identityKind: 'minecraft', identityKey: 'u1', playerName: 'Steve', occurredAt: 1781776800 }],
+      events: [{ type: 'join', identityKind: 'minecraft', identityKey: 'u1', playerName: 'Steve', occurredAt: 1781344800 }],
     });
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
