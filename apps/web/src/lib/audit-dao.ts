@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { desc, count } from 'drizzle-orm';
 import { adminAuditLog, type AdminAuditAction, type Db } from '@voz/shared';
 
 export type AdminAuditRow = typeof adminAuditLog.$inferSelect;
@@ -14,7 +14,8 @@ export interface RecordAuditInput {
 
 export interface AuditDao {
   record(input: RecordAuditInput): Promise<void>;
-  listRecent(limit: number): Promise<AdminAuditRow[]>;
+  listRecent(limit: number, offset?: number): Promise<AdminAuditRow[]>;
+  count(): Promise<number>;
 }
 
 export function createAuditDao(db: Db): AuditDao {
@@ -30,8 +31,19 @@ export function createAuditDao(db: Db): AuditDao {
       });
     },
 
-    async listRecent(limit) {
-      return db.select().from(adminAuditLog).orderBy(desc(adminAuditLog.createdAt)).limit(limit).all();
+    async listRecent(limit, offset = 0) {
+      return db
+        .select()
+        .from(adminAuditLog)
+        .orderBy(desc(adminAuditLog.createdAt))
+        .limit(limit)
+        .offset(offset)
+        .all();
+    },
+
+    async count() {
+      const row = await db.select({ value: count() }).from(adminAuditLog).get();
+      return row?.value ?? 0;
     },
   };
 }

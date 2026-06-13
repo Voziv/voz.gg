@@ -6,12 +6,19 @@ import { isAdmin } from '../../../lib/admin';
 import { createAuditDao } from '../../../lib/audit-dao';
 import { createUserDao } from '../../../lib/user-dao';
 import { formatAuditDetails } from '../../../lib/audit-details';
+import { parsePage, paginate } from '../../../lib/pagination';
 import Dashboard from '../../../layouts/Dashboard.astro';
 
 if (!isAdmin(Astro.locals.user)) return Astro.redirect('/dashboard/profile');
 
+const PAGE_SIZE = 50;
 const db = createDb(env.DB);
-const rows = await createAuditDao(db).listRecent(200);
+const auditDao = createAuditDao(db);
+const total = await auditDao.count();
+const pager = paginate(total, parsePage(Astro.url.searchParams.get('page')), PAGE_SIZE);
+const rows = await auditDao.listRecent(PAGE_SIZE, pager.offset);
+
+const pageHref = (page: number) => `?page=${page}`;
 
 // Resolve actor/target ids to a label for display. Accounts referenced by an
 // entry may have since been deleted (the log outlives them), so an id without a
@@ -38,7 +45,7 @@ const entries = rows.map((e) => ({
       <h1 class="text-3xl font-bold tracking-tight">Audit log</h1>
       <p class="mt-1 text-muted-foreground">Recent admin actions, newest first.</p>
     </div>
-    {entries.length === 0 ? (
+    {total === 0 ? (
       <div class="rounded-lg border border-border bg-card py-12 text-center text-muted-foreground">
         No admin actions recorded yet.
       </div>
@@ -91,6 +98,22 @@ const entries = rows.map((e) => ({
             ))}
           </tbody>
         </table>
+      </div>
+      <div class="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+        <span>{pager.from}–{pager.to} of {pager.total}</span>
+        <div class="flex gap-2">
+          {pager.hasPrev ? (
+            <a class="rounded border border-border px-3 py-1.5 hover:bg-muted" href={pageHref(pager.page - 1)}>Previous</a>
+          ) : (
+            <span class="cursor-not-allowed rounded border border-border px-3 py-1.5 opacity-50">Previous</span>
+          )}
+          <span class="px-1 py-1.5">Page {pager.page} of {pager.totalPages}</span>
+          {pager.hasNext ? (
+            <a class="rounded border border-border px-3 py-1.5 hover:bg-muted" href={pageHref(pager.page + 1)}>Next</a>
+          ) : (
+            <span class="cursor-not-allowed rounded border border-border px-3 py-1.5 opacity-50">Next</span>
+          )}
+        </div>
       </div>
     )}
   </div>

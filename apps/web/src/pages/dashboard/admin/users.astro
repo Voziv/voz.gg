@@ -4,6 +4,7 @@ import { env } from 'cloudflare:workers';
 import { isAdmin } from '../../../lib/admin';
 import { toRole } from '../../../lib/permissions';
 import { getAuth } from '../../../lib/auth';
+import { parsePage, paginate } from '../../../lib/pagination';
 import Dashboard from '../../../layouts/Dashboard.astro';
 import UsersTable from '../../../components/dashboard/UsersTable.tsx';
 import type { AdminUserRow } from '../../../components/dashboard/UsersTable.tsx';
@@ -11,11 +12,31 @@ import type { AdminUserRow } from '../../../components/dashboard/UsersTable.tsx'
 const actorUser = Astro.locals.user;
 if (!isAdmin(actorUser)) return Astro.redirect('/dashboard/profile');
 
+const PAGE_SIZE = 50;
+const query = Astro.url.searchParams.get('q')?.trim() ?? '';
+const requestedPage = parsePage(Astro.url.searchParams.get('page'));
+
+// better-auth's listUsers searches a single field; admins identify accounts by
+// email, so search is a case-insensitive email substring match.
+const search = query
+  ? { searchValue: query, searchField: 'email' as const, searchOperator: 'contains' as const }
+  : {};
+
 const auth = getAuth(env as Env);
-const result = await auth.api.listUsers({
-  headers: Astro.request.headers,
-  query: { limit: 200, offset: 0, sortBy: 'createdAt', sortDirection: 'desc' },
-});
+const listPage = (offset: number) =>
+  auth.api.listUsers({
+    headers: Astro.request.headers,
+    query: { ...search, limit: PAGE_SIZE, offset, sortBy: 'createdAt', sortDirection: 'desc' },
+  });
+
+let result = await listPage((requestedPage - 1) * PAGE_SIZE);
+const pager = paginate(result.total, requestedPage, PAGE_SIZE);
+// Re-fetch only when the requested page was out of range (e.g. a hand-typed
+// ?page= or the last row on a page was just deleted), so the clamped page is
+// never rendered empty.
+if (pager.offset !== (requestedPage - 1) * PAGE_SIZE) {
+  result = await listPage(pager.offset);
+}
 
 const users: AdminUserRow[] = result.users.map((u) => ({
   id: u.id,
@@ -30,6 +51,13 @@ const users: AdminUserRow[] = result.users.map((u) => ({
 }));
 
 const actor = { id: actorUser!.id, role: toRole(actorUser!.role) };
+
+const pageHref = (page: number) => {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  params.set('page', String(page));
+  return `?${params.toString()}`;
+};
 ---
 <Dashboard>
   <div class="mx-auto max-w-6xl">
@@ -37,6 +65,41 @@ const actor = { id: actorUser!.id, role: toRole(actorUser!.role) };
       <h1 class="text-3xl font-bold tracking-tight">Users</h1>
       <p class="mt-1 text-muted-foreground">Manage accounts, roles, and bans.</p>
     </div>
-    <UsersTable client:load users={users} actor={actor} />
+    <form method="get" class="mb-4 flex max-w-sm gap-2" role="search">
+      <input
+        type="search"
+        name="q"
+        value={query}
+        placeholder="Search by email…"
+        class="flex-1 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      />
+      <button type="submit" class="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted">Search</button>
+      {query && (
+        <a href="?" class="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">Clear</a>
+      )}
+    </form>
+    {users.length === 0 ? (
+      <div class="rounded-lg border border-border bg-card py-12 text-center text-muted-foreground">
+        {query ? `No users match “${query}”.` : 'No users yet.'}
+      </div>
+    ) : (
+      <UsersTable client:load users={users} actor={actor} />
+    )}
+    <div class="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+      <span>{pager.from}–{pager.to} of {pager.total}</span>
+      <div class="flex gap-2">
+        {pager.hasPrev ? (
+          <a class="rounded border border-border px-3 py-1.5 hover:bg-muted" href={pageHref(pager.page - 1)}>Previous</a>
+        ) : (
+          <span class="cursor-not-allowed rounded border border-border px-3 py-1.5 opacity-50">Previous</span>
+        )}
+        <span class="px-1 py-1.5">Page {pager.page} of {pager.totalPages}</span>
+        {pager.hasNext ? (
+          <a class="rounded border border-border px-3 py-1.5 hover:bg-muted" href={pageHref(pager.page + 1)}>Next</a>
+        ) : (
+          <span class="cursor-not-allowed rounded border border-border px-3 py-1.5 opacity-50">Next</span>
+        )}
+      </div>
+    </div>
   </div>
 </Dashboard>
