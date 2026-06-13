@@ -41,7 +41,7 @@ function fakeDao(overrides: Partial<AgentDao> = {}) {
 }
 
 describe('handleEnroll', () => {
-  it('mints + hashes an agent token, completes enrollment, returns config + hash', async () => {
+  it('mints + hashes an agent token, completes enrollment, returns config, hash, and provisioning', async () => {
     const { dao, calls } = fakeDao({ findServerByEnrollmentTokenHash: async () => server });
     const res = await handleEnroll(dao, { enrollmentToken: 'enroll-1' });
     expect(res.status).toBe(200);

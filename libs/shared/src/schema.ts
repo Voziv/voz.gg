@@ -100,7 +100,8 @@ export const servers = sqliteTable('servers', {
   port: integer('port').notNull(),
   description: text('description'),
   // Agent-host provisioning (install-time only; never used by the runtime probe).
-  // All nullable: a null falls back to GAME_TYPE_DEFAULTS, then to 'voz-gg'.
+  // All nullable. buildProvisioning resolves a null: run-as user/group default to
+  // 'voz-gg'; game-server user / log path fall back to GAME_TYPE_DEFAULTS.
   runAsUser: text('run_as_user'),
   runAsGroup: text('run_as_group'),
   gameServerUser: text('game_server_user'),

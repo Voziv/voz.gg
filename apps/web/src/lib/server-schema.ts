@@ -9,7 +9,7 @@ const optionalUnixName = z
   .max(32)
   .optional()
   .transform((v) => (v && v.length > 0 ? v : null))
-  .refine((v) => v === null || /^[a-z_][a-z0-9_-]{0,31}$/.test(v), 'Invalid username.');
+  .refine((v) => v === null || /^[a-z_][a-z0-9_-]{0,31}$/.test(v), 'Invalid user or group name.');
 
 const serverSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(80),

@@ -56,4 +56,18 @@ describe('buildProvisioning', () => {
       },
     });
   });
+
+  it('resolves each field independently when some are explicit and some null', () => {
+    const p = buildProvisioning({
+      gameType: 'minecraft-java',
+      runAsUser: null,
+      runAsGroup: null,
+      gameServerUser: 'custom',
+      logPath: null,
+      monitorEnabled: null,
+      logParserEnabled: null,
+    });
+    expect(p.capabilities.logParser.gameServerUser).toBe('custom');
+    expect(p.capabilities.logParser.logPath).toBe('/home/minecraft/logs');
+  });
 });
