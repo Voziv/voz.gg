@@ -29,6 +29,10 @@ export const PUT: APIRoute = async (ctx) => {
       host: parsed.data.host,
       port: parsed.data.port,
       description: parsed.data.description,
+      runAsUser: parsed.data.runAsUser,
+      runAsGroup: parsed.data.runAsGroup,
+      gameServerUser: parsed.data.gameServerUser,
+      logPath: parsed.data.logPath,
       updatedAt: new Date(),
     })
     .where(eq(servers.id, id));
