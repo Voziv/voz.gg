@@ -83,20 +83,44 @@ describe('parsePresenceBody', () => {
     if (parsed.ok) {
       expect(parsed.events[0].occurredAt).toEqual(new Date('2026-06-13T10:00:00Z'));
       expect(parsed.events[0].type).toBe('join');
+      expect(parsed.rejected).toBe(0);
     }
   });
 
-  it('rejects an unknown event type', () => {
-    expect(parsePresenceBody({ events: [{ type: 'nope', occurredAt: 1 }] }).ok).toBe(false);
+  it('skips an unknown event type and counts it rejected', () => {
+    const parsed = parsePresenceBody({ events: [{ type: 'nope', occurredAt: 1 }] });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.events).toEqual([]);
+      expect(parsed.rejected).toBe(1);
+    }
   });
 
   it('rejects a non-object body', () => {
     expect(parsePresenceBody(null).ok).toBe(false);
   });
 
-  it('rejects an event with identityKind but no identityKey', () => {
-    expect(
-      parsePresenceBody({ events: [{ type: 'join', identityKind: 'minecraft', occurredAt: 1781344800 }] }).ok,
-    ).toBe(false);
+  it('skips a half-set identity event and counts it rejected', () => {
+    const parsed = parsePresenceBody({ events: [{ type: 'join', identityKind: 'minecraft', occurredAt: 1781344800 }] });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.events).toEqual([]);
+      expect(parsed.rejected).toBe(1);
+    }
+  });
+
+  it('keeps valid events and rejects only the invalid ones in a mixed batch', () => {
+    const parsed = parsePresenceBody({
+      events: [
+        { type: 'join', identityKind: 'minecraft', identityKey: 'u1', playerName: 'Steve', occurredAt: 1781344800 },
+        { type: 'bogus', occurredAt: 1781344800 },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.events).toHaveLength(1);
+      expect(parsed.events[0].identityKey).toBe('u1');
+      expect(parsed.rejected).toBe(1);
+    }
   });
 });

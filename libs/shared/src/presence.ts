@@ -72,23 +72,31 @@ const eventSchema = z
     identityKey: z.string().min(1).max(64).nullish(),
     playerName: z.string().max(64).nullish(),
     ip: z.string().max(64).nullish(),
-    reason: z.string().max(200).nullish(),
+    reason: z.string().max(512).nullish(),
     occurredAt: z.number().int().nonnegative(), // epoch seconds
   })
   .refine((e) => (e.identityKind == null) === (e.identityKey == null), {
     message: 'identityKind and identityKey must be set together',
   });
 
-const bodySchema = z.object({ events: z.array(eventSchema).max(1000) });
+const MAX_EVENTS = 1000;
 
-export type ParsedBody = { ok: true; events: IngestEvent[] } | { ok: false };
+export type ParsedBody = { ok: false } | { ok: true; events: IngestEvent[]; rejected: number };
 
 export function parsePresenceBody(body: unknown): ParsedBody {
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) return { ok: false };
-  return {
-    ok: true,
-    events: parsed.data.events.map((e) => ({
+  const outer = z.object({ events: z.array(z.unknown()).max(MAX_EVENTS) }).safeParse(body);
+  if (!outer.success) return { ok: false };
+
+  const events: IngestEvent[] = [];
+  let rejected = 0;
+  for (const raw of outer.data.events) {
+    const parsed = eventSchema.safeParse(raw);
+    if (!parsed.success) {
+      rejected += 1;
+      continue;
+    }
+    const e = parsed.data;
+    events.push({
       type: e.type,
       identityKind: e.identityKind ?? null,
       identityKey: e.identityKey ?? null,
@@ -96,6 +104,7 @@ export function parsePresenceBody(body: unknown): ParsedBody {
       ip: e.ip ?? null,
       reason: e.reason ?? null,
       occurredAt: new Date(e.occurredAt * 1000),
-    })),
-  };
+    });
+  }
+  return { ok: true, events, rejected };
 }

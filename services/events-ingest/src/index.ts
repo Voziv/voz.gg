@@ -34,7 +34,7 @@ export default {
       if (!parsed.ok) return Response.json({ error: 'Invalid presence body.' }, { status: 400 });
 
       const result = await handlePresenceBatch(createPresenceDao(db), serverId, parsed.events, new Date());
-      return Response.json(result);
+      return Response.json({ ...result, rejected: parsed.rejected });
     }
 
     return Response.json({ error: 'not found' }, { status: 404 });
