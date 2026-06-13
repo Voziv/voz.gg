@@ -8,6 +8,10 @@
     "build": {
       "command": "tsc -p tsconfig.json --noEmit",
       "options": { "cwd": "libs/shared" }
+    },
+    "test": {
+      "command": "vitest run --passWithNoTests",
+      "options": { "cwd": "libs/shared" }
     }
   }
 }
