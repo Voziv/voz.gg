@@ -80,6 +80,18 @@ export const GAME_TYPES = [
 
 export type GameType = (typeof GAME_TYPES)[number];
 
+// Per-game-type defaults for the agent-host fields. The OS account a game server
+// runs under (and therefore its log location) is game-type specific; these are
+// editable suggestions, not enforced values. Consumed by the server form and by
+// buildProvisioning when a per-server value is absent.
+export const GAME_TYPE_DEFAULTS: Record<GameType, { gameServerUser?: string; logPath?: string }> = {
+  'minecraft-java': { gameServerUser: 'minecraft', logPath: '/home/minecraft/logs' },
+  'minecraft-bedrock': { gameServerUser: 'minecraft', logPath: '/home/minecraft/logs' },
+  source: {},
+  'generic-tcp': {},
+  unknown: {},
+};
+
 export const servers = sqliteTable('servers', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -87,6 +99,14 @@ export const servers = sqliteTable('servers', {
   host: text('host').notNull(),
   port: integer('port').notNull(),
   description: text('description'),
+  // Agent-host provisioning (install-time only; never used by the runtime probe).
+  // All nullable: a null falls back to GAME_TYPE_DEFAULTS, then to 'voz-gg'.
+  runAsUser: text('run_as_user'),
+  runAsGroup: text('run_as_group'),
+  gameServerUser: text('game_server_user'),
+  logPath: text('log_path'),
+  monitorEnabled: integer('monitor_enabled', { mode: 'boolean' }),
+  logParserEnabled: integer('log_parser_enabled', { mode: 'boolean' }),
   createdBy: text('created_by').notNull().references(() => user.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
