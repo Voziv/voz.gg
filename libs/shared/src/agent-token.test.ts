@@ -26,4 +26,8 @@ describe('bearerToken', () => {
     expect(bearerToken(null)).toBeNull();
     expect(bearerToken('Basic abc')).toBeNull();
   });
+  it('returns null for a whitespace-only token without backtracking', () => {
+    expect(bearerToken('Bearer      ')).toBeNull();
+    expect(bearerToken(`Bearer ${' '.repeat(50000)}`)).toBeNull();
+  });
 });
