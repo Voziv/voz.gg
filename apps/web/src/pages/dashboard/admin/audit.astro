@@ -4,17 +4,38 @@ import { env } from 'cloudflare:workers';
 import { createDb } from '@voz/shared';
 import { isAdmin } from '../../../lib/admin';
 import { createAuditDao } from '../../../lib/audit-dao';
+import { createUserDao } from '../../../lib/user-dao';
+import { formatAuditDetails } from '../../../lib/audit-details';
+import { parsePage, paginate } from '../../../lib/pagination';
 import Dashboard from '../../../layouts/Dashboard.astro';
 
 if (!isAdmin(Astro.locals.user)) return Astro.redirect('/dashboard/profile');
 
+const PAGE_SIZE = 50;
 const db = createDb(env.DB);
-const entries = (await createAuditDao(db).listRecent(200)).map((e) => ({
+const auditDao = createAuditDao(db);
+const total = await auditDao.count();
+const pager = paginate(total, parsePage(Astro.url.searchParams.get('page')), PAGE_SIZE);
+const rows = await auditDao.listRecent(PAGE_SIZE, pager.offset);
+
+const pageHref = (page: number) => `?page=${page}`;
+
+// Resolve actor/target ids to a label for display. Accounts referenced by an
+// entry may have since been deleted (the log outlives them), so an id without a
+// match falls back to the raw id.
+const referencedIds = [...new Set(rows.flatMap((e) => [e.actorId, e.targetUserId]))];
+const byId = new Map((await createUserDao(db).byIds(referencedIds)).map((u) => [u.id, u]));
+const label = (id: string) => {
+  const u = byId.get(id);
+  return u ? { name: u.name, email: u.email, resolved: true } : { name: id, email: null, resolved: false };
+};
+
+const entries = rows.map((e) => ({
   id: e.id,
-  actorId: e.actorId,
+  actor: label(e.actorId),
   action: e.action,
-  targetUserId: e.targetUserId,
-  details: e.details,
+  target: label(e.targetUserId),
+  details: formatAuditDetails(e.details),
   createdAt: e.createdAt.getTime(),
 }));
 ---
@@ -24,7 +45,7 @@ const entries = (await createAuditDao(db).listRecent(200)).map((e) => ({
       <h1 class="text-3xl font-bold tracking-tight">Audit log</h1>
       <p class="mt-1 text-muted-foreground">Recent admin actions, newest first.</p>
     </div>
-    {entries.length === 0 ? (
+    {total === 0 ? (
       <div class="rounded-lg border border-border bg-card py-12 text-center text-muted-foreground">
         No admin actions recorded yet.
       </div>
@@ -42,16 +63,57 @@ const entries = (await createAuditDao(db).listRecent(200)).map((e) => ({
           </thead>
           <tbody>
             {entries.map((e) => (
-              <tr class="border-t border-border">
+              <tr class="border-t border-border align-top">
                 <td class="px-4 py-3 text-xs text-muted-foreground">{new Date(e.createdAt).toLocaleString()}</td>
-                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{e.actorId}</td>
+                <td class="px-4 py-3 text-xs">
+                  {e.actor.resolved ? (
+                    <span class="text-foreground">{e.actor.email}</span>
+                  ) : (
+                    <span class="font-mono text-muted-foreground" title="account deleted">{e.actor.name}</span>
+                  )}
+                </td>
                 <td class="px-4 py-3"><span class="rounded bg-muted px-2 py-0.5 text-xs font-medium">{e.action}</span></td>
-                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{e.targetUserId}</td>
-                <td class="px-4 py-3 text-xs text-muted-foreground">{e.details}</td>
+                <td class="px-4 py-3 text-xs">
+                  {e.target.resolved ? (
+                    <span class="text-foreground">{e.target.email}</span>
+                  ) : (
+                    <span class="font-mono text-muted-foreground" title="account deleted">{e.target.name}</span>
+                  )}
+                </td>
+                <td class="px-4 py-3 text-xs text-muted-foreground">
+                  {e.details.length === 0 ? (
+                    <span>—</span>
+                  ) : (
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                      {e.details.map((d) => (
+                        <>
+                          <dt class="font-medium text-foreground/70">{d.label}</dt>
+                          <dd>{d.value}</dd>
+                        </>
+                      ))}
+                    </dl>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+      <div class="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+        <span>{pager.from}–{pager.to} of {pager.total}</span>
+        <div class="flex gap-2">
+          {pager.hasPrev ? (
+            <a class="rounded border border-border px-3 py-1.5 hover:bg-muted" href={pageHref(pager.page - 1)}>Previous</a>
+          ) : (
+            <span class="cursor-not-allowed rounded border border-border px-3 py-1.5 opacity-50">Previous</span>
+          )}
+          <span class="px-1 py-1.5">Page {pager.page} of {pager.totalPages}</span>
+          {pager.hasNext ? (
+            <a class="rounded border border-border px-3 py-1.5 hover:bg-muted" href={pageHref(pager.page + 1)}>Next</a>
+          ) : (
+            <span class="cursor-not-allowed rounded border border-border px-3 py-1.5 opacity-50">Next</span>
+          )}
+        </div>
       </div>
     )}
   </div>
