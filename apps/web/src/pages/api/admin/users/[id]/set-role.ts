@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { getAuth } from '../../../../../lib/auth';
 import { canSetRole } from '../../../../../lib/user-admin-guards';
 import { setupUserAdminRoute, guardResponse, recordAudit } from '../../../../../lib/user-admin-route';
+import { mapAuthApiError } from '../../../../../lib/api-errors';
 
 export const prerender = false;
 
@@ -25,10 +26,14 @@ export const POST: APIRoute = async (astro) => {
   });
 
   const auth = getAuth(env as Env);
-  await auth.api.setRole({
-    headers: astro.request.headers,
-    body: { userId: setup.target.id, role: newRole as 'user' | 'admin' },
-  });
+  try {
+    await auth.api.setRole({
+      headers: astro.request.headers,
+      body: { userId: setup.target.id, role: newRole as 'user' | 'admin' },
+    });
+  } catch (error) {
+    return mapAuthApiError('admin-user-set-role', error, 'Could not change the role. Please try again.');
+  }
 
   return Response.json({ ok: true });
 };
