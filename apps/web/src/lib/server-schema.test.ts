@@ -20,6 +20,10 @@ describe('parseServerInput', () => {
         host: 'mc.example.com',
         port: 25565,
         description: 'Friendly SMP',
+        runAsUser: null,
+        runAsGroup: null,
+        gameServerUser: null,
+        logPath: null,
       });
     }
   });
@@ -63,5 +67,51 @@ describe('parseServerInput', () => {
 
   it.each(['0', '70000', '12.5', 'abc'])('rejects port %s', (port) => {
     expect(parseServerInput({ ...valid, port }).ok).toBe(false);
+  });
+});
+
+describe('agent-host fields', () => {
+  const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
+
+  it('defaults the agent-host fields to null when omitted', () => {
+    const r = parseServerInput(base);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.runAsUser).toBeNull();
+    expect(r.data.runAsGroup).toBeNull();
+    expect(r.data.gameServerUser).toBeNull();
+    expect(r.data.logPath).toBeNull();
+  });
+
+  it('accepts valid unix usernames and an absolute log path', () => {
+    const r = parseServerInput({
+      ...base,
+      runAsUser: 'voz-gg',
+      runAsGroup: 'voz-gg',
+      gameServerUser: 'minecraft',
+      logPath: '/home/minecraft/logs',
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.gameServerUser).toBe('minecraft');
+    expect(r.data.logPath).toBe('/home/minecraft/logs');
+  });
+
+  it('coerces empty strings to null', () => {
+    const r = parseServerInput({ ...base, gameServerUser: '', logPath: '' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.gameServerUser).toBeNull();
+    expect(r.data.logPath).toBeNull();
+  });
+
+  it('rejects an invalid username', () => {
+    const r = parseServerInput({ ...base, gameServerUser: 'Bad Name!' });
+    expect(r.ok).toBe(false);
+  });
+
+  it('rejects a relative log path', () => {
+    const r = parseServerInput({ ...base, logPath: 'relative/logs' });
+    expect(r.ok).toBe(false);
   });
 });
