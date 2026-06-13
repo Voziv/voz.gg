@@ -15,6 +15,7 @@ import { Label } from '../ui/label';
 import { Button, buttonVariants } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { GAME_TYPES, type GameType } from '@voz/shared';
+import { initialAgentHostValues, nextAgentHostValues } from './server-form-defaults';
 
 const GAME_LABELS: Record<GameType, string> = {
   'minecraft-java': 'Minecraft (Java)',
@@ -31,6 +32,10 @@ type ServerData = {
   host: string;
   port: number;
   description: string | null;
+  runAsUser: string | null;
+  runAsGroup: string | null;
+  gameServerUser: string | null;
+  logPath: string | null;
 };
 type Props = { server?: ServerData };
 
@@ -38,6 +43,19 @@ export default function ServerFormDialog({ server }: Props) {
   const isEdit = !!server;
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+
+  const [gameType, setGameType] = useState<GameType>(server?.gameType ?? 'minecraft-java');
+  const [agentHost, setAgentHost] = useState(() =>
+    initialAgentHostValues(server?.gameType ?? 'minecraft-java', {
+      gameServerUser: server?.gameServerUser,
+      logPath: server?.logPath,
+    }),
+  );
+
+  function handleGameTypeChange(next: GameType) {
+    setAgentHost((current) => nextAgentHostValues(gameType, next, current));
+    setGameType(next);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,6 +66,10 @@ export default function ServerFormDialog({ server }: Props) {
       host: form.get('host'),
       port: form.get('port'),
       description: form.get('description'),
+      runAsUser: form.get('runAsUser'),
+      runAsGroup: form.get('runAsGroup'),
+      gameServerUser: form.get('gameServerUser'),
+      logPath: form.get('logPath'),
     };
     setPending(true);
     try {
@@ -112,7 +134,8 @@ export default function ServerFormDialog({ server }: Props) {
               <select
                 id="gameType"
                 name="gameType"
-                defaultValue={server?.gameType ?? 'minecraft-java'}
+                value={gameType}
+                onChange={(e) => handleGameTypeChange(e.target.value as GameType)}
                 className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
               >
                 {GAME_TYPES.map((g) => (
@@ -140,6 +163,48 @@ export default function ServerFormDialog({ server }: Props) {
               className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
             />
           </div>
+
+          <fieldset className="grid gap-4 rounded-md border border-border p-3">
+            <legend className="px-1 text-xs uppercase tracking-wide text-muted-foreground">Agent host</legend>
+            <p className="text-xs text-muted-foreground">
+              How the monitoring agent is installed on the host. Defaults suit most setups.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="runAsUser" className="text-muted-foreground">Run-as user</Label>
+                <Input id="runAsUser" name="runAsUser" defaultValue={server?.runAsUser ?? 'voz-gg'} maxLength={32} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="runAsGroup" className="text-muted-foreground">Run-as group</Label>
+                <Input id="runAsGroup" name="runAsGroup" defaultValue={server?.runAsGroup ?? 'voz-gg'} maxLength={32} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="gameServerUser" className="text-muted-foreground">Game-server user</Label>
+              <Input
+                id="gameServerUser"
+                name="gameServerUser"
+                value={agentHost.gameServerUser}
+                onChange={(e) => setAgentHost((c) => ({ ...c, gameServerUser: e.target.value }))}
+                maxLength={32}
+                placeholder="(none)"
+              />
+              <p className="text-xs text-muted-foreground">The OS account the game server runs under. Used by future log parsing.</p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="logPath" className="text-muted-foreground">Log path</Label>
+              <Input
+                id="logPath"
+                name="logPath"
+                value={agentHost.logPath}
+                onChange={(e) => setAgentHost((c) => ({ ...c, logPath: e.target.value }))}
+                maxLength={4096}
+                placeholder="/home/minecraft/logs"
+              />
+              <p className="text-xs text-muted-foreground">Reserved — used by log parsing once available.</p>
+            </div>
+          </fieldset>
+
           <DialogFooter showCloseButton>
             <Button type="submit" disabled={pending}>
               {pending ? 'Saving…' : isEdit ? 'Save changes' : 'Create server'}
