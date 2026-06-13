@@ -14,8 +14,10 @@ allowBuilds:
   sharp: true
   workerd: true
 
-# drizzle-kit pulls the deprecated @esbuild-kit/core-utils, which pins esbuild
-# 0.18.20 (GHSA-67mh-4wv8-2f99, dev-server CORS). Force the patched line; the
-# transform API drizzle-kit uses is unchanged across these versions.
+# Force every esbuild copy to the patched line. <0.28.1 is vulnerable to a
+# missing-binary-integrity-verification RCE (high) and a dev-server arbitrary
+# file read on Windows (low). This also covers the deprecated
+# @esbuild-kit/core-utils pulled in by drizzle-kit, whose transform API is
+# unchanged across these versions.
 overrides:
-  '@esbuild-kit/core-utils>esbuild': '>=0.25.0'
+  esbuild: '>=0.28.1'
