@@ -4,17 +4,31 @@ import { env } from 'cloudflare:workers';
 import { createDb } from '@voz/shared';
 import { isAdmin } from '../../../lib/admin';
 import { createAuditDao } from '../../../lib/audit-dao';
+import { createUserDao } from '../../../lib/user-dao';
+import { formatAuditDetails } from '../../../lib/audit-details';
 import Dashboard from '../../../layouts/Dashboard.astro';
 
 if (!isAdmin(Astro.locals.user)) return Astro.redirect('/dashboard/profile');
 
 const db = createDb(env.DB);
-const entries = (await createAuditDao(db).listRecent(200)).map((e) => ({
+const rows = await createAuditDao(db).listRecent(200);
+
+// Resolve actor/target ids to a label for display. Accounts referenced by an
+// entry may have since been deleted (the log outlives them), so an id without a
+// match falls back to the raw id.
+const referencedIds = [...new Set(rows.flatMap((e) => [e.actorId, e.targetUserId]))];
+const byId = new Map((await createUserDao(db).byIds(referencedIds)).map((u) => [u.id, u]));
+const label = (id: string) => {
+  const u = byId.get(id);
+  return u ? { name: u.name, email: u.email, resolved: true } : { name: id, email: null, resolved: false };
+};
+
+const entries = rows.map((e) => ({
   id: e.id,
-  actorId: e.actorId,
+  actor: label(e.actorId),
   action: e.action,
-  targetUserId: e.targetUserId,
-  details: e.details,
+  target: label(e.targetUserId),
+  details: formatAuditDetails(e.details),
   createdAt: e.createdAt.getTime(),
 }));
 ---
@@ -42,12 +56,37 @@ const entries = (await createAuditDao(db).listRecent(200)).map((e) => ({
           </thead>
           <tbody>
             {entries.map((e) => (
-              <tr class="border-t border-border">
+              <tr class="border-t border-border align-top">
                 <td class="px-4 py-3 text-xs text-muted-foreground">{new Date(e.createdAt).toLocaleString()}</td>
-                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{e.actorId}</td>
+                <td class="px-4 py-3 text-xs">
+                  {e.actor.resolved ? (
+                    <span class="text-foreground">{e.actor.email}</span>
+                  ) : (
+                    <span class="font-mono text-muted-foreground" title="account deleted">{e.actor.name}</span>
+                  )}
+                </td>
                 <td class="px-4 py-3"><span class="rounded bg-muted px-2 py-0.5 text-xs font-medium">{e.action}</span></td>
-                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{e.targetUserId}</td>
-                <td class="px-4 py-3 text-xs text-muted-foreground">{e.details}</td>
+                <td class="px-4 py-3 text-xs">
+                  {e.target.resolved ? (
+                    <span class="text-foreground">{e.target.email}</span>
+                  ) : (
+                    <span class="font-mono text-muted-foreground" title="account deleted">{e.target.name}</span>
+                  )}
+                </td>
+                <td class="px-4 py-3 text-xs text-muted-foreground">
+                  {e.details.length === 0 ? (
+                    <span>—</span>
+                  ) : (
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                      {e.details.map((d) => (
+                        <>
+                          <dt class="font-medium text-foreground/70">{d.label}</dt>
+                          <dd>{d.value}</dd>
+                        </>
+                      ))}
+                    </dl>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
