@@ -75,6 +75,20 @@ npx wrangler d1 execute voz-gg --remote --command \
   "UPDATE \"user\" SET role='owner' WHERE email='you@example.com'"
 ```
 
+### Player presence (#25a)
+
+The `events-ingest` Worker accepts `POST /presence` (Bearer = the server's shared
+agent token, validated against `server_agent`). Bodies are batches of events typed
+`join | leave | connection_rejected | server_start | server_stop`; minecraft
+events carry a UUID (`identity_key`). Events are appended idempotently to
+`presence_events` (dedupe via a deterministic `dedupe_key`, since a NULL
+identity on lifecycle events defeats a composite UNIQUE). Each minecraft UUID
+auto-creates a `player` + `player_identity` and auto-links to a `user` account
+with a matching `minecraftUuid`. Sessions and playtime are derived at **read
+time** (`libs/shared/src/sessions.ts`); the admin `/dashboard/players` list reads
+them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer ships in
+PR-2 (depends on the agent-host-provisioning Go restructure).
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.
