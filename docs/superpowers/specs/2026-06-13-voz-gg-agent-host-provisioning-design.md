@@ -1,4 +1,4 @@
-# voz-agent host provisioning & capability foundation
+# voz-gg-agent host provisioning & capability foundation
 
 **Date:** 2026-06-13
 **Status:** Approved (design); pending spec review
@@ -43,7 +43,7 @@ service account and no hardening. We want to:
 
 | Decision | Choice |
 | --- | --- |
-| Packaging | **Single `voz-agent` binary, one privilege-scoped systemd unit per enabled capability.** |
+| Packaging | **Single `voz-gg-agent` binary, one privilege-scoped systemd unit per enabled capability.** |
 | Schema scope | **Reserve full plumbing now** (run-as user/group, game-server user, log path, per-capability enable flags). |
 | Run-as default | Dedicated `voz-gg` system user + `voz-gg` group. |
 | Game-server user default | Per game-type (`minecraft-*` → `minecraft`); blank for others. |
@@ -55,30 +55,30 @@ service account and no hardening. We want to:
 
 ## Architecture
 
-### `voz-agent` binary (renamed from `status-monitor`)
+### `voz-gg-agent` binary (renamed from `status-monitor`)
 
 The shipped `status-monitor` becomes capability `monitor` inside a new
-`voz-agent` binary with subcommands. The existing prober/agent/config code moves
+`voz-gg-agent` binary with subcommands. The existing prober/agent/config code moves
 under `monitor` unchanged.
 
 | Now | Becomes |
 | --- | --- |
-| `services/status-monitor` (Go) | `voz-agent` with `monitor` + reserved `logparse` subcommands |
-| `/usr/local/bin/voz-status-monitor` | `/usr/local/bin/voz-agent` |
-| `/etc/voz-status-monitor/config.json` | `/etc/voz-agent/monitor.json` |
-| `voz-status-monitor.service` | `voz-agent-monitor.service` |
-| release tag `status-monitor-latest`, asset `status-monitor-<os>-<arch>` | `voz-agent-latest`, asset `voz-agent-<os>-<arch>` |
+| `services/status-monitor` (Go) | `voz-gg-agent` with `monitor` + reserved `logparse` subcommands |
+| `/usr/local/bin/voz-status-monitor` | `/usr/local/bin/voz-gg-agent` |
+| `/etc/voz-status-monitor/config.json` | `/etc/voz-gg-agent/monitor.json` |
+| `voz-status-monitor.service` | `voz-gg-agent-monitor.service` |
+| release tag `status-monitor-latest`, asset `status-monitor-<os>-<arch>` | `voz-gg-agent-latest`, asset `voz-gg-agent-<os>-<arch>` |
 
 Subcommands / flags:
 
-- `voz-agent monitor -config <path>` — the current daemon loop (network prober,
+- `voz-gg-agent monitor -config <path>` — the current daemon loop (network prober,
   status reporting, config refresh on hash change).
-- `voz-agent logparse -config <path>` — **reserved**; scaffolded but not
+- `voz-gg-agent logparse -config <path>` — **reserved**; scaffolded but not
   implemented in this spec (returns "not implemented" / hidden). Folding the
   existing `tools/mc-logparser` in is future work.
-- `voz-agent -write-config -config <path> -worker-base-url <url>` — shared
+- `voz-gg-agent -write-config -config <path> -worker-base-url <url>` — shared
   bootstrap: read an enroll response from stdin, persist the monitoring config.
-- `voz-agent -print-provisioning` — shared bootstrap: read an enroll response
+- `voz-gg-agent -print-provisioning` — shared bootstrap: read an enroll response
   from stdin, print resolved provisioning values for the install script to
   consume (keeps JSON parsing in Go; no `jq` dependency, no `eval`).
 
@@ -148,29 +148,29 @@ Non-interactive, idempotent, capability-driven. Per value, precedence is
 **env override > enroll `provisioning` > hard default (`voz-gg`)**.
 
 1. Resolve run-as values and capability policy. Fetch the binary
-   (`voz-agent-<os>-<arch>` from `voz-agent-latest`) to `/usr/local/bin/voz-agent`.
+   (`voz-gg-agent-<os>-<arch>` from `voz-gg-agent-latest`) to `/usr/local/bin/voz-gg-agent`.
 2. Ensure shared account: create group `runAsGroup`, then user `runAsUser`, as a
    **system** account if missing
    (`useradd --system --no-create-home --shell /usr/sbin/nologin -g <group>`).
 3. For each **enabled** capability, write its config + install a
    privilege-scoped unit:
-   - **monitor** (`voz-agent-monitor.service`): `User=voz-gg`, `Group=voz-gg`,
+   - **monitor** (`voz-gg-agent-monitor.service`): `User=voz-gg`, `Group=voz-gg`,
      hardening (`NoNewPrivileges=true`, `ProtectSystem=strict`,
      `ProtectHome=true`, `PrivateTmp=true`,
-     `ReadWritePaths=/etc/voz-agent`). No supplementary groups.
-   - **logParser** (`voz-agent-logparse.service`, only when enabled — *not in
+     `ReadWritePaths=/etc/voz-gg-agent`). No supplementary groups.
+   - **logParser** (`voz-gg-agent-logparse.service`, only when enabled — *not in
      this spec's runtime path*): resolve `LOG_GROUP="$(id -gn "$gameServerUser")"`;
      if `gameServerUser` is absent, **warn and skip** this capability. Unit gets
      `SupplementaryGroups=$LOG_GROUP`, `ReadOnlyPaths=$logPath`, and relaxed
      `ProtectHome` so it can reach the game user's home. Only this unit gains the
      file access.
-4. `chown -R runAsUser:runAsGroup /etc/voz-agent`; config files stay `0600`.
+4. `chown -R runAsUser:runAsGroup /etc/voz-gg-agent`; config files stay `0600`.
 5. `systemctl daemon-reload` then `enable --now` each installed unit.
 6. **Upgrade cleanup:** if `voz-status-monitor.service` exists, `disable --now`
    and remove it (and the old binary/config dir) — best effort, ignore errors.
 
 `config.json` parsing in the script is avoided: provisioning values come from
-`voz-agent -print-provisioning`.
+`voz-gg-agent -print-provisioning`.
 
 ### UI (`apps/web` create/edit server form + API)
 
@@ -203,14 +203,14 @@ omitted.
 
 1. **Schema + migration + `GAME_TYPE_DEFAULTS`** (`libs/shared`, `apps/web/drizzle`).
 2. **Enroll policy** in the Worker (`agent-handlers.ts`, `agent-config.ts`).
-3. **`voz-agent` Go restructure**: rename `services/status-monitor` →
-   `voz-agent`, `monitor` subcommand wraps existing loop, reserved `logparse`,
+3. **`voz-gg-agent` Go restructure**: rename `services/status-monitor` →
+   `voz-gg-agent`, `monitor` subcommand wraps existing loop, reserved `logparse`,
    shared `-write-config` / `-print-provisioning`; update `project.json`, tags,
    and the release/CI workflow asset names + tag.
 4. **Install script rewrite** (`install-agent.sh`): shared user, capability
    loop, hardened units, legacy cleanup.
 5. **UI form fields + server API** persistence.
-6. **Docs**: update `AGENTS.md` (taxonomy: `voz-agent` is the unified host
+6. **Docs**: update `AGENTS.md` (taxonomy: `voz-gg-agent` is the unified host
    agent; `status-monitor` capability lives inside it) and the install dialog
    copy.
 
@@ -231,7 +231,7 @@ omitted.
 
 - Implementing the `logparse` capability (the actual log parser). This spec only
   reserves its subcommand, schema columns, enroll shape, and install path.
-- Folding the existing `tools/mc-logparser` into `voz-agent`.
+- Folding the existing `tools/mc-logparser` into `voz-gg-agent`.
 - A host-side interactive user picker (`/dev/tty`).
 
 ## Open items resolved
