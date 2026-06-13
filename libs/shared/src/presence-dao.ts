@@ -54,7 +54,7 @@ export function createPresenceDao(db: Db): PresenceDao {
         displayName: name,
         createdAt: now,
         updatedAt: now,
-      });
+      }).onConflictDoNothing();
     },
 
     async linkAccountIfMatch(kind: PlayerIdentityKind, key: string) {
