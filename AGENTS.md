@@ -86,8 +86,12 @@ identity on lifecycle events defeats a composite UNIQUE). Each minecraft UUID
 auto-creates a `player` + `player_identity` and auto-links to a `user` account
 with a matching `minecraftUuid`. Sessions and playtime are derived at **read
 time** (`libs/shared/src/sessions.ts`); the admin `/dashboard/players` list reads
-them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer ships in
-PR-2 (depends on the agent-host-provisioning Go restructure).
+them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer is
+implemented: it backfills rolled `*.log.gz` then tails `latest.log`, parses
+join/leave/connection_rejected/server_start/server_stop, and POSTs idempotent
+batches to `/presence` (Bearer = the agent token from the monitor config; log
+directory via `-log-dir`, checkpoint advances only on ack). Installer/systemd
+wiring of the unit and the web enable toggle land separately.
 
 The host installer (`apps/web/public/install-agent.sh`) is a thin bootstrap: it
 downloads `voz-gg-agent` and execs `voz-gg-agent setup`, which enrolls, creates a
