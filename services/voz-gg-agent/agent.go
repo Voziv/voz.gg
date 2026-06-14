@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	goshared "voz.gg/libs/go-shared"
-	"voz.gg/services/status-monitor/prober"
+	"voz.gg/services/voz-gg-agent/prober"
 )
 
 // statusReport is the POST /api/status request body.

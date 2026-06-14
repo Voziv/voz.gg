@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"voz.gg/services/status-monitor/prober"
+	"voz.gg/services/voz-gg-agent/prober"
 )
 
 // version is injected at build time via -ldflags "-X main.version=<v>",
