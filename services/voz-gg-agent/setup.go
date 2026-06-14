@@ -21,9 +21,9 @@ const (
 	legacyBinary    = "/usr/local/bin/voz-status-monitor"
 )
 
-// provisioning is the install-time policy block of the enroll response.
-// Only the run-as identity is currently consumed; capability fields (e.g. logparse)
-// are reserved for future expansion.
+// provisioning is the run-as identity from the enroll response's install-time
+// policy block. The response also carries capability fields (e.g. logparse) that
+// this struct intentionally does not decode yet.
 type provisioning struct {
 	RunAsUser  string `json:"runAsUser"`
 	RunAsGroup string `json:"runAsGroup"`
@@ -267,7 +267,7 @@ func (realSystem) mkdirAll(p string, perm uint32) error { return os.MkdirAll(p, 
 func (realSystem) writeFile(p string, d []byte, perm uint32) error {
 	return os.WriteFile(p, d, os.FileMode(perm))
 }
-func (realSystem) chownRecursive(p, u, g string) error { return runLogged("chown", "-R", u+":"+g, p) }
+func (realSystem) chownRecursive(p, u, g string) error   { return runLogged("chown", "-R", u+":"+g, p) }
 func (realSystem) run(name string, args ...string) error { return runLogged(name, args...) }
 func (realSystem) unitInstalled(n string) bool {
 	_, err := os.Stat("/etc/systemd/system/" + n)
