@@ -1,3 +1,13 @@
+## 0.14.2 (2026-06-14)
+
+### 🩹 Fixes
+
+- **web:** resolve minecraft usernames via PlayerDB mirror ([425fea2](https://github.com/Voziv/voz.gg/commit/425fea2))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.14.1 (2026-06-14)
 
 ### 🩹 Fixes
