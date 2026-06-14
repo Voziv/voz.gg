@@ -105,7 +105,12 @@ func (r *Runner) Tail(ctx context.Context, interval time.Duration) error {
 	}
 }
 
-const defaultBatchSize = 200
+const (
+	defaultBatchSize = 200
+	// maxBatchSize mirrors the ingest's per-request cap (parsePresenceBody's
+	// .max(1000)); a larger batch would be rejected wholesale as a 400.
+	maxBatchSize = 1000
+)
 
 // processFile reads one log file, delivering its events in BatchSize chunks, and
 // (for latest.log) advances the checkpoint to the final offset once all of the
@@ -115,16 +120,26 @@ func (r *Runner) processFile(path string, checkpoint Checkpoint) error {
 	startOffset := int64(0)
 	if isLatest && checkpoint.File == LatestLog {
 		startOffset = checkpoint.Offset
+		// Detect rotation/truncation: when the server restarts, log4j2 rolls
+		// latest.log to a dated .gz and starts a fresh, shorter file. A stale
+		// offset would seek past the new session's head and silently skip it, so
+		// restart from the beginning when the file is now smaller than the offset.
+		if info, err := os.Stat(path); err == nil && info.Size() < startOffset {
+			startOffset = 0
+		}
 	}
 	anchor := r.AnchorDate
 	if !isLatest {
 		anchor = dateFromRolledName(filepath.Base(path), r.Location)
 	}
-	// Guard against a misconfigured zero/negative BatchSize, which would otherwise
-	// flush one HTTP POST per event. The ingest also caps a batch at 1000 events.
+	// Clamp BatchSize into (0, maxBatchSize]: a zero/negative value would flush one
+	// POST per event; a value above the ingest cap would have the whole batch rejected.
 	batchSize := r.BatchSize
 	if batchSize <= 0 {
 		batchSize = defaultBatchSize
+	}
+	if batchSize > maxBatchSize {
+		batchSize = maxBatchSize
 	}
 	correlator := NewCorrelator()
 	resolver := NewTimeResolver(anchor, r.Location)

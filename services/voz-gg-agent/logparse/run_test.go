@@ -2,10 +2,12 @@ package logparse
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -248,5 +250,98 @@ func TestBackfillProcessesRolledGzip(t *testing.T) {
 	// Rolled logs never write the checkpoint.
 	if cp, _ := LoadCheckpoint(cpPath); cp.File != "" {
 		t.Fatalf("rolled log must not write a checkpoint: %+v", cp)
+	}
+}
+
+func TestPollLatestResetsOnRotation(t *testing.T) {
+	dir := t.TempDir()
+	cpPath := filepath.Join(dir, "cp.json")
+	latest := filepath.Join(dir, "latest.log")
+	// Initial session: two joins → checkpoint advances past both.
+	initial := `[10:00:00] [Server thread/INFO]: Steve joined the game` + "\n" +
+		`[10:00:05] [Server thread/INFO]: Alex joined the game` + "\n"
+	if err := os.WriteFile(latest, []byte(initial), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var got []goshared.PresenceEvent
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b goshared.PresenceBatch
+		json.NewDecoder(r.Body).Decode(&b)
+		mu.Lock()
+		got = append(got, b.Events...)
+		mu.Unlock()
+		json.NewEncoder(w).Encode(goshared.PresenceResult{Accepted: len(b.Events)})
+	}))
+	defer srv.Close()
+
+	r := newRunner(dir, srv.URL, cpPath, 100)
+	if err := r.Backfill(); err != nil {
+		t.Fatal(err)
+	}
+	cp, _ := LoadCheckpoint(cpPath)
+	if cp.Offset == 0 {
+		t.Fatal("expected checkpoint to advance past the initial session")
+	}
+
+	// Server restart: latest.log is rotated and a fresh, shorter file begins.
+	// Its size is below the stale offset, so the head must NOT be skipped.
+	rotated := `[11:00:00] [Server thread/INFO]: Bob joined the game` + "\n"
+	if int64(len(rotated)) >= cp.Offset {
+		t.Fatalf("test setup: rotated file (%d) must be shorter than the stale offset (%d)", len(rotated), cp.Offset)
+	}
+	if err := os.WriteFile(latest, []byte(rotated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.PollLatest(); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 3 || got[2].Type != "join" || got[2].PlayerName == nil || *got[2].PlayerName != "Bob" {
+		t.Fatalf("rotation should re-read from offset 0 and deliver Bob's join, got %+v", got)
+	}
+}
+
+func TestBackfillNeverExceedsIngestCap(t *testing.T) {
+	dir := t.TempDir()
+	// 1001 joins with a BatchSize above the ingest's 1000 cap; the Runner must
+	// clamp so no single POST exceeds 1000.
+	var sb strings.Builder
+	const n = 1001
+	for i := 0; i < n; i++ {
+		secs := i % 86400
+		fmt.Fprintf(&sb, "[%02d:%02d:%02d] [Server thread/INFO]: p%d joined the game\n",
+			secs/3600, (secs%3600)/60, secs%60, i)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "latest.log"), []byte(sb.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	total, maxSeen := 0, 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b goshared.PresenceBatch
+		json.NewDecoder(r.Body).Decode(&b)
+		mu.Lock()
+		total += len(b.Events)
+		if len(b.Events) > maxSeen {
+			maxSeen = len(b.Events)
+		}
+		mu.Unlock()
+		json.NewEncoder(w).Encode(goshared.PresenceResult{Accepted: len(b.Events)})
+	}))
+	defer srv.Close()
+
+	r := newRunner(dir, srv.URL, filepath.Join(dir, "cp.json"), 5000) // above the cap
+	if err := r.Backfill(); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if total != n {
+		t.Fatalf("expected all %d events delivered, got %d", n, total)
+	}
+	if maxSeen > maxBatchSize {
+		t.Fatalf("a batch exceeded the ingest cap: %d > %d", maxSeen, maxBatchSize)
 	}
 }
