@@ -75,19 +75,21 @@ func (d *Deliverer) Deliver(events []goshared.PresenceEvent) error {
 
 // isPermanent reports whether the Reporter error carries a 4xx status that
 // re-sending the same batch can never resolve. The Reporter formats non-2xx as
-// "post <path>: status <code>: <body>". Only client errors that are inherent to
+// "post <path>: status <code>: <body>", so we match the "status <code>: " segment
+// (with the trailing colon) rather than the bare number, to avoid matching a code
+// that merely appears inside a 5xx response body. Only client errors inherent to
 // the request are listed; any unlisted status (5xx, transport errors, and
 // retryable 4xx such as 429 Too Many Requests) is treated as retryable.
 func isPermanent(err error) bool {
 	msg := err.Error()
 	permanent := []string{
-		"status 400", // malformed events
-		"status 401", // bad/expired agent token
-		"status 403", // forbidden
-		"status 404", // wrong endpoint
-		"status 405", // wrong method
-		"status 413", // batch too large — same payload will always be rejected
-		"status 422", // unprocessable entity
+		"status 400: ", // malformed events
+		"status 401: ", // bad/expired agent token
+		"status 403: ", // forbidden
+		"status 404: ", // wrong endpoint
+		"status 405: ", // wrong method
+		"status 413: ", // batch too large — same payload will always be rejected
+		"status 422: ", // unprocessable entity
 	}
 	for _, code := range permanent {
 		if strings.Contains(msg, code) {

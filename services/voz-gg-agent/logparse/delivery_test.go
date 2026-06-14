@@ -88,6 +88,30 @@ func TestReporterErrorFormatIsStable(t *testing.T) {
 	}
 }
 
+func TestDeliverRetries5xxWhoseBodyMentionsA4xx(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls < 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			// Body text mentions "status 400" but this is a retryable 5xx, not permanent.
+			w.Write([]byte("upstream returned status 400 earlier; retry later"))
+			return
+		}
+		json.NewEncoder(w).Encode(goshared.PresenceResult{Accepted: 1})
+	}))
+	defer srv.Close()
+
+	rep := goshared.Reporter{Endpoint: srv.URL, Token: "tok", Client: srv.Client()}
+	d := NewDeliverer(rep, zeroDelayBackoff())
+	if err := d.Deliver([]goshared.PresenceEvent{{Type: "join", OccurredAt: 1}}); err != nil {
+		t.Fatalf("a 5xx whose body mentions a 4xx must be retried, not treated as permanent: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected a retry then success, got %d calls", calls)
+	}
+}
+
 func TestDeliverGivesUpAfterMaxAttempts(t *testing.T) {
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
