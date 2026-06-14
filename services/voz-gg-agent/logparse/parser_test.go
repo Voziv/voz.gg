@@ -73,3 +73,36 @@ func TestChatLineIsNotAJoin(t *testing.T) {
 		t.Fatal("a chat message must not be parsed as a leave event")
 	}
 }
+
+func TestSplitLine(t *testing.T) {
+	ts, body, ok := SplitLine(`[10:30:12] [Server thread/INFO]: Steve joined the game`)
+	if !ok || ts != "10:30:12" || body != "Steve joined the game" {
+		t.Fatalf("got ts=%q body=%q ok=%v", ts, body, ok)
+	}
+}
+
+func TestSplitLineNoBracket(t *testing.T) {
+	if _, _, ok := SplitLine(`garbage without timestamp`); ok {
+		t.Fatal("expected failure on non-timestamped line")
+	}
+}
+
+func TestSplitLinePreservesColonsInBody(t *testing.T) {
+	ts, body, ok := SplitLine(`[11:02:47] [User Authenticator #1/INFO]: GameProfile[id=x] (/1.2.3.4:5) lost connection: nope`)
+	if !ok || ts != "11:02:47" || body != "GameProfile[id=x] (/1.2.3.4:5) lost connection: nope" {
+		t.Fatalf("got ts=%q body=%q ok=%v", ts, body, ok)
+	}
+}
+
+func TestSplitLineEmptyBody(t *testing.T) {
+	ts, body, ok := SplitLine(`[10:30:12] [Server thread/INFO]: `)
+	if !ok || ts != "10:30:12" || body != "" {
+		t.Fatalf("got ts=%q body=%q ok=%v", ts, body, ok)
+	}
+}
+
+func TestSplitLineRejectsDateStampedLine(t *testing.T) {
+	if _, _, ok := SplitLine(`[2024-01-15 10:30:00] [INFO] some property line`); ok {
+		t.Fatal("a date-stamped line must not be treated as an HH:MM:SS log line")
+	}
+}

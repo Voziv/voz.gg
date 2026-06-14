@@ -77,3 +77,19 @@ func (c *Correlator) Parse(msg string) (ParsedLine, bool) {
 	}
 	return ParsedLine{}, false
 }
+
+// linePrefixRe requires a leading "[HH:MM:SS]" (so date-stamped lines never
+// match), consumes the optional "[thread/LEVEL]:" tag, and captures the rest as
+// the message body.
+var linePrefixRe = regexp.MustCompile(`^\[(\d{2}:\d{2}:\d{2})\][^:]*:?\s*(.*)$`)
+
+// SplitLine separates the "[HH:MM:SS]" timestamp from the message body, dropping
+// the thread/level tag. It returns ok=false for any line not prefixed with a
+// bracketed HH:MM:SS timestamp.
+func SplitLine(line string) (timestamp, body string, ok bool) {
+	m := linePrefixRe.FindStringSubmatch(line)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
