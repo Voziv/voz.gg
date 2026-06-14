@@ -1,3 +1,7 @@
+## 0.4.1 (2026-06-14)
+
+This was a version bump only for shared to align it with other projects, there were no code changes.
+
 ## 0.4.0 (2026-06-02)
 
 ### 🚀 Features
