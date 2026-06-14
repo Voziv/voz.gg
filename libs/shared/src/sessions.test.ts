@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { deriveSessions, totalPlaytimeSeconds, type DerivableEvent } from './sessions';
 
 const at = (s: string) => new Date(s);
-const d = at;
 const now = new Date('2026-06-13T12:00:00Z');
 
 function ev(partial: Partial<DerivableEvent> & Pick<DerivableEvent, 'type' | 'occurredAt'>): DerivableEvent {
@@ -104,8 +103,8 @@ describe('deriveSessions IP carry', () => {
   it('carries the join event IP onto the closed session', () => {
     const [s] = deriveSessions(
       [
-        { type: 'join', identityKey: 'u1', occurredAt: d('2026-06-13T10:00:00Z'), ip: '1.2.3.4' },
-        { type: 'leave', identityKey: 'u1', occurredAt: d('2026-06-13T10:30:00Z') },
+        { type: 'join', identityKey: 'u1', occurredAt: at('2026-06-13T10:00:00Z'), ip: '1.2.3.4' },
+        { type: 'leave', identityKey: 'u1', occurredAt: at('2026-06-13T10:30:00Z') },
       ],
       now,
     );
@@ -114,7 +113,7 @@ describe('deriveSessions IP carry', () => {
 
   it('leaves ip null when the join carried none, including ongoing sessions', () => {
     const [s] = deriveSessions(
-      [{ type: 'join', identityKey: 'u1', occurredAt: d('2026-06-13T11:00:00Z') }],
+      [{ type: 'join', identityKey: 'u1', occurredAt: at('2026-06-13T11:00:00Z') }],
       now,
     );
     expect(s.open).toBe(true);

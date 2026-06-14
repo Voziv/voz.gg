@@ -22,7 +22,7 @@ const LIFECYCLE: ReadonlySet<PresenceEventType> = new Set(['server_start', 'serv
 // (crash cap); failing that, it is an ongoing session ending at `now`.
 export function deriveSessions(events: DerivableEvent[], now: Date): Session[] {
   const ordered = [...events].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
-  const open = new Map<string, { start: Date; ip: string | null }>(); // identityKey -> join
+  const open = new Map<string, { start: Date; ip: string | null }>();
   const sessions: Session[] = [];
 
   const close = (identityKey: string, joined: { start: Date; ip: string | null }, end: Date) =>
