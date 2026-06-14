@@ -1,9 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { handleEnroll, handleConfig, handleStatus } from './agent-handlers';
 import { buildAgentConfig, configHash } from './agent-config';
+import { buildProvisioning } from './agent-provisioning';
 import type { AgentDao, ServerRow, StatusUpsert } from './agent-dao';
 
-const server: ServerRow = { id: 'srv1', gameType: 'minecraft-java', port: 25565 };
+const server: ServerRow = {
+  id: 'srv1',
+  gameType: 'minecraft-java',
+  port: 25565,
+  runAsUser: null,
+  runAsGroup: null,
+  gameServerUser: null,
+  logPath: null,
+  monitorEnabled: null,
+  logParserEnabled: null,
+};
 
 function fakeDao(overrides: Partial<AgentDao> = {}) {
   const calls: { upserts: StatusUpsert[]; lastSeen: string[]; enrolled: string[] } = {
@@ -30,14 +41,20 @@ function fakeDao(overrides: Partial<AgentDao> = {}) {
 }
 
 describe('handleEnroll', () => {
-  it('mints + hashes an agent token, completes enrollment, returns config + hash', async () => {
+  it('mints + hashes an agent token, completes enrollment, returns config, hash, and provisioning', async () => {
     const { dao, calls } = fakeDao({ findServerByEnrollmentTokenHash: async () => server });
     const res = await handleEnroll(dao, { enrollmentToken: 'enroll-1' });
     expect(res.status).toBe(200);
-    const body = res.body as { agentToken: string; config: unknown; configHash: string };
+    const body = res.body as {
+      agentToken: string;
+      config: unknown;
+      configHash: string;
+      provisioning: unknown;
+    };
     expect(body.agentToken.length).toBeGreaterThanOrEqual(32);
     expect(body.config).toEqual(buildAgentConfig(server));
     expect(body.configHash).toBe(await configHash(buildAgentConfig(server)));
+    expect(body.provisioning).toEqual(buildProvisioning(server));
     expect(calls.enrolled).toEqual(['srv1']);
   });
 

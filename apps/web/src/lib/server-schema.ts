@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { GAME_TYPES } from '@voz/shared';
 
+// A POSIX-ish account/group name, or null when blank. Empty input (the common
+// "leave default" case) becomes null so the Worker applies its own defaults.
+const optionalUnixName = z
+  .string()
+  .trim()
+  .max(32)
+  .optional()
+  .transform((v) => (v && v.length > 0 ? v : null))
+  .refine((v) => v === null || /^[a-z_][a-z0-9_-]{0,31}$/.test(v), 'Invalid user or group name.');
+
 const serverSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(80),
   gameType: z.enum(GAME_TYPES),
@@ -17,6 +27,16 @@ const serverSchema = z.object({
     .max(500)
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
+  runAsUser: optionalUnixName,
+  runAsGroup: optionalUnixName,
+  gameServerUser: optionalUnixName,
+  logPath: z
+    .string()
+    .trim()
+    .max(4096)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null))
+    .refine((v) => v === null || v.startsWith('/'), 'Log path must be absolute.'),
 });
 
 export type ServerInput = z.infer<typeof serverSchema>;

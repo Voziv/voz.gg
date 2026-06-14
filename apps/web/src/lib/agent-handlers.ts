@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AgentDao, ServerRow } from './agent-dao';
 import { buildAgentConfig, configHash } from './agent-config';
 import { generateToken, hashToken } from './agent-auth';
+import { buildProvisioning } from './agent-provisioning';
 
 export interface HandlerResult {
   status: number;
@@ -36,7 +37,10 @@ export async function handleEnroll(dao: AgentDao, body: unknown): Promise<Handle
   await dao.completeEnrollment(server.id, await hashToken(agentToken), new Date());
 
   const { config, configHash: hash } = await configResponse(server);
-  return { status: 200, body: { agentToken, config, configHash: hash } };
+  return {
+    status: 200,
+    body: { agentToken, config, configHash: hash, provisioning: buildProvisioning(server) },
+  };
 }
 
 export async function handleConfig(dao: AgentDao, serverId: string | null): Promise<HandlerResult> {

@@ -6,6 +6,12 @@ export interface ServerRow {
   id: string;
   gameType: import('@voz/shared').GameType;
   port: number;
+  runAsUser: string | null;
+  runAsGroup: string | null;
+  gameServerUser: string | null;
+  logPath: string | null;
+  monitorEnabled: boolean | null;
+  logParserEnabled: boolean | null;
 }
 
 export interface StatusUpsert {
@@ -29,7 +35,17 @@ export interface AgentDao extends TokenResolver {
 export function createAgentDao(db: Db): AgentDao {
   const selectServer = (serverId: string) =>
     db
-      .select({ id: servers.id, gameType: servers.gameType, port: servers.port })
+      .select({
+        id: servers.id,
+        gameType: servers.gameType,
+        port: servers.port,
+        runAsUser: servers.runAsUser,
+        runAsGroup: servers.runAsGroup,
+        gameServerUser: servers.gameServerUser,
+        logPath: servers.logPath,
+        monitorEnabled: servers.monitorEnabled,
+        logParserEnabled: servers.logParserEnabled,
+      })
       .from(servers)
       .where(eq(servers.id, serverId))
       .get();
