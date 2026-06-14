@@ -1,12 +1,12 @@
 import { eq } from 'drizzle-orm';
 import type { Db } from './client';
 import { presenceEvents, player, playerIdentity, groupTag, playerGroupTag } from './schema';
-import type { PlayerStatus } from './schema';
+import type { PlayerStatus, PlayerIdentityKind } from './schema';
 import { deriveSessions, totalPlaytimeSeconds, type DerivableEvent } from './sessions';
 
 export interface OverviewInput {
   players: { id: string; displayName: string | null; userId: string | null; status: PlayerStatus; isBot: boolean }[];
-  identities: { playerId: string; identityKey: string; kind: string; displayName: string | null }[];
+  identities: { playerId: string; identityKey: string; kind: PlayerIdentityKind; displayName: string | null }[];
   groups: { playerId: string; name: string }[];
   events: { serverId: string; type: DerivableEvent['type']; identityKey: string | null; occurredAt: Date }[];
 }
@@ -55,7 +55,9 @@ export function assemblePlayersOverview(
     keysByPlayer.get(id.playerId)?.add(id.identityKey);
     if (id.displayName) {
       namesByPlayer.get(id.playerId)?.add(id.displayName);
-      if (id.kind === 'minecraft' && !minecraftNameByPlayer.get(id.playerId)) {
+      // First minecraft identity with a name wins the display pill; alts are a
+      // tie-break we don't care to order.
+      if (id.kind === 'minecraft' && minecraftNameByPlayer.has(id.playerId) && !minecraftNameByPlayer.get(id.playerId)) {
         minecraftNameByPlayer.set(id.playerId, id.displayName);
       }
     }
@@ -85,8 +87,8 @@ export function assemblePlayersOverview(
       }
 
       let totalSeconds = 0;
-      for (const sid of serversSeen) {
-        const sessions = deriveSessions(byServer.get(sid) ?? [], now).filter((s) => ownKeys.has(s.identityKey));
+      for (const seenServerId of serversSeen) {
+        const sessions = deriveSessions(byServer.get(seenServerId) ?? [], now).filter((s) => ownKeys.has(s.identityKey));
         totalSeconds += totalPlaytimeSeconds(sessions);
       }
 
@@ -108,14 +110,10 @@ export function assemblePlayersOverview(
     .filter((row) => !serverId || row.serversSeen.length > 0);
 }
 
-export interface GetPlayersOverviewOptions {
-  serverId?: string;
-}
-
 export async function getPlayersOverview(
   db: Db,
   now: Date,
-  options: GetPlayersOverviewOptions = {},
+  options: OverviewOptions = {},
 ): Promise<PlayerOverviewRow[]> {
   const players = await db
     .select({

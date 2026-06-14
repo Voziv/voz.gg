@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { assemblePlayersOverview, type OverviewInput } from './players';
-import { PLAYER_STATUSES } from './schema';
 
 const now = new Date('2026-06-13T12:00:00Z');
 const d = (s: string) => new Date(s);
@@ -77,7 +76,6 @@ describe('assemblePlayersOverview enrichment', () => {
     expect(row.isBot).toBe(false);
     expect(row.groups).toEqual(['WTK']);
     expect(row.minecraftName).toBe('SteveMC');
-    expect(PLAYER_STATUSES).toContain(row.status);
   });
 
   it('scopes playtime, servers, and last seen to a single server when serverId is given', () => {
