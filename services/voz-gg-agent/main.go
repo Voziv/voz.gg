@@ -1,11 +1,14 @@
-// Command status-monitor is the co-located voz.gg agent. It probes the local
-// game server and reports status to the Worker, re-pulling config on hash change.
+// Command voz-gg-agent is the co-located voz.gg host agent. It runs as one of
+// several capability subcommands; `monitor` probes the local game server and
+// reports status to the Worker, re-pulling config on hash change.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -18,32 +21,65 @@ import (
 // sourced from the project's VERSION file. It defaults to "dev" for local builds.
 var version = "dev"
 
+const defaultConfigPath = "/etc/voz-gg-agent/monitor.json"
+
 func main() {
-	configPath := flag.String("config", "/etc/voz-status-monitor/config.json", "path to config.json")
-	workerBaseURL := flag.String("worker-base-url", "", "worker base URL (only used with -write-config)")
-	writeConfig := flag.Bool("write-config", false, "read an enroll response from stdin and write config.json, then exit")
-	showVersion := flag.Bool("version", false, "print the version and exit")
-	flag.Parse()
+	os.Exit(dispatch(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+}
 
-	if *showVersion {
-		fmt.Println(version)
-		return
+func usage(w io.Writer) {
+	fmt.Fprintln(w, "usage: voz-gg-agent <command> [flags]")
+	fmt.Fprintln(w, "commands:")
+	fmt.Fprintln(w, "  monitor       probe the local game server and report status")
+	fmt.Fprintln(w, "  logparse      (reserved) parse game-server logs — not yet implemented")
+	fmt.Fprintln(w, "  write-config  read an enroll response from stdin and write the monitor config")
+	fmt.Fprintln(w, "  version       print the version")
+}
+
+// dispatch routes a command line to a subcommand and returns the process exit
+// code. Kept separate from main() so routing is unit-testable without building
+// the binary or touching the real process.
+func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		usage(stderr)
+		return 2
 	}
+	switch args[0] {
+	case "version", "-version", "--version":
+		fmt.Fprintln(stdout, version)
+		return 0
+	case "help", "-h", "--help":
+		usage(stdout)
+		return 0
+	case "monitor":
+		return runMonitor(args[1:], stderr)
+	case "write-config":
+		return runWriteConfig(args[1:], stdin, stderr)
+	case "logparse":
+		fmt.Fprintln(stderr, "logparse is not implemented yet")
+		return 1
+	default:
+		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
+		usage(stderr)
+		return 2
+	}
+}
 
-	if *writeConfig {
-		cfg, err := ConfigFromEnroll(os.Stdin, *workerBaseURL)
-		if err != nil {
-			log.Fatalf("write-config: %v", err)
+func runMonitor(args []string, stderr io.Writer) int {
+	fs := flag.NewFlagSet("monitor", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := fs.String("config", defaultConfigPath, "path to the monitor config json")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
 		}
-		if err := SaveConfig(*configPath, cfg); err != nil {
-			log.Fatalf("write-config: %v", err)
-		}
-		return
+		return 2
 	}
 
 	cfg, err := LoadConfig(*configPath)
 	if err != nil {
-		log.Fatalf("load config %s: %v", *configPath, err)
+		fmt.Fprintf(stderr, "load config %s: %v\n", *configPath, err)
+		return 1
 	}
 
 	agent := &Agent{
@@ -52,8 +88,32 @@ func main() {
 		ProberForFn: prober.For,
 		ConfigPath:  *configPath,
 	}
-
 	run(context.Background(), agent)
+	return 0
+}
+
+func runWriteConfig(args []string, stdin io.Reader, stderr io.Writer) int {
+	fs := flag.NewFlagSet("write-config", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := fs.String("config", defaultConfigPath, "path to write the monitor config json")
+	workerBaseURL := fs.String("worker-base-url", "", "worker base URL to embed in the config")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	cfg, err := ConfigFromEnroll(stdin, *workerBaseURL)
+	if err != nil {
+		fmt.Fprintf(stderr, "write-config: %v\n", err)
+		return 1
+	}
+	if err := SaveConfig(*configPath, cfg); err != nil {
+		fmt.Fprintf(stderr, "write-config: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func run(ctx context.Context, agent *Agent) {
