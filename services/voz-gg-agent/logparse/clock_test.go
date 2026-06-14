@@ -58,3 +58,15 @@ func TestResolverFirstLineDoesNotWrap(t *testing.T) {
 		t.Fatalf("first line wrapped the day: got %d want %d", got, want)
 	}
 }
+
+func TestDateFromRolledName(t *testing.T) {
+	loc := time.UTC
+	got := dateFromRolledName("2026-06-14-3.log.gz", loc)
+	want := time.Date(2026, 6, 14, 0, 0, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+	if z := dateFromRolledName("garbage", loc); !z.IsZero() {
+		t.Fatalf("malformed name should yield zero time, got %v", z)
+	}
+}

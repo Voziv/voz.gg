@@ -6,6 +6,19 @@ import (
 	"time"
 )
 
+// dateFromRolledName parses "YYYY-MM-DD-N.log.gz" to that date at local midnight.
+// A malformed name yields the zero time (such files are not produced by the server).
+func dateFromRolledName(name string, loc *time.Location) time.Time {
+	if len(name) < 10 {
+		return time.Time{}
+	}
+	d, err := time.ParseInLocation("2006-01-02", name[:10], loc)
+	if err != nil {
+		return time.Time{}
+	}
+	return d
+}
+
 // TimeResolver turns a log line's "HH:MM:SS" into a UTC epoch second, advancing
 // the day each time the clock jumps backward (midnight rollover within one file).
 type TimeResolver struct {
