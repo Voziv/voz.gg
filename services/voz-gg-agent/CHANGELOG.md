@@ -1,3 +1,14 @@
+## 0.4.0 (2026-06-14)
+
+### 🚀 Features
+
+- **voz-gg-agent:** wire setup subcommand with real host operations ([ee0d3ba](https://github.com/Voziv/voz.gg/commit/ee0d3ba))
+- **voz-gg-agent:** add setup provisioning orchestrator ([cd2fca4](https://github.com/Voziv/voz.gg/commit/cd2fca4))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.3.0 (2026-06-14)
 
 ### 🚀 Features

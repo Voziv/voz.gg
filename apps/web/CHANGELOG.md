@@ -1,3 +1,14 @@
+## 0.16.0 (2026-06-14)
+
+### 🚀 Features
+
+- **web:** show sudo in the agent install command ([c892d31](https://github.com/Voziv/voz.gg/commit/c892d31))
+- **web:** make install-agent.sh a thin bootstrap over setup ([6cb1d4b](https://github.com/Voziv/voz.gg/commit/6cb1d4b))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.15.0 (2026-06-14)
 
 ### 🚀 Features
