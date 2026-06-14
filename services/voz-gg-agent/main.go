@@ -32,7 +32,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "commands:")
 	fmt.Fprintln(w, "  monitor       probe the local game server and report status")
 	fmt.Fprintln(w, "  setup         enroll, create the voz-gg service user, and install the hardened unit")
-	fmt.Fprintln(w, "  logparse      (reserved) parse game-server logs — not yet implemented")
+	fmt.Fprintln(w, "  logparse      parse the game-server log and report player presence")
 	fmt.Fprintln(w, "  write-config  read an enroll response from stdin and write the monitor config")
 	fmt.Fprintln(w, "  version       print the version")
 }
@@ -59,8 +59,7 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "write-config":
 		return runWriteConfig(args[1:], stdin, stderr)
 	case "logparse":
-		fmt.Fprintln(stderr, "logparse is not implemented yet")
-		return 1
+		return runLogparse(args[1:], stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		usage(stderr)
