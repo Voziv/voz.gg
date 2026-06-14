@@ -18,7 +18,7 @@ voz.gg is an NX polyglot monorepo: an Astro SSR frontend + Cloudflare Workers, w
 Projects are categorized by identity, not runtime mode:
 
 - `apps/` — front-ends (Astro `web`).
-- `services/` — long-running processes (HTTP/RPC servers, monitors). Polyglot: Go daemons or Cloudflare Workers (`events-ingest` is a TS Worker; `status-monitor` is Go).
+- `services/` — long-running processes (HTTP/RPC servers, monitors). Polyglot: Go daemons or Cloudflare Workers (`events-ingest` is a TS Worker; `voz-gg-agent` is Go).
 - `tools/` — commands you invoke on demand. A long-running `watch`/daemon subcommand still lives here (`mc-logparser`).
 - `libs/` — shared TS (`shared`) and Go (`go-shared`) code.
 
@@ -33,7 +33,7 @@ Every project is tagged `type:app|service|tool|lib` + `lang:ts|go`. `@nx/enforce
 Conventional commits are mandatory: `<type>(<scope>): <subject>`.
 
 - **Types:** `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`.
-- **Scope (recommended):** a project name — `web`, `events-ingest`, `status-monitor`, `mc-logparser`, `shared`, `go-shared`. Omit the scope for repo-wide changes. Scope is advisory, not enforced as an enum.
+- **Scope (recommended):** a project name — `web`, `events-ingest`, `voz-gg-agent`, `mc-logparser`, `shared`, `go-shared`. Omit the scope for repo-wide changes. Scope is advisory, not enforced as an enum.
 - **Subject:** imperative mood ("add" not "added"), no trailing period, ~50 chars.
 - **Enforcement:** a local `commit-msg` hook (husky + commitlint) rejects bad messages at author time; CI re-lints **every commit** in the PR range.
 - **PR title:** must itself be a conventional commit (`<type>(<scope>): <subject>`). GitHub is set to use the **PR title** as the merge commit subject (and the PR body as its message), so the title — not just the commits — drives `nx release` and is linted on `main`.
