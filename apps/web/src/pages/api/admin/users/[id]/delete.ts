@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { getAuth } from '../../../../../lib/auth';
 import { canActOnTarget } from '../../../../../lib/user-admin-guards';
 import { setupUserAdminRoute, guardResponse, recordAudit } from '../../../../../lib/user-admin-route';
+import { mapAuthApiError } from '../../../../../lib/api-errors';
 
 export const prerender = false;
 
@@ -22,7 +23,11 @@ export const POST: APIRoute = async (astro) => {
   });
 
   const auth = getAuth(env as Env);
-  await auth.api.removeUser({ headers: astro.request.headers, body: { userId: setup.target.id } });
+  try {
+    await auth.api.removeUser({ headers: astro.request.headers, body: { userId: setup.target.id } });
+  } catch (error) {
+    return mapAuthApiError('admin-user-delete', error, 'Could not delete the user. Please try again.');
+  }
 
   return Response.json({ ok: true });
 };

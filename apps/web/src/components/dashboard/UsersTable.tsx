@@ -167,21 +167,12 @@ function RowActions({ actor, user, reload }: { actor: Props['actor']; user: Admi
 }
 
 export default function UsersTable({ users, actor }: Props) {
-  const [query, setQuery] = useState('');
+  // Reloading re-runs the page's server-side query, preserving the current
+  // search and page after a row action.
   const reload = () => location.reload();
-
-  const filtered = query
-    ? users.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(query.toLowerCase()))
-    : users;
 
   return (
     <div className="flex flex-col gap-4">
-      <Input
-        placeholder="Search by name or email…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="max-w-sm"
-      />
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -195,7 +186,7 @@ export default function UsersTable({ users, actor }: Props) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
+            {users.map((u) => (
               <tr className="border-t border-border" key={u.id}>
                 <td className="px-4 py-3">
                   <div className="text-foreground">{u.name}</div>
