@@ -1,3 +1,22 @@
+## 0.13.0 (2026-06-14)
+
+### 🚀 Features
+
+- **web:** add admin players overview at /dashboard/players ([4818015](https://github.com/Voziv/voz.gg/commit/4818015))
+- **shared:** add presence_events, player, player_identity tables ([95c2788](https://github.com/Voziv/voz.gg/commit/95c2788))
+
+### 🩹 Fixes
+
+- **shared:** set player.user_id FK to ON DELETE SET NULL ([7674a75](https://github.com/Voziv/voz.gg/commit/7674a75))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.5.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.12.1 (2026-06-14)
 
 ### 🧱 Updated Dependencies
