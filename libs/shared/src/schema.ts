@@ -256,7 +256,8 @@ export const groupTag = sqliteTable(
   (table) => [uniqueIndex('group_tag_name_unq').on(table.name)],
 );
 
-// Many-to-many player ↔ group_tag.
+// Junction table: cascades on both sides so removing a player or a tag prunes
+// its memberships without orphaned rows.
 export const playerGroupTag = sqliteTable(
   'player_group_tag',
   {
