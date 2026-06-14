@@ -13,6 +13,60 @@ import (
 	goshared "voz.gg/libs/go-shared"
 )
 
+func TestPollLatestSkipsRolledLogs(t *testing.T) {
+	dir := t.TempDir()
+	writeGz(t, filepath.Join(dir, "2026-06-13-1.log.gz"),
+		"[09:00:00] [Server thread/INFO]: Old joined the game\n")
+	if err := os.WriteFile(filepath.Join(dir, "latest.log"),
+		[]byte(`[10:00:00] [Server thread/INFO]: Steve joined the game`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var got []goshared.PresenceEvent
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b goshared.PresenceBatch
+		json.NewDecoder(r.Body).Decode(&b)
+		mu.Lock()
+		got = append(got, b.Events...)
+		mu.Unlock()
+		json.NewEncoder(w).Encode(goshared.PresenceResult{Accepted: len(b.Events)})
+	}))
+	defer srv.Close()
+
+	r := newRunner(dir, srv.URL, filepath.Join(dir, "cp.json"), 100)
+	if err := r.Backfill(); err != nil { // delivers Old + Steve
+		t.Fatal(err)
+	}
+	mu.Lock()
+	afterBackfill := len(got)
+	mu.Unlock()
+	if afterBackfill != 2 {
+		t.Fatalf("backfill should deliver both events, got %d", afterBackfill)
+	}
+
+	// Append a new line to latest.log; PollLatest must deliver ONLY it (not re-read the rolled log).
+	f, err := os.OpenFile(filepath.Join(dir, "latest.log"), os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(`[10:05:00] [Server thread/INFO]: Steve left the game` + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	if err := r.PollLatest(); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 3 {
+		t.Fatalf("PollLatest should deliver exactly 1 new event (total 3), got %d", len(got))
+	}
+	if got[2].Type != "leave" {
+		t.Fatalf("the new event should be the leave, got %+v", got[2])
+	}
+}
+
 func newRunner(dir, srvURL, cp string, batchSize int) *Runner {
 	return &Runner{
 		Source:     NewSource(dir),

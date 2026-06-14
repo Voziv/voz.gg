@@ -37,13 +37,13 @@ func TestDispatchUnknownCommandIsUsageError(t *testing.T) {
 	}
 }
 
-func TestDispatchLogparseNotImplemented(t *testing.T) {
+func TestDispatchLogparseRequiresLogDir(t *testing.T) {
 	var errb bytes.Buffer
-	if code := dispatch([]string{"logparse"}, strings.NewReader(""), io.Discard, &errb); code != 1 {
-		t.Fatalf("logparse exit = %d, want 1", code)
+	if code := dispatch([]string{"logparse"}, strings.NewReader(""), io.Discard, &errb); code != 2 {
+		t.Fatalf("logparse exit = %d, want 2", code)
 	}
-	if !strings.Contains(errb.String(), "not implemented") {
-		t.Fatalf("stderr = %q, want it to say not implemented", errb.String())
+	if !strings.Contains(errb.String(), "log-dir") {
+		t.Fatalf("stderr = %q, want it to mention log-dir", errb.String())
 	}
 }
 

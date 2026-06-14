@@ -1,6 +1,10 @@
 package logparse
 
 import (
+	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -61,6 +65,44 @@ func (r *Runner) Backfill() error {
 		}
 	}
 	return nil
+}
+
+// PollLatest processes only latest.log from the saved checkpoint. Used by the
+// tail loop so rolled logs (already handled by the initial Backfill) are not
+// re-read on every tick. A missing latest.log is a no-op.
+func (r *Runner) PollLatest() error {
+	path := filepath.Join(r.Source.dir, LatestLog)
+	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	checkpoint, err := LoadCheckpoint(r.Checkpoint)
+	if err != nil {
+		return err
+	}
+	return r.processFile(path, checkpoint)
+}
+
+// Tail backfills rolled + latest.log once, then re-reads latest.log on each tick
+// until ctx is cancelled. Any error from PollLatest is returned immediately and
+// ends the loop; callers wanting retry-forever delivery should give the Deliverer
+// a Backoff with MaxAttempts = 0, so only permanent errors (a 4xx or a
+// file-system failure) escape — leaving the process supervisor to restart.
+func (r *Runner) Tail(ctx context.Context, interval time.Duration) error {
+	if err := r.Backfill(); err != nil {
+		return err
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if err := r.PollLatest(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 const defaultBatchSize = 200
