@@ -1,3 +1,15 @@
+## 0.2.3 (2026-06-14)
+
+### 🧱 Updated Dependencies
+
+- Updated go-shared to 0.2.3
+
+## 0.2.2 (2026-06-14)
+
+### 🧱 Updated Dependencies
+
+- Updated go-shared to 0.2.2
+
 ## 0.2.1 (2026-05-31)
 
 ### 🧱 Updated Dependencies

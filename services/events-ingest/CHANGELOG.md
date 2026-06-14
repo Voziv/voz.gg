@@ -1,3 +1,22 @@
+## 0.2.0 (2026-06-14)
+
+### 🚀 Features
+
+- **shared:** validate presence events per-item, skip and count invalid ([4338ebe](https://github.com/Voziv/voz.gg/commit/4338ebe))
+- **events-ingest:** accept presence event batches at POST /presence ([3e6520a](https://github.com/Voziv/voz.gg/commit/3e6520a))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.5.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
+## 0.1.2 (2026-06-14)
+
+This was a version bump only for events-ingest to align it with other projects, there were no code changes.
+
 ## 0.1.1 (2026-05-31)
 
 This was a version bump only for events-ingest to align it with other projects, there were no code changes.

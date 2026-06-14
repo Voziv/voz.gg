@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6f00c307-ff5d-4736-b0ec-bf0bc94dfa79",
-  "prevId": "6124cc20-a2c7-4521-8a1f-94dad8c14e57",
+  "id": "223e45b1-4794-4092-867c-b494b072dca5",
+  "prevId": "6f00c307-ff5d-4736-b0ec-bf0bc94dfa79",
   "tables": {
     "account": {
       "name": "account",
@@ -343,7 +343,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "player_user_id_idx": {
+          "name": "player_user_id_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "player_user_id_user_id_fk": {
           "name": "player_user_id_user_id_fk",
@@ -526,6 +534,13 @@
             "dedupe_key"
           ],
           "isUnique": true
+        },
+        "presence_events_server_id_idx": {
+          "name": "presence_events_server_id_idx",
+          "columns": [
+            "server_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {

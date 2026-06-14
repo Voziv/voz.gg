@@ -1,3 +1,28 @@
+## 0.5.0 (2026-06-14)
+
+### 🚀 Features
+
+- **shared:** validate presence events per-item, skip and count invalid ([4338ebe](https://github.com/Voziv/voz.gg/commit/4338ebe))
+- **web:** add admin players overview at /dashboard/players ([4818015](https://github.com/Voziv/voz.gg/commit/4818015))
+- **shared:** add Drizzle presence DAO and agent-token server resolver ([6314419](https://github.com/Voziv/voz.gg/commit/6314419))
+- **shared:** add idempotent presence batch ingest logic ([a6234a2](https://github.com/Voziv/voz.gg/commit/a6234a2))
+- **shared:** derive sessions and playtime from presence events ([2070ea7](https://github.com/Voziv/voz.gg/commit/2070ea7))
+- **shared:** add presence_events, player, player_identity tables ([95c2788](https://github.com/Voziv/voz.gg/commit/95c2788))
+
+### 🩹 Fixes
+
+- **shared:** harden bearerToken regex against ReDoS on auth header ([c6bd804](https://github.com/Voziv/voz.gg/commit/c6bd804))
+- **shared:** tolerate concurrent identity insert race in presence DAO ([b51b104](https://github.com/Voziv/voz.gg/commit/b51b104))
+- **shared:** set player.user_id FK to ON DELETE SET NULL ([7674a75](https://github.com/Voziv/voz.gg/commit/7674a75))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
+## 0.4.1 (2026-06-14)
+
+This was a version bump only for shared to align it with other projects, there were no code changes.
+
 ## 0.4.0 (2026-06-02)
 
 ### 🚀 Features

@@ -1,3 +1,44 @@
+## 0.13.0 (2026-06-14)
+
+### 🚀 Features
+
+- **web:** add admin players overview at /dashboard/players ([4818015](https://github.com/Voziv/voz.gg/commit/4818015))
+- **shared:** add presence_events, player, player_identity tables ([95c2788](https://github.com/Voziv/voz.gg/commit/95c2788))
+
+### 🩹 Fixes
+
+- **shared:** set player.user_id FK to ON DELETE SET NULL ([7674a75](https://github.com/Voziv/voz.gg/commit/7674a75))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.5.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
+## 0.12.1 (2026-06-14)
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.4.1
+
+## 0.12.0 (2026-06-13)
+
+### 🚀 Features
+
+- **web:** server-side search and pagination for users and audit log ([#40](https://github.com/Voziv/voz.gg/issues/40))
+- **web:** render audit log details and resolve actor/target ids ([#42](https://github.com/Voziv/voz.gg/issues/42))
+
+### 🩹 Fixes
+
+- **web:** fall back to generic message on empty APIError body ([8b51200](https://github.com/Voziv/voz.gg/commit/8b51200))
+- **web:** map better-auth APIError to structured admin route responses ([#41](https://github.com/Voziv/voz.gg/issues/41))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.11.3 (2026-06-09)
 
 ### 🩹 Fixes

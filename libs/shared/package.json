@@ -1,6 +1,6 @@
 {
   "name": "@voz/shared",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "main": "src/index.ts",
@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250529.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.7"
   }
 }
