@@ -1,10 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 const (
@@ -170,4 +177,113 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// runSetup parses flags/env and runs the orchestration with real dependencies.
+func runSetup(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	token := fs.String("enrollment-token", "", "enrollment token (required)")
+	workerBaseURL := fs.String("worker-base-url", "", "worker base URL (required)")
+	configPath := fs.String("config", defaultConfigPath, "path to write the monitor config")
+	runAsUser := fs.String("run-as-user", envOr("VOZ_RUN_AS_USER", ""), "override the run-as user")
+	runAsGroup := fs.String("run-as-group", envOr("VOZ_RUN_AS_GROUP", ""), "override the run-as group")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if *token == "" || *workerBaseURL == "" {
+		fmt.Fprintln(stderr, "setup: --enrollment-token and --worker-base-url are required")
+		return 2
+	}
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(stderr, "setup: cannot resolve own path: %v\n", err)
+		return 1
+	}
+	opts := setupOptions{
+		EnrollmentToken: *token,
+		WorkerBaseURL:   *workerBaseURL,
+		ConfigPath:      *configPath,
+		ExecPath:        execPath,
+		RunAsUser:       *runAsUser,
+		RunAsGroup:      *runAsGroup,
+	}
+	return runSetupWith(opts, realSystem{}, httpEnroll, stdout, stderr)
+}
+
+// httpEnroll POSTs the enrollment token to the Worker and decodes the response.
+func httpEnroll(workerBaseURL, token string) (enrollResponse, error) {
+	body, err := json.Marshal(map[string]string{"enrollmentToken": token})
+	if err != nil {
+		return enrollResponse{}, err
+	}
+	req, err := http.NewRequest(http.MethodPost, workerBaseURL+"/api/agents/enroll", bytes.NewReader(body))
+	if err != nil {
+		return enrollResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	httpResp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return enrollResponse{}, err
+	}
+	defer httpResp.Body.Close()
+	if httpResp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(httpResp.Body)
+		return enrollResponse{}, fmt.Errorf("enroll returned %d: %s", httpResp.StatusCode, b)
+	}
+	var resp enrollResponse
+	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
+		return enrollResponse{}, err
+	}
+	if resp.AgentToken == "" {
+		return enrollResponse{}, errors.New("enroll: server returned an empty agent token")
+	}
+	return resp, nil
+}
+
+// realSystem implements systemOps against the host (Linux/systemd).
+type realSystem struct{}
+
+func (realSystem) hasSystemd() bool          { _, err := exec.LookPath("systemctl"); return err == nil }
+func (realSystem) groupExists(n string) bool { return exec.Command("getent", "group", n).Run() == nil }
+func (realSystem) userExists(n string) bool  { return exec.Command("getent", "passwd", n).Run() == nil }
+func (realSystem) createSystemGroup(n string) error {
+	return runLogged("groupadd", "--system", n)
+}
+func (realSystem) createSystemUser(n, g string) error {
+	return runLogged("useradd", "--system", "--no-create-home", "--shell", "/usr/sbin/nologin", "-g", g, n)
+}
+func (realSystem) mkdirAll(p string, perm uint32) error { return os.MkdirAll(p, os.FileMode(perm)) }
+func (realSystem) writeFile(p string, d []byte, perm uint32) error {
+	return os.WriteFile(p, d, os.FileMode(perm))
+}
+func (realSystem) chownRecursive(p, u, g string) error { return runLogged("chown", "-R", u+":"+g, p) }
+func (realSystem) run(name string, args ...string) error { return runLogged(name, args...) }
+func (realSystem) unitInstalled(n string) bool {
+	_, err := os.Stat("/etc/systemd/system/" + n)
+	return err == nil
+}
+func (realSystem) remove(p string) error {
+	if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+func runLogged(name string, args ...string) error {
+	out, err := exec.Command(name, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %v: %v: %s", name, args, err, out)
+	}
+	return nil
 }

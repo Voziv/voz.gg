@@ -66,6 +66,18 @@ func TestDispatchSubcommandHelpExitsZero(t *testing.T) {
 	}
 }
 
+func TestDispatchSetupRequiresFlags(t *testing.T) {
+	var errb bytes.Buffer
+	// No flags → missing required --enrollment-token/--worker-base-url → exit 2,
+	// and crucially no network/system side effects are attempted.
+	if code := dispatch([]string{"setup"}, strings.NewReader(""), io.Discard, &errb); code != 2 {
+		t.Fatalf("setup with no flags exit = %d, want 2", code)
+	}
+	if !strings.Contains(errb.String(), "required") {
+		t.Fatalf("stderr = %q, want it to mention required flags", errb.String())
+	}
+}
+
 func TestDispatchWriteConfigWritesConfig(t *testing.T) {
 	enrollJSON := `{"agentToken":"AT","config":{"serverId":"srv1","gameType":"source","probeHost":"127.0.0.1","port":27015,"queryPort":0,"pollIntervalSeconds":30},"configHash":"H1"}`
 	configPath := filepath.Join(t.TempDir(), "monitor.json")
