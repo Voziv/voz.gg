@@ -6,6 +6,7 @@ import { isAdmin } from '../../../lib/admin';
 import Dashboard from '../../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../../components/ui/card.tsx';
 import { Badge } from '../../../components/ui/badge.tsx';
+import { formatDuration, formatDatetime } from '../../../lib/format';
 
 // Middleware already redirects unauthenticated dashboard requests to /sign-in.
 if (!Astro.locals.user) {
@@ -21,12 +22,6 @@ if (!detail) {
   return new Response('Player not found', { status: 404 });
 }
 
-const formatDuration = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-};
-const fmt = (value: Date) => value.toISOString().slice(0, 16).replace('T', ' ');
 const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
 ---
 <Dashboard>
@@ -72,7 +67,7 @@ const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
                 <td class="px-4 py-3">
                   <a href={`/dashboard/players/${detail.playerId}?server=${s.serverId}`} class="text-foreground hover:text-primary">{s.serverName}</a>
                 </td>
-                <td class="px-4 py-3 text-muted-foreground">{fmt(s.lastSeen)}</td>
+                <td class="px-4 py-3 text-muted-foreground">{formatDatetime(s.lastSeen)}</td>
                 <td class="px-4 py-3 text-muted-foreground">{formatDuration(s.totalPlaytimeSeconds)}</td>
               </tr>
             ))}
@@ -98,8 +93,8 @@ const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
             {detail.sessions.map((s) => (
               <tr class="border-t border-border">
                 <td class="px-4 py-3">{s.serverName}</td>
-                <td class="px-4 py-3 text-muted-foreground">{fmt(s.start)}</td>
-                <td class="px-4 py-3 text-muted-foreground">{s.open ? 'online' : fmt(s.end)}</td>
+                <td class="px-4 py-3 text-muted-foreground">{formatDatetime(s.start)}</td>
+                <td class="px-4 py-3 text-muted-foreground">{s.open ? 'online' : formatDatetime(s.end)}</td>
                 {admin && <td class="px-4 py-3 font-mono text-muted-foreground">{s.ip ?? '—'}</td>}
               </tr>
             ))}
@@ -131,7 +126,7 @@ const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
             ) : (
               <ul class="space-y-1 text-sm text-muted-foreground">
                 {detail.connectionAttempts.map((a) => (
-                  <li class="font-mono">{fmt(a.occurredAt)} · {a.serverName} · {a.ip ?? '—'} · {a.reason ?? 'rejected'}</li>
+                  <li class="font-mono">{formatDatetime(a.occurredAt)} · {a.serverName} · {a.ip ?? '—'} · {a.reason ?? 'rejected'}</li>
                 ))}
               </ul>
             )}

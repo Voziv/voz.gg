@@ -6,6 +6,7 @@ import { isAdmin } from '../../lib/admin';
 import Dashboard from '../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../components/ui/card.tsx';
 import { Badge } from '../../components/ui/badge.tsx';
+import { formatDuration, formatLastSeen } from '../../lib/format';
 
 // Middleware already redirects unauthenticated dashboard requests to /sign-in;
 // this guard is defensive and keeps the type non-null for isAdmin.
@@ -28,13 +29,6 @@ const STATUS_BADGE: Record<string, string> = {
   allowed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   blocked: 'bg-red-500/15 text-red-600 dark:text-red-400',
 };
-
-const formatDuration = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-};
-const formatLastSeen = (value: Date | null) => (value ? value.toISOString().slice(0, 16).replace('T', ' ') : '—');
 ---
 <Dashboard>
   <div class="mx-auto max-w-5xl">

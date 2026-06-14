@@ -7,6 +7,7 @@ import { isAdmin } from '../../../../lib/admin';
 import Dashboard from '../../../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../../../components/ui/card.tsx';
 import { Badge } from '../../../../components/ui/badge.tsx';
+import { formatDuration, formatLastSeen } from '../../../../lib/format';
 
 // Middleware already redirects unauthenticated dashboard requests to /sign-in.
 if (!Astro.locals.user) {
@@ -22,13 +23,6 @@ if (!server) {
 }
 
 const rows = await getPlayersOverview(db, new Date(), { serverId: server.id });
-
-const formatDuration = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-};
-const formatLastSeen = (value: Date | null) => (value ? value.toISOString().slice(0, 16).replace('T', ' ') : '—');
 ---
 <Dashboard>
   <div class="mx-auto max-w-5xl">
