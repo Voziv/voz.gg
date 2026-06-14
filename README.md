@@ -5,7 +5,7 @@ services/CLIs that run on physical servers.
 
 - `apps/web` — Astro SSR site + Worker (Cloudflare)
 - `services/events-ingest` — Cloudflare Worker (TS)
-- `services/status-monitor` — Go daemon (physical server)
+- `services/voz-gg-agent` — Go daemon (physical server)
 - `tools/mc-logparser` — Go CLI
 - `libs/shared` (TS, `@voz/shared`) · `libs/go-shared` (Go)
 
@@ -23,7 +23,7 @@ See [AGENTS.md](AGENTS.md) for architecture, tags/boundaries, and tech notes.
 nx dev web                 # Astro dev server
 nx run web:preview         # full Worker + assets + D1 locally (wrangler dev)
 nx dev events-ingest       # events-ingest Worker locally
-nx serve status-monitor    # Go service locally
+nx serve voz-gg-agent      # Go service locally
 ```
 
 Local D1 migrations: `nx run web:migrate:local`
@@ -76,13 +76,13 @@ cd apps/web && npx wrangler secret put <NAME>
 Locally, put secrets in `apps/web/.dev.vars` (gitignored). Non-secret config lives
 in each project's `wrangler.toml` under `[vars]`.
 
-### Go services (status-monitor, mc-logparser)
+### Go services (voz-gg-agent, mc-logparser)
 
 These run on physical servers, not Cloudflare, and have no `deploy` target. Build,
 then copy the binary to the server with your own server tooling:
 
 ```bash
-nx build status-monitor
+nx build voz-gg-agent
 ```
 
 They authenticate to the Worker APIs with a shared Bearer token.

@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"voz.gg/services/status-monitor/prober"
+	"voz.gg/services/voz-gg-agent/prober"
 )
 
 type fakeProber struct{ st prober.Status }

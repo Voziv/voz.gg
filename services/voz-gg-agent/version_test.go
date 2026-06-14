@@ -10,7 +10,7 @@ import (
 // TestVersionFlagPrintsLdflagVersion builds the binary with an injected
 // version and asserts the --version flag prints exactly that value.
 func TestVersionFlagPrintsLdflagVersion(t *testing.T) {
-	bin := t.TempDir() + "/status-monitor"
+	bin := t.TempDir() + "/voz-gg-agent"
 	build := exec.Command("go", "build",
 		"-ldflags", "-X main.version=9.9.9-test",
 		"-o", bin, ".")
