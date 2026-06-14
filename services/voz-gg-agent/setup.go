@@ -1,0 +1,173 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"path/filepath"
+)
+
+const (
+	defaultRunAs    = "voz-gg"
+	monitorUnitName = "voz-gg-agent-monitor.service"
+	legacyUnitName  = "voz-status-monitor.service"
+	legacyBinary    = "/usr/local/bin/voz-status-monitor"
+)
+
+// provisioning is the install-time policy block of the enroll response.
+// Only the run-as identity is currently consumed; capability fields (e.g. logparse)
+// are reserved for future expansion.
+type provisioning struct {
+	RunAsUser  string `json:"runAsUser"`
+	RunAsGroup string `json:"runAsGroup"`
+}
+
+// systemOps is the set of privileged host operations setup performs. Abstracted
+// so the orchestration is unit-testable without root, systemd, or a network.
+type systemOps interface {
+	hasSystemd() bool
+	groupExists(name string) bool
+	userExists(name string) bool
+	createSystemGroup(name string) error
+	createSystemUser(name, group string) error
+	mkdirAll(path string, perm uint32) error
+	writeFile(path string, data []byte, perm uint32) error
+	chownRecursive(path, user, group string) error
+	run(name string, args ...string) error
+	unitInstalled(name string) bool
+	remove(path string) error
+}
+
+// enrollFn performs the enroll HTTP call. Abstracted for testing.
+type enrollFn func(workerBaseURL, token string) (enrollResponse, error)
+
+type setupOptions struct {
+	EnrollmentToken string
+	WorkerBaseURL   string
+	ConfigPath      string
+	ExecPath        string
+	RunAsUser       string // override (flag/env); "" = use provisioning/default
+	RunAsGroup      string // override (flag/env); "" = use provisioning/default
+}
+
+// runSetupWith orchestrates provisioning against injected dependencies. It is
+// the testable heart of `setup`: enroll, resolve identity, ensure the service
+// account, write config + hardened unit, clean up the legacy install, enable.
+func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, stderr io.Writer) int {
+	resp, err := enroll(opts.WorkerBaseURL, opts.EnrollmentToken)
+	if err != nil {
+		fmt.Fprintf(stderr, "setup: enroll failed: %v\n", err)
+		return 1
+	}
+
+	runAsUser := firstNonEmpty(opts.RunAsUser, resp.Provisioning.RunAsUser, defaultRunAs)
+	runAsGroup := firstNonEmpty(opts.RunAsGroup, resp.Provisioning.RunAsGroup, defaultRunAs)
+
+	cfg := Config{
+		WorkerBaseURL: opts.WorkerBaseURL,
+		AgentToken:    resp.AgentToken,
+		ConfigHash:    resp.ConfigHash,
+		Server:        resp.Config,
+	}
+	raw, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		fmt.Fprintf(stderr, "setup: encode config: %v\n", err)
+		return 1
+	}
+
+	configDir := filepath.Dir(opts.ConfigPath)
+	if err := sys.mkdirAll(configDir, 0o755); err != nil {
+		fmt.Fprintf(stderr, "setup: mkdir %s: %v\n", configDir, err)
+		return 1
+	}
+
+	// On a host without systemd (e.g. local/darwin), persist the config and stop —
+	// creating users and a service is a Linux/systemd concern.
+	if !sys.hasSystemd() {
+		if err := sys.writeFile(opts.ConfigPath, raw, 0o600); err != nil {
+			fmt.Fprintf(stderr, "setup: write config: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "Config written to %s. systemd not found; skipping service install.\n", opts.ConfigPath)
+		return 0
+	}
+
+	if !sys.groupExists(runAsGroup) {
+		if err := sys.createSystemGroup(runAsGroup); err != nil {
+			fmt.Fprintf(stderr, "setup: create group %s: %v\n", runAsGroup, err)
+			return 1
+		}
+	}
+	if !sys.userExists(runAsUser) {
+		if err := sys.createSystemUser(runAsUser, runAsGroup); err != nil {
+			fmt.Fprintf(stderr, "setup: create user %s: %v\n", runAsUser, err)
+			return 1
+		}
+	}
+
+	if err := sys.writeFile(opts.ConfigPath, raw, 0o600); err != nil {
+		fmt.Fprintf(stderr, "setup: write config: %v\n", err)
+		return 1
+	}
+	if err := sys.chownRecursive(configDir, runAsUser, runAsGroup); err != nil {
+		fmt.Fprintf(stderr, "setup: chown %s: %v\n", configDir, err)
+		return 1
+	}
+
+	unit := renderMonitorUnit(opts.ExecPath, opts.ConfigPath, configDir, runAsUser, runAsGroup)
+	if err := sys.writeFile("/etc/systemd/system/"+monitorUnitName, []byte(unit), 0o644); err != nil {
+		fmt.Fprintf(stderr, "setup: write unit: %v\n", err)
+		return 1
+	}
+
+	// Best-effort cleanup of the legacy status-monitor install.
+	if sys.unitInstalled(legacyUnitName) {
+		_ = sys.run("systemctl", "disable", "--now", legacyUnitName)
+		_ = sys.remove("/etc/systemd/system/" + legacyUnitName)
+	}
+	_ = sys.remove(legacyBinary)
+
+	if err := sys.run("systemctl", "daemon-reload"); err != nil {
+		fmt.Fprintf(stderr, "setup: daemon-reload: %v\n", err)
+		return 1
+	}
+	if err := sys.run("systemctl", "enable", "--now", monitorUnitName); err != nil {
+		fmt.Fprintf(stderr, "setup: enable service: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
+	return 0
+}
+
+func renderMonitorUnit(execPath, configPath, configDir, user, group string) string {
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg agent (monitor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%s monitor -config %s
+Restart=always
+RestartSec=5
+User=%s
+Group=%s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=%s
+
+[Install]
+WantedBy=multi-user.target
+`, execPath, configPath, user, group, configDir)
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}

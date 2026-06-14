@@ -46,9 +46,10 @@ func SaveConfig(path string, cfg Config) error {
 
 // enrollResponse is the POST /api/agents/enroll response shape.
 type enrollResponse struct {
-	AgentToken string       `json:"agentToken"`
-	Config     ServerConfig `json:"config"`
-	ConfigHash string       `json:"configHash"`
+	AgentToken   string       `json:"agentToken"`
+	Config       ServerConfig `json:"config"`
+	ConfigHash   string       `json:"configHash"`
+	Provisioning provisioning `json:"provisioning"`
 }
 
 // ConfigFromEnroll merges an enroll response (read from r) with the worker base
