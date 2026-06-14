@@ -9,7 +9,9 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250529.0",
+    "@voz/shared": "workspace:*",
     "typescript": "^5.4.5",
-    "wrangler": "^4.95.0"
+    "wrangler": "^4.95.0",
+    "zod": "^4.4.2"
   }
 }

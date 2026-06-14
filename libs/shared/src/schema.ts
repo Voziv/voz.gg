@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
 // Placeholder table so migrations and the D1 binding can be exercised end to end.
 // Real domain tables (users, servers, ...) are added in later sub-projects.
@@ -153,3 +153,65 @@ export const adminAuditLog = sqliteTable('admin_audit_log', {
   details: text('details'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const PRESENCE_EVENT_TYPES = [
+  'join',
+  'leave',
+  'connection_rejected',
+  'server_start',
+  'server_stop',
+] as const;
+
+export type PresenceEventType = (typeof PRESENCE_EVENT_TYPES)[number];
+
+export const PLAYER_IDENTITY_KINDS = ['minecraft', 'steam', 'discord'] as const;
+
+export type PlayerIdentityKind = (typeof PLAYER_IDENTITY_KINDS)[number];
+
+// Raw, append-only event log. Sessions/playtime are derived at read time.
+// `dedupeKey` is a deterministic NOT NULL key computed at ingest: a plain
+// composite UNIQUE cannot be used because SQLite treats a NULL identity_key
+// (lifecycle events) as distinct, so re-backfilled lifecycle lines would never
+// dedupe.
+export const presenceEvents = sqliteTable('presence_events', {
+  id: text('id').primaryKey(),
+  serverId: text('server_id')
+    .notNull()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  type: text('type').notNull().$type<PresenceEventType>(),
+  identityKind: text('identity_kind').$type<PlayerIdentityKind>(),
+  identityKey: text('identity_key'),
+  playerName: text('player_name'),
+  ip: text('ip'),
+  reason: text('reason'),
+  occurredAt: integer('occurred_at', { mode: 'timestamp' }).notNull(),
+  dedupeKey: text('dedupe_key').notNull().unique(),
+}, (table) => [index('presence_events_server_id_idx').on(table.serverId)]);
+
+// A unified person across game identities. displayName/notes/userId are
+// populated/edited in later sub-projects; auto-link sets userId here.
+export const player = sqliteTable('player', {
+  id: text('id').primaryKey(),
+  displayName: text('display_name'),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  notes: text('notes'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => [index('player_user_id_idx').on(table.userId)]);
+
+// One row per game identity; many per player.
+export const playerIdentity = sqliteTable(
+  'player_identity',
+  {
+    id: text('id').primaryKey(),
+    playerId: text('player_id')
+      .notNull()
+      .references(() => player.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().$type<PlayerIdentityKind>(),
+    identityKey: text('identity_key').notNull(),
+    displayName: text('display_name'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [uniqueIndex('player_identity_kind_key_unq').on(table.kind, table.identityKey)],
+);
