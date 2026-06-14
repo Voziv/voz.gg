@@ -1,3 +1,13 @@
+## 0.15.0 (2026-06-14)
+
+### 🚀 Features
+
+- **web:** point installer at voz-gg-agent monitor subcommand ([69b4a2d](https://github.com/Voziv/voz.gg/commit/69b4a2d))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.14.2 (2026-06-14)
 
 ### 🩹 Fixes

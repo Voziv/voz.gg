@@ -1,3 +1,13 @@
+## 0.3.0 (2026-06-14)
+
+### 🚀 Features
+
+- **voz-gg-agent:** add subcommand dispatch (monitor, logparse, write-config) ([a702be3](https://github.com/Voziv/voz.gg/commit/a702be3))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.2.3 (2026-06-14)
 
 ### 🧱 Updated Dependencies
