@@ -13,9 +13,10 @@ export const GET: APIRoute = async (ctx) => {
   if (!isValidMinecraftUsernameSyntax(username)) {
     return Response.json({ ok: false, error: 'invalid' }, { status: 400 });
   }
-  const profile = await lookupMinecraftProfile(username);
-  if (!profile) return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
-  return Response.json({ ok: true, uuid: profile.uuid, name: profile.name });
+  const result = await lookupMinecraftProfile(username);
+  if (result.kind === 'not_found') return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+  if (result.kind === 'error') return Response.json({ ok: false, error: 'upstream' }, { status: 503 });
+  return Response.json({ ok: true, uuid: result.profile.uuid, name: result.profile.name });
 };
 
 // POST { username } → link; POST { username: "" } → unlink.
@@ -38,8 +39,10 @@ export const POST: APIRoute = async (ctx) => {
   if (!isValidMinecraftUsernameSyntax(username)) {
     return Response.json({ ok: false, error: 'invalid' }, { status: 400 });
   }
-  const profile = await lookupMinecraftProfile(username);
-  if (!profile) return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+  const result = await lookupMinecraftProfile(username);
+  if (result.kind === 'not_found') return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+  if (result.kind === 'error') return Response.json({ ok: false, error: 'upstream' }, { status: 503 });
+  const { profile } = result;
 
   try {
     await db
