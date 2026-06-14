@@ -1,19 +1,22 @@
 #!/bin/sh
-# voz.gg agent installer.
-# Usage: curl -fsSL <site>/install-agent.sh | sh -s -- <enrollmentToken>
+# voz.gg agent installer. Downloads the agent and hands off to `voz-gg-agent setup`.
+# Usage: curl -fsSL <site>/install-agent.sh | sudo sh -s -- <enrollmentToken>
 set -eu
 
 REPO_OWNER="Voziv"
 RELEASE_TAG="voz-gg-agent-latest"
 INSTALL_PATH="/usr/local/bin/voz-gg-agent"
-CONFIG_DIR="/etc/voz-gg-agent"
-CONFIG_PATH="${CONFIG_DIR}/monitor.json"
-SERVICE_PATH="/etc/systemd/system/voz-gg-agent-monitor.service"
 
 ENROLLMENT_TOKEN="${1:-}"
 if [ -z "${ENROLLMENT_TOKEN}" ]; then
   echo "error: enrollment token required" >&2
-  echo "usage: curl -fsSL <site>/install-agent.sh | sh -s -- <enrollmentToken>" >&2
+  echo "usage: curl -fsSL <site>/install-agent.sh | sudo sh -s -- <enrollmentToken>" >&2
+  exit 1
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "error: must run as root — the agent installs a system user and a systemd service." >&2
+  echo "re-run via sudo: curl -fsSL <site>/install-agent.sh | sudo sh -s -- <enrollmentToken>" >&2
   exit 1
 fi
 
@@ -38,45 +41,7 @@ echo "Downloading ${BINARY_URL}"
 curl -fsSL "${BINARY_URL}" -o "${INSTALL_PATH}"
 chmod +x "${INSTALL_PATH}"
 
-echo "Enrolling agent"
-ENROLL_RESPONSE="$(curl -fsSL -X POST "${WORKER_BASE_URL}/api/agents/enroll" \
-  -H 'Content-Type: application/json' \
-  -d "{\"enrollmentToken\":\"${ENROLLMENT_TOKEN}\"}")"
-
-# The agent re-reads/refreshes config itself; the installer writes the bootstrap file.
-mkdir -p "${CONFIG_DIR}"
-printf '%s' "${ENROLL_RESPONSE}" | "${INSTALL_PATH}" write-config \
-  -config "${CONFIG_PATH}" \
-  -worker-base-url "${WORKER_BASE_URL}"
-
-cat > "${SERVICE_PATH}" <<UNIT
-[Unit]
-Description=voz.gg agent (monitor)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-ExecStart=${INSTALL_PATH} monitor -config ${CONFIG_PATH}
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-# Best-effort cleanup of the pre-rename status-monitor install, if present.
-if command -v systemctl >/dev/null 2>&1; then
-  if systemctl list-unit-files voz-status-monitor.service >/dev/null 2>&1; then
-    systemctl disable --now voz-status-monitor.service >/dev/null 2>&1 || true
-    rm -f /etc/systemd/system/voz-status-monitor.service
-  fi
-fi
-rm -f /usr/local/bin/voz-status-monitor
-
-if command -v systemctl >/dev/null 2>&1; then
-  systemctl daemon-reload
-  systemctl enable --now voz-gg-agent-monitor.service
-  echo "voz-gg-agent-monitor started"
-else
-  echo "systemctl not found; binary installed at ${INSTALL_PATH}, run it with: ${INSTALL_PATH} monitor -config ${CONFIG_PATH}" >&2
-fi
+echo "Provisioning agent"
+exec "${INSTALL_PATH}" setup \
+  --enrollment-token "${ENROLLMENT_TOKEN}" \
+  --worker-base-url "${WORKER_BASE_URL}"

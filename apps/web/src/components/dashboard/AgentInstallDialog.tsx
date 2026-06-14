@@ -16,7 +16,7 @@ import { cn } from '../../lib/utils';
 type Props = { serverId: string; serverName: string; initialToken?: string };
 
 function installCommand(token: string): string {
-  return `curl -fsSL ${location.origin}/install-agent.sh | sh -s -- ${token}`;
+  return `curl -fsSL ${location.origin}/install-agent.sh | sudo sh -s -- ${token}`;
 }
 
 export default function AgentInstallDialog({ serverId, serverName, initialToken }: Props) {

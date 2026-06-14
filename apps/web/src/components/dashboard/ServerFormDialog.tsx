@@ -85,7 +85,7 @@ export default function ServerFormDialog({ server }: Props) {
       };
       if (r.ok) {
         if (!isEdit && r.enrollmentToken) {
-          const command = `curl -fsSL ${location.origin}/install-agent.sh | sh -s -- ${r.enrollmentToken}`;
+          const command = `curl -fsSL ${location.origin}/install-agent.sh | sudo sh -s -- ${r.enrollmentToken}`;
           await navigator.clipboard?.writeText(command).catch(() => undefined);
           toast.success('Server created. Install command copied — paste it on the host.', { duration: 8000 });
         } else {

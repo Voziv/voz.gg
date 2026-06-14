@@ -31,6 +31,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "usage: voz-gg-agent <command> [flags]")
 	fmt.Fprintln(w, "commands:")
 	fmt.Fprintln(w, "  monitor       probe the local game server and report status")
+	fmt.Fprintln(w, "  setup         enroll, create the voz-gg service user, and install the hardened unit")
 	fmt.Fprintln(w, "  logparse      (reserved) parse game-server logs — not yet implemented")
 	fmt.Fprintln(w, "  write-config  read an enroll response from stdin and write the monitor config")
 	fmt.Fprintln(w, "  version       print the version")
@@ -53,6 +54,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 0
 	case "monitor":
 		return runMonitor(args[1:], stderr)
+	case "setup":
+		return runSetup(args[1:], stdout, stderr)
 	case "write-config":
 		return runWriteConfig(args[1:], stdin, stderr)
 	case "logparse":

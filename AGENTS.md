@@ -89,6 +89,13 @@ time** (`libs/shared/src/sessions.ts`); the admin `/dashboard/players` list read
 them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer ships in
 PR-2 (depends on the agent-host-provisioning Go restructure).
 
+The host installer (`apps/web/public/install-agent.sh`) is a thin bootstrap: it
+downloads `voz-gg-agent` and execs `voz-gg-agent setup`, which enrolls, creates a
+dedicated unprivileged **`voz-gg`** system user, writes `/etc/voz-gg-agent/monitor.json`
+owned by it, and installs a hardened `voz-gg-agent-monitor.service` that runs the
+agent as `voz-gg` (not root). Because it creates a user and a service, the install
+command must run as root: `curl … | sudo sh -s -- <token>`.
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.
