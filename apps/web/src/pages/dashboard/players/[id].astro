@@ -30,7 +30,7 @@ const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
       <a href="/dashboard/players" class="text-sm text-muted-foreground hover:text-foreground">← All players</a>
       <h1 class="mt-2 flex items-center gap-2 text-3xl font-bold tracking-tight">
         {title}
-        {detail.identities.map((i) => i.displayName && <Badge>{i.displayName}</Badge>)}
+        {detail.identities.map((i) => i.displayName && i.displayName !== title && <Badge>{i.displayName}</Badge>)}
       </h1>
       <div class="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
         {detail.groups.map((g) => <span class="rounded bg-muted px-2 py-0.5">{g}</span>)}

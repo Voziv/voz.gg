@@ -15,9 +15,9 @@ if (!Astro.locals.user) {
 }
 const admin = isAdmin(Astro.locals.user);
 
-// Status is an admin-only concept (column + filter), so only admins filter by it.
+// The filter form is admin-only, so only admins filter (by status or group).
 const statusFilter = admin ? (Astro.url.searchParams.get('status') ?? '') : '';
-const groupFilter = Astro.url.searchParams.get('group') ?? '';
+const groupFilter = admin ? (Astro.url.searchParams.get('group') ?? '') : '';
 
 let rows = await getPlayersOverview(createDb(env.DB), new Date());
 const allGroups = [...new Set(rows.flatMap((r) => r.groups))].sort();
@@ -85,7 +85,7 @@ const STATUS_BADGE: Record<string, string> = {
                   <a href={`/dashboard/players/${row.playerId}`} class="font-medium text-foreground hover:text-primary">
                     {row.displayName ?? row.minecraftName ?? row.identityNames[0] ?? 'Unknown'}
                   </a>
-                  {row.minecraftName && <Badge className="ml-2 align-middle">{row.minecraftName}</Badge>}
+                  {row.displayName && row.minecraftName && <Badge className="ml-2 align-middle">{row.minecraftName}</Badge>}
                   {admin && row.isBot && <span class="ml-2 text-xs text-muted-foreground">bot</span>}
                 </td>
                 <td class="px-4 py-3 text-muted-foreground">{row.groups.join(', ') || '—'}</td>

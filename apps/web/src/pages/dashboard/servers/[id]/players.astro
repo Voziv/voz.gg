@@ -54,7 +54,7 @@ const rows = await getPlayersOverview(db, new Date(), { serverId: server.id });
                   <a href={`/dashboard/players/${row.playerId}?server=${server.id}`} class="font-medium text-foreground hover:text-primary">
                     {row.displayName ?? row.minecraftName ?? row.identityNames[0] ?? 'Unknown'}
                   </a>
-                  {row.minecraftName && <Badge className="ml-2 align-middle">{row.minecraftName}</Badge>}
+                  {row.displayName && row.minecraftName && <Badge className="ml-2 align-middle">{row.minecraftName}</Badge>}
                 </td>
                 {admin && <td class="px-4 py-3 text-muted-foreground">{row.status}</td>}
                 <td class="px-4 py-3 text-muted-foreground">{formatLastSeen(row.lastSeen)}</td>

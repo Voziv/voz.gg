@@ -62,7 +62,7 @@ export function assemblePlayersOverview(
       }
     }
   }
-  for (const g of input.groups) groupsByPlayer.get(g.playerId)?.push(g.name);
+  for (const group of input.groups) groupsByPlayer.get(group.playerId)?.push(group.name);
 
   return input.players
     .map((p) => {

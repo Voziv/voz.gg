@@ -124,21 +124,21 @@ export function assemblePlayerDetail(
   const sessions: PlayerSessionRow[] = [];
   const serverSeenRows: ServerSeenRow[] = [];
   for (const sid of serversSeen) {
-    const own = deriveSessions(byServer.get(sid) ?? [], now).filter((s) => ownKeys.has(s.identityKey));
-    // Last actual presence on this server — rejections (already excluded from
-    // serversSeen) don't count as being seen.
-    let lastSeen: Date | null = null;
-    for (const e of byServer.get(sid) ?? []) {
-      const owned = e.identityKey !== null && ownKeys.has(e.identityKey) && e.type !== 'connection_rejected';
-      if (owned && (!lastSeen || e.occurredAt > lastSeen)) lastSeen = e.occurredAt;
-    }
-    for (const s of own) {
-      sessions.push({ serverId: sid, serverName: nameOf(sid), identityKey: s.identityKey, start: s.start, end: s.end, open: s.open, ip: s.ip });
+    const slice = byServer.get(sid) ?? [];
+    const own = deriveSessions(slice, now).filter((session) => ownKeys.has(session.identityKey));
+    // sid is in serversSeen only because a non-rejection owned event was recorded,
+    // so this max runs over a non-empty set — rejections don't count as presence.
+    const ownedTimes = slice
+      .filter((e) => e.identityKey !== null && ownKeys.has(e.identityKey) && e.type !== 'connection_rejected')
+      .map((e) => e.occurredAt.getTime());
+    const lastSeen = new Date(Math.max(...ownedTimes));
+    for (const session of own) {
+      sessions.push({ serverId: sid, serverName: nameOf(sid), identityKey: session.identityKey, start: session.start, end: session.end, open: session.open, ip: session.ip });
     }
     serverSeenRows.push({
       serverId: sid,
       serverName: nameOf(sid),
-      lastSeen: lastSeen ?? now,
+      lastSeen,
       totalPlaytimeSeconds: totalPlaytimeSeconds(own),
     });
   }
