@@ -1,3 +1,9 @@
+## 0.2.1 (2026-06-14)
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.6.0
+
 ## 0.2.0 (2026-06-14)
 
 ### 🚀 Features

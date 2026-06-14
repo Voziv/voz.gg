@@ -1,3 +1,13 @@
+## 0.6.0 (2026-06-14)
+
+### 🚀 Features
+
+- **shared:** add agent-host columns and game-type defaults to servers ([53f2749](https://github.com/Voziv/voz.gg/commit/53f2749))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.5.0 (2026-06-14)
 
 ### 🚀 Features

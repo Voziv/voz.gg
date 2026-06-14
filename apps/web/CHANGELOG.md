@@ -1,3 +1,28 @@
+## 0.14.0 (2026-06-14)
+
+### 🚀 Features
+
+- **web:** add agent-host section to the server form ([82a313c](https://github.com/Voziv/voz.gg/commit/82a313c))
+- **web:** add game-type default resolution for the server form ([e577895](https://github.com/Voziv/voz.gg/commit/e577895))
+- **web:** persist agent-host fields on server create/update ([503ff52](https://github.com/Voziv/voz.gg/commit/503ff52))
+- **web:** validate agent-host fields on server input ([5a82b74](https://github.com/Voziv/voz.gg/commit/5a82b74))
+- **web:** return provisioning policy from agent enroll ([e4a660e](https://github.com/Voziv/voz.gg/commit/e4a660e))
+- **web:** include agent-host fields in the server row query ([f7f17ac](https://github.com/Voziv/voz.gg/commit/f7f17ac))
+- **web:** add buildProvisioning capability-policy helper ([96dcd7b](https://github.com/Voziv/voz.gg/commit/96dcd7b))
+- **shared:** add agent-host columns and game-type defaults to servers ([53f2749](https://github.com/Voziv/voz.gg/commit/53f2749))
+
+### 🩹 Fixes
+
+- **shared:** renumber agent-host migration to 0012 after presence merge ([9359cfd](https://github.com/Voziv/voz.gg/commit/9359cfd))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.6.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.13.0 (2026-06-14)
 
 ### 🚀 Features
