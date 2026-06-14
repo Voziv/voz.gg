@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
+import { fetchMinecraftLookup } from '../../lib/minecraft-lookup';
 
 type Props = { defaultUsername: string; defaultUuid: string | null };
 type ServerResult =
@@ -48,13 +49,12 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
     if (v === '' || !FORMAT_RE.test(v)) return;
     let cancelled = false;
     const handle = setTimeout(async () => {
-      const res = await fetch(`/api/profile/minecraft?username=${encodeURIComponent(v)}`);
-      const r = (await res.json()) as { ok: boolean; uuid?: string; name?: string; error?: string };
+      const outcome = await fetchMinecraftLookup(v);
       if (cancelled) return;
       setServerResult(
-        r.ok && r.uuid && r.name
-          ? { for: v, ok: true, uuid: r.uuid, name: r.name }
-          : { for: v, ok: false, error: r.error === 'not_found' ? 'No such Minecraft user.' : 'Invalid username.' },
+        outcome.ok
+          ? { for: v, ok: true, uuid: outcome.uuid, name: outcome.name }
+          : { for: v, ok: false, error: outcome.message },
       );
     }, 400);
     return () => { cancelled = true; clearTimeout(handle); };
@@ -65,16 +65,20 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
   const avatarName =
     lookup.state === 'ok' ? lookup.name : trimmed === defaultUsername && defaultUuid ? defaultUsername : null;
 
-  async function persist(username: string) {
+  async function persist(username: string): Promise<{ ok: boolean; error?: string }> {
     setPending(true);
-    const res = await fetch('/api/profile/minecraft', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username }),
-    });
-    const r = (await res.json()) as { ok: boolean; error?: string };
-    setPending(false);
-    return r;
+    try {
+      const res = await fetch('/api/profile/minecraft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      });
+      return (await res.json()) as { ok: boolean; error?: string };
+    } catch {
+      return { ok: false, error: 'upstream' };
+    } finally {
+      setPending(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -82,6 +86,7 @@ export default function MinecraftField({ defaultUsername, defaultUuid }: Props) 
     const r = await persist(trimmed);
     if (r.ok) { setIsLinked(true); toast.success('Minecraft account linked.'); }
     else if (r.error === 'taken') toast.error('That Minecraft account is already linked to another user.');
+    else if (r.error === 'upstream') toast.error("Couldn't reach Minecraft. Try again.");
     else toast.error('Could not link account.');
   }
 
