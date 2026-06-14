@@ -53,4 +53,27 @@ describe('assemblePlayerDetail', () => {
     expect(detail.connectionAttempts).toEqual([]);
     expect(detail.ipsSeen).toEqual(['1.2.3.4']);
   });
+
+  it('orders sessions most-recent-first across servers', () => {
+    const detail = assemblePlayerDetail(
+      {
+        player: { id: 'p1', displayName: 'Steve', userId: null, notes: null, status: 'allowed', isBot: false },
+        identities: [{ identityKey: 'mc1', kind: 'minecraft', displayName: 'SteveMC' }],
+        groups: [],
+        account: null,
+        serverNames: [
+          { id: 'srvA', name: 'Vanilla' },
+          { id: 'srvB', name: 'Stoneblock' },
+        ],
+        events: [
+          { serverId: 'srvA', type: 'join', identityKey: 'mc1', playerName: 'SteveMC', ip: null, reason: null, occurredAt: d('2026-06-13T08:00:00Z') },
+          { serverId: 'srvA', type: 'leave', identityKey: 'mc1', playerName: 'SteveMC', ip: null, reason: null, occurredAt: d('2026-06-13T08:30:00Z') },
+          { serverId: 'srvB', type: 'join', identityKey: 'mc1', playerName: 'SteveMC', ip: null, reason: null, occurredAt: d('2026-06-13T10:00:00Z') },
+          { serverId: 'srvB', type: 'leave', identityKey: 'mc1', playerName: 'SteveMC', ip: null, reason: null, occurredAt: d('2026-06-13T10:15:00Z') },
+        ],
+      },
+      now,
+    );
+    expect(detail.sessions.map((s) => s.start)).toEqual([d('2026-06-13T10:00:00Z'), d('2026-06-13T08:00:00Z')]);
+  });
 });

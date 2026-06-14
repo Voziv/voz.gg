@@ -77,7 +77,9 @@ export function assemblePlayersOverview(
         const belongsToPlayer = e.identityKey !== null && ownKeys.has(e.identityKey);
         const isLifecycle = e.identityKey === null;
         if (!belongsToPlayer && !isLifecycle) continue;
-        if (belongsToPlayer) {
+        // A rejection means the player tried but never got in, so it doesn't make
+        // them "seen on" the server or move their last-seen time.
+        if (belongsToPlayer && e.type !== 'connection_rejected') {
           serversSeen.add(e.serverId);
           if (!lastSeen || e.occurredAt > lastSeen) lastSeen = e.occurredAt;
         }

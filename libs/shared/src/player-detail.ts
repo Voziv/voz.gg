@@ -1,5 +1,5 @@
 import type { Db } from './client';
-import { eq } from 'drizzle-orm';
+import { eq, or, inArray, isNull } from 'drizzle-orm';
 import { presenceEvents, player, playerIdentity, groupTag, playerGroupTag, user, servers } from './schema';
 import type { PlayerStatus, PlayerIdentityKind, PresenceEventType } from './schema';
 import { deriveSessions, totalPlaytimeSeconds, type DerivableEvent } from './sessions';
@@ -90,7 +90,9 @@ export function assemblePlayerDetail(
 
   const events = serverId ? input.events.filter((e) => e.serverId === serverId) : input.events;
 
-  // Group this player's + lifecycle events per server to derive sessions.
+  // Lifecycle events (null identity) are kept per server alongside the player's
+  // own so deriveSessions can cap dangling sessions; rejections are recorded as
+  // attempts but never count as presence.
   const byServer = new Map<string, DerivableEvent[]>();
   const serversSeen = new Set<string>();
   const ipsSeen = new Set<string>();
@@ -123,9 +125,12 @@ export function assemblePlayerDetail(
   const serverSeenRows: ServerSeenRow[] = [];
   for (const sid of serversSeen) {
     const own = deriveSessions(byServer.get(sid) ?? [], now).filter((s) => ownKeys.has(s.identityKey));
+    // Last actual presence on this server — rejections (already excluded from
+    // serversSeen) don't count as being seen.
     let lastSeen: Date | null = null;
     for (const e of byServer.get(sid) ?? []) {
-      if (e.identityKey && ownKeys.has(e.identityKey) && (!lastSeen || e.occurredAt > lastSeen)) lastSeen = e.occurredAt;
+      const owned = e.identityKey !== null && ownKeys.has(e.identityKey) && e.type !== 'connection_rejected';
+      if (owned && (!lastSeen || e.occurredAt > lastSeen)) lastSeen = e.occurredAt;
     }
     for (const s of own) {
       sessions.push({ serverId: sid, serverName: nameOf(sid), identityKey: s.identityKey, start: s.start, end: s.end, open: s.open, ip: s.ip });
@@ -194,8 +199,13 @@ export async function getPlayerDetail(
     .all();
   const serverNames = await db.select({ id: servers.id, name: servers.name }).from(servers).all();
 
-  // Events for this player's identities, plus all lifecycle events (null identity)
-  // needed to cap dangling sessions. Fetch all and filter in the pure assembler.
+  // Only this player's own identity events plus lifecycle events (null identity,
+  // needed to cap dangling sessions). A player with no identities still pulls
+  // lifecycle events, which on their own derive nothing.
+  const identityKeys = identities.map((i) => i.identityKey);
+  const eventScope = identityKeys.length
+    ? or(inArray(presenceEvents.identityKey, identityKeys), isNull(presenceEvents.identityKey))
+    : isNull(presenceEvents.identityKey);
   const events = await db
     .select({
       serverId: presenceEvents.serverId,
@@ -207,6 +217,7 @@ export async function getPlayerDetail(
       occurredAt: presenceEvents.occurredAt,
     })
     .from(presenceEvents)
+    .where(eventScope)
     .all();
 
   let account: AccountSummary | null = null;

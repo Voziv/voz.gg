@@ -89,4 +89,21 @@ describe('assemblePlayersOverview enrichment', () => {
     const rows = assemblePlayersOverview(base, now, { serverId: 'srvC' });
     expect(rows).toEqual([]);
   });
+
+  it('does not count a rejection-only server as seen', () => {
+    const [row] = assemblePlayersOverview(
+      {
+        players: [{ id: 'p1', displayName: 'Bot', userId: null, status: 'new', isBot: true }],
+        identities: [{ playerId: 'p1', identityKey: 'u1', kind: 'minecraft', displayName: 'Bot' }],
+        groups: [],
+        events: [
+          { serverId: 'srvA', type: 'connection_rejected', identityKey: 'u1', occurredAt: d('2026-06-13T10:00:00Z') },
+        ],
+      },
+      now,
+    );
+    expect(row.serversSeen).toEqual([]);
+    expect(row.lastSeen).toBeNull();
+    expect(row.totalPlaytimeSeconds).toBe(0);
+  });
 });
