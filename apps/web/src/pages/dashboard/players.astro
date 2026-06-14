@@ -1,16 +1,33 @@
 ---
 export const prerender = false;
 import { env } from 'cloudflare:workers';
-import { createDb, getPlayersOverview } from '@voz/shared';
+import { createDb, getPlayersOverview, PLAYER_STATUSES } from '@voz/shared';
 import { isAdmin } from '../../lib/admin';
 import Dashboard from '../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../components/ui/card.tsx';
+import { Badge } from '../../components/ui/badge.tsx';
 
-if (!isAdmin(Astro.locals.user)) {
-  return Astro.redirect('/dashboard/profile');
+// Middleware already redirects unauthenticated dashboard requests to /sign-in;
+// this guard is defensive and keeps the type non-null for isAdmin.
+if (!Astro.locals.user) {
+  return Astro.redirect('/sign-in');
 }
+const admin = isAdmin(Astro.locals.user);
 
-const rows = await getPlayersOverview(createDb(env.DB), new Date());
+const url = new URL(Astro.request.url);
+const statusFilter = url.searchParams.get('status') ?? '';
+const groupFilter = url.searchParams.get('group') ?? '';
+
+let rows = await getPlayersOverview(createDb(env.DB), new Date());
+const allGroups = [...new Set(rows.flatMap((r) => r.groups))].sort();
+if (statusFilter) rows = rows.filter((r) => r.status === statusFilter);
+if (groupFilter) rows = rows.filter((r) => r.groups.includes(groupFilter));
+
+const STATUS_BADGE: Record<string, string> = {
+  new: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  allowed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  blocked: 'bg-red-500/15 text-red-600 dark:text-red-400',
+};
 
 const formatDuration = (seconds: number) => {
   const h = Math.floor(seconds / 3600);
@@ -26,9 +43,33 @@ const formatLastSeen = (value: Date | null) => (value ? value.toISOString().slic
       <p class="mt-1 text-muted-foreground">Everyone seen across the community game servers.</p>
     </div>
 
+    {admin && (
+      <form method="get" class="mb-4 flex flex-wrap items-end gap-3">
+        <label class="flex flex-col gap-1 text-xs text-muted-foreground">
+          Status
+          <select name="status" class="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground">
+            <option value="">All</option>
+            {PLAYER_STATUSES.map((s) => (
+              <option value={s} selected={s === statusFilter}>{s}</option>
+            ))}
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 text-xs text-muted-foreground">
+          Group
+          <select name="group" class="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground">
+            <option value="">All</option>
+            {allGroups.map((g) => (
+              <option value={g} selected={g === groupFilter}>{g}</option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" class="rounded-md border border-border bg-muted px-3 py-1.5 text-sm hover:bg-muted/70">Filter</button>
+      </form>
+    )}
+
     {rows.length === 0 ? (
       <Card className="border-border bg-card">
-        <CardContent className="py-12 text-center text-muted-foreground">No players seen yet.</CardContent>
+        <CardContent className="py-12 text-center text-muted-foreground">No players match.</CardContent>
       </Card>
     ) : (
       <div class="overflow-hidden rounded-lg border border-border bg-card">
@@ -36,7 +77,8 @@ const formatLastSeen = (value: Date | null) => (value ? value.toISOString().slic
           <thead class="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th class="px-4 py-3 font-medium">Player</th>
-              <th class="px-4 py-3 font-medium">Identities</th>
+              <th class="px-4 py-3 font-medium">Groups</th>
+              {admin && <th class="px-4 py-3 font-medium">Status</th>}
               <th class="px-4 py-3 font-medium">Servers</th>
               <th class="px-4 py-3 font-medium">Last seen</th>
               <th class="px-4 py-3 font-medium">Playtime</th>
@@ -44,9 +86,20 @@ const formatLastSeen = (value: Date | null) => (value ? value.toISOString().slic
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr class="border-t border-border">
-                <td class="px-4 py-3">{row.displayName ?? row.identityNames[0] ?? 'Unknown'}</td>
-                <td class="px-4 py-3 text-muted-foreground">{row.identityNames.join(', ') || '—'}</td>
+              <tr class="border-t border-border hover:bg-muted/40">
+                <td class="px-4 py-3">
+                  <a href={`/dashboard/players/${row.playerId}`} class="font-medium text-foreground hover:text-primary">
+                    {row.displayName ?? row.minecraftName ?? row.identityNames[0] ?? 'Unknown'}
+                  </a>
+                  {row.minecraftName && <Badge className="ml-2 align-middle">{row.minecraftName}</Badge>}
+                  {admin && row.isBot && <span class="ml-2 text-xs text-muted-foreground">bot</span>}
+                </td>
+                <td class="px-4 py-3 text-muted-foreground">{row.groups.join(', ') || '—'}</td>
+                {admin && (
+                  <td class="px-4 py-3">
+                    <span class={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[row.status] ?? ''}`}>{row.status}</span>
+                  </td>
+                )}
                 <td class="px-4 py-3 text-muted-foreground">{row.serversSeen.length}</td>
                 <td class="px-4 py-3 text-muted-foreground">{formatLastSeen(row.lastSeen)}</td>
                 <td class="px-4 py-3 text-muted-foreground">{formatDuration(row.totalPlaytimeSeconds)}</td>
