@@ -30,3 +30,7 @@ pnpm-debug.log*
 # nx cache
 .nx/
 services/status-monitor/dist
+
+# superpowers planning docs (kept local, not tracked)
+**/superpowers/plans
+**/superpowers/specs
