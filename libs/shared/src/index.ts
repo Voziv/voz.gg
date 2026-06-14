@@ -6,3 +6,4 @@ export * from './sessions';
 export * from './presence';
 export * from './presence-dao';
 export * from './players';
+export * from './player-detail';
