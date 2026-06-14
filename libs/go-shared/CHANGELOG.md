@@ -1,3 +1,13 @@
+## 0.3.0 (2026-06-14)
+
+### 🚀 Features
+
+- **go-shared:** add presence wire types for ingest ([d76deee](https://github.com/Voziv/voz.gg/commit/d76deee))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.2.3 (2026-06-14)
 
 This was a version bump only for go-shared to align it with other projects, there were no code changes.

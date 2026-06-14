@@ -1,3 +1,29 @@
+## 0.5.0 (2026-06-14)
+
+### 🚀 Features
+
+- **voz-gg-agent:** implement logparse subcommand ([be92f8d](https://github.com/Voziv/voz.gg/commit/be92f8d))
+- **voz-gg-agent:** orchestrate backfill, batching, checkpoint ([81e60e6](https://github.com/Voziv/voz.gg/commit/81e60e6))
+- **voz-gg-agent:** deliver presence batches with retry ([bde0b0a](https://github.com/Voziv/voz.gg/commit/bde0b0a))
+- **voz-gg-agent:** read rolled and latest minecraft logs ([9d355e3](https://github.com/Voziv/voz.gg/commit/9d355e3))
+- **voz-gg-agent:** persist logparse read checkpoint ([c00f915](https://github.com/Voziv/voz.gg/commit/c00f915))
+- **voz-gg-agent:** split log line prefix from message body ([f11a4a4](https://github.com/Voziv/voz.gg/commit/f11a4a4))
+- **voz-gg-agent:** resolve log timestamps with midnight wrap ([a569f30](https://github.com/Voziv/voz.gg/commit/a569f30))
+- **voz-gg-agent:** parse minecraft log lines to presence events ([7dfafc9](https://github.com/Voziv/voz.gg/commit/7dfafc9))
+
+### 🩹 Fixes
+
+- **voz-gg-agent:** match status code precisely in isPermanent ([cb0bf3a](https://github.com/Voziv/voz.gg/commit/cb0bf3a))
+- **voz-gg-agent:** reset logparse offset on rotation, cap batch size ([9930403](https://github.com/Voziv/voz.gg/commit/9930403))
+
+### 🧱 Updated Dependencies
+
+- Updated go-shared to 0.3.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.4.0 (2026-06-14)
 
 ### 🚀 Features
