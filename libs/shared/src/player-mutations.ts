@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { PLAYER_STATUSES, PLAYER_IDENTITY_KINDS } from './schema';
 import type { PlayerStatus, PlayerIdentityKind } from './schema';
 
-export type MutationResult<T = Record<string, never>> =
+export type MutationResult<T = Record<never, never>> =
   | ({ ok: true } & T)
   | { ok: false; status: number; error: string };
 
