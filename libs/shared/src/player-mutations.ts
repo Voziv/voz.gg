@@ -89,3 +89,129 @@ export function computeMergeResult(survivor: PlayerCore, absorbed: PlayerCore): 
     combine: { notes, isBot: survivor.isBot || absorbed.isBot, userId: survivor.userId ?? absorbed.userId },
   };
 }
+
+export interface PlayerMutationsDao {
+  getPlayer(id: string): Promise<PlayerCore | null>;
+  updatePlayer(id: string, fields: PlayerFieldsUpdate & { userId?: string | null }, now: Date): Promise<void>;
+  /** Case-insensitive lookup by display name. */
+  findGroupByName(name: string): Promise<{ id: string } | null>;
+  createGroupTag(name: string, now: Date): Promise<string>;
+  attachGroup(playerId: string, groupTagId: string): Promise<void>;
+  detachGroup(playerId: string, groupTagId: string): Promise<void>;
+  findIdentity(kind: PlayerIdentityKind, key: string): Promise<{ playerId: string } | null>;
+  addIdentity(playerId: string, kind: PlayerIdentityKind, key: string, now: Date): Promise<void>;
+  removeIdentity(playerId: string, kind: PlayerIdentityKind, key: string): Promise<boolean>;
+  repointIdentities(fromPlayerId: string, toPlayerId: string): Promise<void>;
+  unionGroups(fromPlayerId: string, toPlayerId: string): Promise<void>;
+  deletePlayer(id: string): Promise<void>;
+  searchPlayers(query: string, limit: number): Promise<PlayerSearchResult[]>;
+}
+
+const fail = (status: number, error: string): MutationResult => ({ ok: false, status, error });
+
+function isIdentityKind(v: unknown): v is PlayerIdentityKind {
+  return typeof v === 'string' && (PLAYER_IDENTITY_KINDS as readonly string[]).includes(v);
+}
+
+export async function handleUpdatePlayerFields(
+  dao: PlayerMutationsDao,
+  id: string,
+  rawBody: unknown,
+  now: Date,
+): Promise<MutationResult> {
+  const parsed = parsePlayerFieldsInput(rawBody);
+  if (!parsed.ok) return fail(400, parsed.error);
+  if (!(await dao.getPlayer(id))) return fail(404, 'Player not found.');
+  await dao.updatePlayer(id, parsed.data, now);
+  return { ok: true };
+}
+
+export async function handleAddGroup(
+  dao: PlayerMutationsDao,
+  playerId: string,
+  rawName: string,
+  now: Date,
+): Promise<MutationResult> {
+  const name = normalizeGroupName(rawName);
+  if (!name) return fail(400, 'Group name is required.');
+  if (!(await dao.getPlayer(playerId))) return fail(404, 'Player not found.');
+  const existing = await dao.findGroupByName(name);
+  const groupTagId = existing?.id ?? (await dao.createGroupTag(name, now));
+  await dao.attachGroup(playerId, groupTagId);
+  return { ok: true };
+}
+
+export async function handleRemoveGroup(
+  dao: PlayerMutationsDao,
+  playerId: string,
+  rawName: string,
+): Promise<MutationResult> {
+  const name = normalizeGroupName(rawName);
+  if (!name) return fail(400, 'Group name is required.');
+  const group = await dao.findGroupByName(name);
+  if (group) await dao.detachGroup(playerId, group.id);
+  return { ok: true };
+}
+
+export async function handleAddIdentity(
+  dao: PlayerMutationsDao,
+  playerId: string,
+  rawKind: unknown,
+  rawKey: unknown,
+  now: Date,
+): Promise<MutationResult> {
+  if (!isIdentityKind(rawKind)) return fail(400, 'Invalid identity kind.');
+  const key = typeof rawKey === 'string' ? rawKey.trim() : '';
+  if (!key) return fail(400, 'Identity key is required.');
+  if (!(await dao.getPlayer(playerId))) return fail(404, 'Player not found.');
+  const owner = await dao.findIdentity(rawKind, key);
+  if (owner && owner.playerId !== playerId) return fail(409, 'Identity already belongs to another player.');
+  if (!owner) await dao.addIdentity(playerId, rawKind, key, now);
+  return { ok: true };
+}
+
+export async function handleRemoveIdentity(
+  dao: PlayerMutationsDao,
+  playerId: string,
+  rawKind: unknown,
+  rawKey: unknown,
+): Promise<MutationResult> {
+  if (!isIdentityKind(rawKind)) return fail(400, 'Invalid identity kind.');
+  const key = typeof rawKey === 'string' ? rawKey.trim() : '';
+  if (!key) return fail(400, 'Identity key is required.');
+  const removed = await dao.removeIdentity(playerId, rawKind, key);
+  if (!removed) return fail(404, 'Identity not found for this player.');
+  return { ok: true };
+}
+
+export async function handleMergePlayers(
+  dao: PlayerMutationsDao,
+  survivorId: string,
+  absorbedId: string,
+  now: Date,
+): Promise<MutationResult> {
+  if (!absorbedId || absorbedId === survivorId) return fail(400, 'Cannot merge a player into itself.');
+  const survivor = await dao.getPlayer(survivorId);
+  const absorbed = await dao.getPlayer(absorbedId);
+  if (!survivor || !absorbed) return fail(404, 'Player not found.');
+
+  const computed = computeMergeResult(survivor, absorbed);
+  if (!computed.ok) return fail(409, 'Both players are linked to different accounts; resolve the link first.');
+
+  // Re-point children BEFORE deleting the absorbed row (FK cascade would drop them).
+  await dao.repointIdentities(absorbedId, survivorId);
+  await dao.unionGroups(absorbedId, survivorId);
+  await dao.updatePlayer(survivorId, computed.combine, now);
+  await dao.deletePlayer(absorbedId);
+  return { ok: true };
+}
+
+export async function handleSearchPlayers(
+  dao: PlayerMutationsDao,
+  rawQuery: string,
+): Promise<MutationResult<{ players: PlayerSearchResult[] }>> {
+  const q = (rawQuery ?? '').trim();
+  if (q.length < 1) return fail(400, 'Query is required.') as MutationResult<{ players: PlayerSearchResult[] }>;
+  const players = await dao.searchPlayers(q, 20);
+  return { ok: true, players };
+}
