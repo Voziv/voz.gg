@@ -13,6 +13,7 @@ import {
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button, buttonVariants } from '../ui/button';
+import { Switch } from '../ui/switch';
 import { cn } from '../../lib/utils';
 import { GAME_TYPES, type GameType } from '@voz/shared';
 import { initialAgentHostValues, nextAgentHostValues } from './server-form-defaults';
@@ -36,6 +37,7 @@ type ServerData = {
   runAsGroup: string | null;
   gameServerUser: string | null;
   logPath: string | null;
+  logParserEnabled: boolean | null;
 };
 type Props = { server?: ServerData };
 
@@ -49,6 +51,7 @@ export default function ServerFormDialog({ server }: Props) {
     initialAgentHostValues(server?.gameType ?? 'minecraft-java', {
       gameServerUser: server?.gameServerUser,
       logPath: server?.logPath,
+      logParserEnabled: server?.logParserEnabled,
     }),
   );
 
@@ -70,6 +73,7 @@ export default function ServerFormDialog({ server }: Props) {
       runAsGroup: form.get('runAsGroup'),
       gameServerUser: form.get('gameServerUser'),
       logPath: form.get('logPath'),
+      logParserEnabled: agentHost.logParserEnabled,
     };
     setPending(true);
     try {
@@ -201,7 +205,18 @@ export default function ServerFormDialog({ server }: Props) {
                 maxLength={4096}
                 placeholder="/home/minecraft/logs"
               />
-              <p className="text-xs text-muted-foreground">Reserved — used by log parsing once available.</p>
+              <p className="text-xs text-muted-foreground">Where the agent reads the server log when log parsing is enabled.</p>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="grid gap-1">
+                <Label htmlFor="logParserEnabled" className="text-muted-foreground">Enable log parsing</Label>
+                <p className="text-xs text-muted-foreground">Tail the server log to track player join/leave and presence.</p>
+              </div>
+              <Switch
+                id="logParserEnabled"
+                checked={agentHost.logParserEnabled}
+                onCheckedChange={(checked) => setAgentHost((c) => ({ ...c, logParserEnabled: checked }))}
+              />
             </div>
           </fieldset>
 
