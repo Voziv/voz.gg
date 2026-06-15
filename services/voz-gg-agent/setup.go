@@ -21,12 +21,23 @@ const (
 	legacyBinary    = "/usr/local/bin/voz-status-monitor"
 )
 
-// provisioning is the run-as identity from the enroll response's install-time
-// policy block. The response also carries capability fields (e.g. logparse) that
-// this struct intentionally does not decode yet.
+// provisioning is the install-time policy block from the enroll response: the
+// run-as identity plus capability toggles.
 type provisioning struct {
-	RunAsUser  string `json:"runAsUser"`
-	RunAsGroup string `json:"runAsGroup"`
+	RunAsUser    string       `json:"runAsUser"`
+	RunAsGroup   string       `json:"runAsGroup"`
+	Capabilities capabilities `json:"capabilities"`
+}
+
+type capabilities struct {
+	LogParser logParserCapability `json:"logParser"`
+}
+
+// logParserCapability mirrors apps/web buildProvisioning's capabilities.logParser.
+type logParserCapability struct {
+	Enabled        bool   `json:"enabled"`
+	GameServerUser string `json:"gameServerUser"`
+	LogPath        string `json:"logPath"`
 }
 
 // systemOps is the set of privileged host operations setup performs. Abstracted

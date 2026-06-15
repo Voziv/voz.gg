@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -70,9 +71,9 @@ func fakeEnroll(resp enrollResponse, err error) enrollFn {
 
 func sampleEnroll() enrollResponse {
 	return enrollResponse{
-		AgentToken: "AT",
-		ConfigHash: "H1",
-		Config:     ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
+		AgentToken:   "AT",
+		ConfigHash:   "H1",
+		Config:       ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
 		Provisioning: provisioning{RunAsUser: "voz-gg", RunAsGroup: "voz-gg"},
 	}
 }
@@ -206,4 +207,38 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func TestEnrollResponseDecodesLogParserCapability(t *testing.T) {
+	raw := []byte(`{
+		"agentToken": "AT",
+		"configHash": "H1",
+		"config": {"serverId": "srv1", "gameType": "minecraft-java"},
+		"provisioning": {
+			"runAsUser": "voz-gg",
+			"runAsGroup": "voz-gg",
+			"capabilities": {
+				"monitor": {"enabled": true},
+				"logParser": {"enabled": true, "gameServerUser": "minecraft", "logPath": "/home/minecraft/logs"}
+			}
+		}
+	}`)
+	var resp enrollResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		t.Fatal(err)
+	}
+	lp := resp.Provisioning.Capabilities.LogParser
+	if !lp.Enabled || lp.GameServerUser != "minecraft" || lp.LogPath != "/home/minecraft/logs" {
+		t.Fatalf("logParser not decoded: %+v", lp)
+	}
+}
+
+func TestEnrollResponseWithoutCapabilityDefaultsDisabled(t *testing.T) {
+	var resp enrollResponse
+	if err := json.Unmarshal([]byte(`{"agentToken":"AT","provisioning":{"runAsUser":"voz-gg"}}`), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Provisioning.Capabilities.LogParser.Enabled {
+		t.Fatal("missing capability must default to disabled")
+	}
 }
