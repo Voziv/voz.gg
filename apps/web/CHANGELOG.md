@@ -1,3 +1,25 @@
+## 0.17.0 (2026-06-15)
+
+### 🚀 Features
+
+- **web:** add per-server players view ([dbda121](https://github.com/Voziv/voz.gg/commit/dbda121))
+- **web:** add player detail view with sessions and admin panels ([517f4d6](https://github.com/Voziv/voz.gg/commit/517f4d6))
+- **web:** open players list to all users, add pills, groups, filters ([d80b94d](https://github.com/Voziv/voz.gg/commit/d80b94d))
+
+### 🩹 Fixes
+
+- **web:** renumber player migration to 0013 after rebase ([e6d26a9](https://github.com/Voziv/voz.gg/commit/e6d26a9))
+- **web:** stop leaking admin-only player fields from list API ([4fdc043](https://github.com/Voziv/voz.gg/commit/4fdc043))
+- **web:** restrict status filter to admins on players list ([391019e](https://github.com/Voziv/voz.gg/commit/391019e))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.7.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.16.0 (2026-06-14)
 
 ### 🚀 Features

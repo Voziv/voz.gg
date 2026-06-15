@@ -1,3 +1,16 @@
+## 0.7.0 (2026-06-15)
+
+### 🚀 Features
+
+- **shared:** add player detail read-time assembly ([31fc622](https://github.com/Voziv/voz.gg/commit/31fc622))
+- **shared:** enrich players overview with status, groups, server scope ([2ce6828](https://github.com/Voziv/voz.gg/commit/2ce6828))
+- **shared:** carry join IP onto derived sessions ([543eddd](https://github.com/Voziv/voz.gg/commit/543eddd))
+- **shared:** add player status, isBot, and group tag tables ([fe47339](https://github.com/Voziv/voz.gg/commit/fe47339))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.6.0 (2026-06-14)
 
 ### 🚀 Features
