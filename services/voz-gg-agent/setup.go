@@ -162,6 +162,48 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 	}
 
 	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
+
+	if lp := resp.Provisioning.Capabilities.LogParser; lp.Enabled {
+		var ttyIn io.Reader
+		var ttyOut io.Writer
+		if !opts.NonInteractive {
+			tty, err := opts.OpenTTY()
+			if err != nil {
+				fmt.Fprintf(stderr, "setup: cannot open /dev/tty for log-dir setup; re-run with --non-interactive: %v\n", err)
+				return 1
+			}
+			defer tty.Close()
+			ttyIn, ttyOut = tty, tty
+		}
+		logDir, err := resolveLogDir(lp, !opts.NonInteractive, ttyIn, ttyOut, sys)
+		if err != nil {
+			fmt.Fprintf(stderr, "setup: %v\n", err)
+			return 1
+		}
+		if err := sys.mkdirAll(stateDir, 0o750); err != nil {
+			fmt.Fprintf(stderr, "setup: mkdir %s: %v\n", stateDir, err)
+			return 1
+		}
+		if err := sys.chownRecursive(stateDir, runAsUser, runAsGroup); err != nil {
+			fmt.Fprintf(stderr, "setup: chown %s: %v\n", stateDir, err)
+			return 1
+		}
+		lpUnit := renderLogparseUnit(opts.ExecPath, opts.ConfigPath, logDir, stateDir, runAsUser, runAsGroup, lp.GameServerUser)
+		if err := sys.writeFile("/etc/systemd/system/"+logparseUnitName, []byte(lpUnit), 0o644); err != nil {
+			fmt.Fprintf(stderr, "setup: write logparse unit: %v\n", err)
+			return 1
+		}
+		if err := sys.run("systemctl", "daemon-reload"); err != nil {
+			fmt.Fprintf(stderr, "setup: daemon-reload: %v\n", err)
+			return 1
+		}
+		if err := sys.run("systemctl", "enable", "--now", logparseUnitName); err != nil {
+			fmt.Fprintf(stderr, "setup: enable logparse service: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "voz-gg-agent logparse installed and started; reading %s\n", logDir)
+	}
+
 	return 0
 }
 
