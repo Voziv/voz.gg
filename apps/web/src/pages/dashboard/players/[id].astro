@@ -1,12 +1,16 @@
 ---
 export const prerender = false;
 import { env } from 'cloudflare:workers';
-import { createDb, getPlayerDetail } from '@voz/shared';
+import { createDb, getPlayerDetail, groupTag } from '@voz/shared';
 import { isAdmin } from '../../../lib/admin';
 import Dashboard from '../../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../../components/ui/card.tsx';
 import { Badge } from '../../../components/ui/badge.tsx';
 import { formatDuration, formatDatetime } from '../../../lib/format';
+import PlayerFieldsEditor from '../../../components/dashboard/PlayerFieldsEditor.tsx';
+import PlayerGroupsEditor from '../../../components/dashboard/PlayerGroupsEditor.tsx';
+import PlayerIdentitiesEditor from '../../../components/dashboard/PlayerIdentitiesEditor.tsx';
+import MergePlayerDialog from '../../../components/dashboard/MergePlayerDialog.tsx';
 
 // Middleware already redirects unauthenticated dashboard requests to /sign-in.
 if (!Astro.locals.user) {
@@ -17,10 +21,13 @@ const admin = isAdmin(Astro.locals.user);
 const { id } = Astro.params;
 const serverScope = Astro.url.searchParams.get('server') ?? undefined;
 
-const detail = id ? await getPlayerDetail(createDb(env.DB), id, new Date(), { serverId: serverScope }) : null;
+const db = createDb(env.DB);
+const detail = id ? await getPlayerDetail(db, id, new Date(), { serverId: serverScope }) : null;
 if (!detail) {
   return new Response('Player not found', { status: 404 });
 }
+
+const allGroups = admin ? (await db.select({ name: groupTag.name }).from(groupTag).all()).map((g) => g.name) : [];
 
 const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
 ---
@@ -108,12 +115,6 @@ const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
       <section class="grid gap-6 md:grid-cols-2">
         <Card className="border-border bg-card">
           <CardContent className="py-4">
-            <h3 class="mb-2 text-sm font-semibold">Notes</h3>
-            <p class="whitespace-pre-wrap text-sm text-muted-foreground">{detail.notes || '—'}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="py-4">
             <h3 class="mb-2 text-sm font-semibold">IPs seen</h3>
             <p class="font-mono text-sm text-muted-foreground">{detail.ipsSeen.join(', ') || '—'}</p>
           </CardContent>
@@ -132,6 +133,44 @@ const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
             )}
           </CardContent>
         </Card>
+      </section>
+    )}
+
+    {admin && (
+      <section class="space-y-6">
+        <h2 class="text-lg font-semibold">Manage</h2>
+        <div class="grid gap-6 md:grid-cols-2">
+          <Card className="border-border bg-card">
+            <CardContent className="py-4">
+              <h3 class="mb-3 text-sm font-semibold">Fields</h3>
+              <PlayerFieldsEditor
+                client:load
+                playerId={detail.playerId}
+                displayName={detail.displayName}
+                status={detail.status}
+                isBot={detail.isBot}
+                notes={detail.notes}
+              />
+            </CardContent>
+          </Card>
+          <Card className="border-border bg-card">
+            <CardContent className="py-4">
+              <h3 class="mb-3 text-sm font-semibold">Groups</h3>
+              <PlayerGroupsEditor client:load playerId={detail.playerId} groups={detail.groups} allGroups={allGroups} />
+            </CardContent>
+          </Card>
+          <Card className="border-border bg-card">
+            <CardContent className="py-4">
+              <h3 class="mb-3 text-sm font-semibold">Identities</h3>
+              <PlayerIdentitiesEditor client:load playerId={detail.playerId} identities={detail.identities} />
+            </CardContent>
+          </Card>
+          <Card className="border-border bg-card">
+            <CardContent className="flex items-center py-4">
+              <MergePlayerDialog client:load playerId={detail.playerId} />
+            </CardContent>
+          </Card>
+        </div>
       </section>
     )}
   </div>

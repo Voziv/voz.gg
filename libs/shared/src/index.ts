@@ -7,3 +7,5 @@ export * from './presence';
 export * from './presence-dao';
 export * from './players';
 export * from './player-detail';
+export * from './player-mutations';
+export * from './player-mutations-dao';

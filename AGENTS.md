@@ -117,9 +117,16 @@ freeform groups live in `group_tag` + `player_group_tag`. Sessions, IPs, and
 connection attempts are derived at read time (`libs/shared/src/player-detail.ts`);
 "seen on a server" means actual presence, so connection rejections never count
 toward servers-seen or last-seen. Admin/owner see the management surfaces
-(status, notes, IPs, attempts) and, in PR-B, edit them (rename, groups,
-identities, merge). IP columns stay empty until the #25a PR-2 log producer
-captures join IPs.
+(status, notes, IPs, attempts) and edit them (PR-B): rename + status + isBot +
+notes, freeform groups (add-or-create / remove), manual identities (add / remove),
+and **merge** (survivor re-homes the absorbed player's identities, groups, notes,
+and account link; 409 on dual distinct accounts). The write surface is
+admin-gated routes `PATCH /api/players/<id>`, `POST|DELETE /api/players/<id>/groups`,
+`POST|DELETE /api/players/<id>/identities`, `POST /api/players/<id>/merge`, and
+`GET /api/players/search`, all thin wiring over fake-DAO-tested handlers in
+`libs/shared/src/player-mutations.ts`; the editors are React islands using new
+Base UI `select`/`combobox` primitives. IP columns stay empty until the #25a PR-2
+log producer captures join IPs.
 
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
