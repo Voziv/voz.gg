@@ -53,6 +53,7 @@ type systemOps interface {
 	chownRecursive(path, user, group string) error
 	run(name string, args ...string) error
 	unitInstalled(name string) bool
+	pathExists(path string) bool
 	remove(path string) error
 }
 
@@ -66,6 +67,8 @@ type setupOptions struct {
 	ExecPath        string
 	RunAsUser       string // override (flag/env); "" = use provisioning/default
 	RunAsGroup      string // override (flag/env); "" = use provisioning/default
+	NonInteractive  bool
+	OpenTTY         func() (io.ReadWriteCloser, error)
 }
 
 // runSetupWith orchestrates provisioning against injected dependencies. It is
@@ -206,6 +209,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	configPath := fs.String("config", defaultConfigPath, "path to write the monitor config")
 	runAsUser := fs.String("run-as-user", envOr("VOZ_RUN_AS_USER", ""), "override the run-as user")
 	runAsGroup := fs.String("run-as-group", envOr("VOZ_RUN_AS_GROUP", ""), "override the run-as group")
+	nonInteractive := fs.Bool("non-interactive", false, "do not prompt; require all config from provisioning")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -228,8 +232,16 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 		ExecPath:        execPath,
 		RunAsUser:       *runAsUser,
 		RunAsGroup:      *runAsGroup,
+		NonInteractive:  *nonInteractive,
+		OpenTTY:         openDevTTY,
 	}
 	return runSetupWith(opts, realSystem{}, httpEnroll, stdout, stderr)
+}
+
+// openDevTTY opens the controlling terminal for interactive prompts, independent
+// of stdin (which is the piped installer under `curl | sudo sh`).
+func openDevTTY() (io.ReadWriteCloser, error) {
+	return os.OpenFile("/dev/tty", os.O_RDWR, 0)
 }
 
 // httpEnroll POSTs the enrollment token to the Worker and decodes the response.
@@ -284,6 +296,7 @@ func (realSystem) unitInstalled(n string) bool {
 	_, err := os.Stat("/etc/systemd/system/" + n)
 	return err == nil
 }
+func (realSystem) pathExists(p string) bool { _, err := os.Stat(p); return err == nil }
 func (realSystem) remove(p string) error {
 	if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err

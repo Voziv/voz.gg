@@ -23,6 +23,7 @@ type fakeSystem struct {
 	chowns        []string // "path user:group"
 	runs          [][]string
 	units         map[string]bool
+	paths         map[string]bool
 	removed       []string
 }
 
@@ -31,7 +32,7 @@ func newFakeSystem() *fakeSystem {
 		systemd: true,
 		groups:  map[string]bool{}, users: map[string]bool{},
 		files: map[string][]byte{}, filePerms: map[string]uint32{},
-		units: map[string]bool{},
+		units: map[string]bool{}, paths: map[string]bool{},
 	}
 }
 
@@ -63,6 +64,7 @@ func (f *fakeSystem) run(name string, args ...string) error {
 	return nil
 }
 func (f *fakeSystem) unitInstalled(n string) bool { return f.units[n] }
+func (f *fakeSystem) pathExists(p string) bool    { return f.paths[p] }
 func (f *fakeSystem) remove(p string) error       { f.removed = append(f.removed, p); return nil }
 
 func fakeEnroll(resp enrollResponse, err error) enrollFn {
@@ -207,6 +209,27 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func TestFakeSystemPathExists(t *testing.T) {
+	sys := newFakeSystem()
+	sys.paths["/home/minecraft/logs/latest.log"] = true
+	if !sys.pathExists("/home/minecraft/logs/latest.log") {
+		t.Fatal("expected known path to exist")
+	}
+	if sys.pathExists("/nope") {
+		t.Fatal("unknown path should not exist")
+	}
+}
+
+func TestSetupParsesNonInteractiveFlag(t *testing.T) {
+	// --non-interactive with missing required flags still errors on those (exit 2),
+	// proving the flag is accepted by the flagset (not an "unknown flag" exit).
+	var errb bytes.Buffer
+	code := runSetup([]string{"--non-interactive"}, &bytes.Buffer{}, &errb)
+	if code != 2 || !strings.Contains(errb.String(), "required") {
+		t.Fatalf("expected required-flag error (exit 2), got code=%d err=%q", code, errb.String())
+	}
 }
 
 func TestEnrollResponseDecodesLogParserCapability(t *testing.T) {
