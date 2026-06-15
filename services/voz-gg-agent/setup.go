@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -11,22 +12,36 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 const (
-	defaultRunAs    = "voz-gg"
-	monitorUnitName = "voz-gg-agent-monitor.service"
-	legacyUnitName  = "voz-status-monitor.service"
-	legacyBinary    = "/usr/local/bin/voz-status-monitor"
+	defaultRunAs     = "voz-gg"
+	monitorUnitName  = "voz-gg-agent-monitor.service"
+	logparseUnitName = "voz-gg-agent-logparse.service"
+	legacyUnitName   = "voz-status-monitor.service"
+	legacyBinary     = "/usr/local/bin/voz-status-monitor"
+	stateDir         = "/var/lib/voz-gg-agent"
 )
 
-// provisioning is the run-as identity from the enroll response's install-time
-// policy block. The response also carries capability fields (e.g. logparse) that
-// this struct intentionally does not decode yet.
+// provisioning is the install-time policy block from the enroll response: the
+// run-as identity plus capability toggles.
 type provisioning struct {
-	RunAsUser  string `json:"runAsUser"`
-	RunAsGroup string `json:"runAsGroup"`
+	RunAsUser    string       `json:"runAsUser"`
+	RunAsGroup   string       `json:"runAsGroup"`
+	Capabilities capabilities `json:"capabilities"`
+}
+
+type capabilities struct {
+	LogParser logParserCapability `json:"logParser"`
+}
+
+// logParserCapability mirrors apps/web buildProvisioning's capabilities.logParser.
+type logParserCapability struct {
+	Enabled        bool   `json:"enabled"`
+	GameServerUser string `json:"gameServerUser"`
+	LogPath        string `json:"logPath"`
 }
 
 // systemOps is the set of privileged host operations setup performs. Abstracted
@@ -42,6 +57,7 @@ type systemOps interface {
 	chownRecursive(path, user, group string) error
 	run(name string, args ...string) error
 	unitInstalled(name string) bool
+	pathExists(path string) bool
 	remove(path string) error
 }
 
@@ -55,6 +71,8 @@ type setupOptions struct {
 	ExecPath        string
 	RunAsUser       string // override (flag/env); "" = use provisioning/default
 	RunAsGroup      string // override (flag/env); "" = use provisioning/default
+	NonInteractive  bool
+	OpenTTY         func() (io.ReadWriteCloser, error)
 }
 
 // runSetupWith orchestrates provisioning against injected dependencies. It is
@@ -144,7 +162,117 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 	}
 
 	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
+
+	if lp := resp.Provisioning.Capabilities.LogParser; lp.Enabled {
+		var ttyIn io.Reader
+		var ttyOut io.Writer
+		if !opts.NonInteractive {
+			tty, err := opts.OpenTTY()
+			if err != nil {
+				fmt.Fprintf(stderr, "setup: cannot open /dev/tty for log-dir setup; re-run with --non-interactive: %v\n", err)
+				return 1
+			}
+			defer tty.Close()
+			ttyIn, ttyOut = tty, tty
+		}
+		logDir, err := resolveLogDir(lp, !opts.NonInteractive, ttyIn, ttyOut, sys)
+		if err != nil {
+			fmt.Fprintf(stderr, "setup: %v\n", err)
+			return 1
+		}
+		if err := sys.mkdirAll(stateDir, 0o750); err != nil {
+			fmt.Fprintf(stderr, "setup: mkdir %s: %v\n", stateDir, err)
+			return 1
+		}
+		if err := sys.chownRecursive(stateDir, runAsUser, runAsGroup); err != nil {
+			fmt.Fprintf(stderr, "setup: chown %s: %v\n", stateDir, err)
+			return 1
+		}
+		lpUnit := renderLogparseUnit(opts.ExecPath, opts.ConfigPath, logDir, stateDir, runAsUser, runAsGroup, lp.GameServerUser)
+		if err := sys.writeFile("/etc/systemd/system/"+logparseUnitName, []byte(lpUnit), 0o644); err != nil {
+			fmt.Fprintf(stderr, "setup: write logparse unit: %v\n", err)
+			return 1
+		}
+		if err := sys.run("systemctl", "daemon-reload"); err != nil {
+			fmt.Fprintf(stderr, "setup: daemon-reload: %v\n", err)
+			return 1
+		}
+		if err := sys.run("systemctl", "enable", "--now", logparseUnitName); err != nil {
+			fmt.Fprintf(stderr, "setup: enable logparse service: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "voz-gg-agent logparse installed and started; reading %s\n", logDir)
+	}
+
 	return 0
+}
+
+// resolveLogDir determines the game-server log directory for the logparse unit.
+// Non-interactive: require the provisioned LogPath. Interactive: scan candidate
+// locations for a latest.log, present them on the injected tty, and let the
+// operator confirm the discovered default or type a path.
+func resolveLogDir(cap logParserCapability, interactive bool, in io.Reader, out io.Writer, sys systemOps) (string, error) {
+	user := cap.GameServerUser
+	if user == "" {
+		user = "minecraft"
+	}
+	candidates := dedupeNonEmpty(cap.LogPath, "/home/"+user+"/logs", "/opt/"+user+"/logs")
+
+	if !interactive {
+		if cap.LogPath == "" {
+			return "", errors.New("log parsing enabled but no log path provided; set it in the server config or run setup interactively")
+		}
+		return cap.LogPath, nil
+	}
+
+	def := ""
+	for _, c := range candidates {
+		if sys.pathExists(filepath.Join(c, "latest.log")) {
+			def = c
+			break
+		}
+	}
+	if def == "" && len(candidates) > 0 {
+		def = candidates[0]
+	}
+
+	fmt.Fprintln(out, "Detecting the game-server log directory...")
+	for _, c := range candidates {
+		mark := ""
+		if sys.pathExists(filepath.Join(c, "latest.log")) {
+			mark = "  (found latest.log)"
+		}
+		fmt.Fprintf(out, "  %s%s\n", c, mark)
+	}
+	fmt.Fprintf(out, "Log directory [%s]: ", def)
+
+	line, _ := bufio.NewReader(in).ReadString('\n')
+	chosen := strings.TrimSpace(line)
+	if chosen == "" {
+		chosen = def
+	}
+	if chosen == "" {
+		return "", errors.New("no log directory provided")
+	}
+	if !sys.pathExists(filepath.Join(chosen, "latest.log")) {
+		fmt.Fprintf(out, "warning: %s has no latest.log yet; the daemon will wait for it to appear.\n", chosen)
+	}
+	return chosen, nil
+}
+
+// dedupeNonEmpty returns the inputs with empties and later duplicates removed,
+// preserving order.
+func dedupeNonEmpty(vals ...string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, v := range vals {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
 }
 
 func renderMonitorUnit(execPath, configPath, configDir, user, group string) string {
@@ -168,6 +296,39 @@ ReadWritePaths=%s
 [Install]
 WantedBy=multi-user.target
 `, execPath, configPath, user, group, configDir)
+}
+
+// renderLogparseUnit builds the hardened logparse service. It differs from the
+// monitor unit in exactly what it needs to read another user's logs safely:
+// SupplementaryGroups grants read of the game server's group-readable logs,
+// ProtectHome is relaxed to read-only (Minecraft logs live under /home), the log
+// dir is read-only, and only the state dir (checkpoint) is writable.
+func renderLogparseUnit(execPath, configPath, logDir, stateDir, user, group, gameServerUser string) string {
+	supplementary := ""
+	if gameServerUser != "" {
+		supplementary = "SupplementaryGroups=" + gameServerUser + "\n"
+	}
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg agent (logparse)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%s logparse -config %s -log-dir %s -checkpoint %s/logparse-checkpoint.json
+Restart=always
+RestartSec=5
+User=%s
+Group=%s
+%sNoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadOnlyPaths=%s
+ReadWritePaths=%s
+
+[Install]
+WantedBy=multi-user.target
+`, execPath, configPath, logDir, stateDir, user, group, supplementary, logDir, stateDir)
 }
 
 func firstNonEmpty(vals ...string) string {
@@ -195,6 +356,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	configPath := fs.String("config", defaultConfigPath, "path to write the monitor config")
 	runAsUser := fs.String("run-as-user", envOr("VOZ_RUN_AS_USER", ""), "override the run-as user")
 	runAsGroup := fs.String("run-as-group", envOr("VOZ_RUN_AS_GROUP", ""), "override the run-as group")
+	nonInteractive := fs.Bool("non-interactive", false, "do not prompt; require all config from provisioning")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -217,8 +379,16 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 		ExecPath:        execPath,
 		RunAsUser:       *runAsUser,
 		RunAsGroup:      *runAsGroup,
+		NonInteractive:  *nonInteractive,
+		OpenTTY:         openDevTTY,
 	}
 	return runSetupWith(opts, realSystem{}, httpEnroll, stdout, stderr)
+}
+
+// openDevTTY opens the controlling terminal for interactive prompts, independent
+// of stdin (which is the piped installer under `curl | sudo sh`).
+func openDevTTY() (io.ReadWriteCloser, error) {
+	return os.OpenFile("/dev/tty", os.O_RDWR, 0)
 }
 
 // httpEnroll POSTs the enrollment token to the Worker and decodes the response.
@@ -273,6 +443,7 @@ func (realSystem) unitInstalled(n string) bool {
 	_, err := os.Stat("/etc/systemd/system/" + n)
 	return err == nil
 }
+func (realSystem) pathExists(p string) bool { _, err := os.Stat(p); return err == nil }
 func (realSystem) remove(p string) error {
 	if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err

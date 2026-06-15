@@ -90,8 +90,14 @@ them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer is
 implemented: it backfills rolled `*.log.gz` then tails `latest.log`, parses
 join/leave/connection_rejected/server_start/server_stop, and POSTs idempotent
 batches to `/presence` (Bearer = the agent token from the monitor config; log
-directory via `-log-dir`, checkpoint advances only on ack). Installer/systemd
-wiring of the unit and the web enable toggle land separately.
+directory via `-log-dir`, checkpoint advances only on ack). `voz-gg-agent setup`
+now decodes the enroll `provisioning.capabilities.logParser` block and, when log
+parsing is enabled, resolves the game-server log directory (interactively via
+`/dev/tty`, or from the provisioned `logPath` with `--non-interactive`) and
+installs + enables a second hardened unit `voz-gg-agent-logparse.service` — runs
+as `voz-gg` with `SupplementaryGroups=<gameServerUser>`, `ProtectHome=read-only`,
+a read-only log dir, and the checkpoint under `/var/lib/voz-gg-agent`. The web
+enable toggle lands separately.
 
 The host installer (`apps/web/public/install-agent.sh`) is a thin bootstrap: it
 downloads `voz-gg-agent` and execs `voz-gg-agent setup`, which enrolls, creates a
