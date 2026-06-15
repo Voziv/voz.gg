@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -159,6 +161,74 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 
 	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
 	return 0
+}
+
+// resolveLogDir determines the game-server log directory for the logparse unit.
+// Non-interactive: require the provisioned LogPath. Interactive: scan candidate
+// locations for a latest.log, present them on the injected tty, and let the
+// operator confirm the discovered default or type a path.
+func resolveLogDir(cap logParserCapability, interactive bool, in io.Reader, out io.Writer, sys systemOps) (string, error) {
+	user := cap.GameServerUser
+	if user == "" {
+		user = "minecraft"
+	}
+	candidates := dedupeNonEmpty(cap.LogPath, "/home/"+user+"/logs", "/opt/"+user+"/logs")
+
+	if !interactive {
+		if cap.LogPath == "" {
+			return "", errors.New("log parsing enabled but no log path provided; set it in the server config or run setup interactively")
+		}
+		return cap.LogPath, nil
+	}
+
+	def := ""
+	for _, c := range candidates {
+		if sys.pathExists(filepath.Join(c, "latest.log")) {
+			def = c
+			break
+		}
+	}
+	if def == "" && len(candidates) > 0 {
+		def = candidates[0]
+	}
+
+	fmt.Fprintln(out, "Detecting the game-server log directory...")
+	for _, c := range candidates {
+		mark := ""
+		if sys.pathExists(filepath.Join(c, "latest.log")) {
+			mark = "  (found latest.log)"
+		}
+		fmt.Fprintf(out, "  %s%s\n", c, mark)
+	}
+	fmt.Fprintf(out, "Log directory [%s]: ", def)
+
+	line, _ := bufio.NewReader(in).ReadString('\n')
+	chosen := strings.TrimSpace(line)
+	if chosen == "" {
+		chosen = def
+	}
+	if chosen == "" {
+		return "", errors.New("no log directory provided")
+	}
+	if !sys.pathExists(filepath.Join(chosen, "latest.log")) {
+		fmt.Fprintf(out, "warning: %s has no latest.log yet; the daemon will wait for it to appear.\n", chosen)
+	}
+	return chosen, nil
+}
+
+// dedupeNonEmpty returns the inputs with empties and later duplicates removed,
+// preserving order.
+func dedupeNonEmpty(vals ...string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, v := range vals {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
 }
 
 func renderMonitorUnit(execPath, configPath, configDir, user, group string) string {

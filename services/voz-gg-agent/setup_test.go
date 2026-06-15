@@ -211,6 +211,58 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
+type fakeTTY struct {
+	in  *bytes.Buffer
+	out *bytes.Buffer
+}
+
+func (f *fakeTTY) Read(p []byte) (int, error)  { return f.in.Read(p) }
+func (f *fakeTTY) Write(p []byte) (int, error) { return f.out.Write(p) }
+func (f *fakeTTY) Close() error                { return nil }
+
+func TestResolveLogDirNonInteractiveUsesProvisionedPath(t *testing.T) {
+	sys := newFakeSystem()
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft", LogPath: "/srv/mc/logs"}
+	got, err := resolveLogDir(cap, false, nil, nil, sys)
+	if err != nil || got != "/srv/mc/logs" {
+		t.Fatalf("got %q err %v", got, err)
+	}
+}
+
+func TestResolveLogDirNonInteractiveErrorsWhenMissing(t *testing.T) {
+	sys := newFakeSystem()
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft"}
+	if _, err := resolveLogDir(cap, false, nil, nil, sys); err == nil {
+		t.Fatal("expected error when log path missing in non-interactive mode")
+	}
+}
+
+func TestResolveLogDirInteractiveAcceptsDiscoveredDefault(t *testing.T) {
+	sys := newFakeSystem()
+	sys.paths["/home/minecraft/logs/latest.log"] = true                    // discovered candidate
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft"} // no provisioned path
+	in := bytes.NewBufferString("\n")                                      // empty line accepts default
+	out := &bytes.Buffer{}
+	got, err := resolveLogDir(cap, true, in, out, sys)
+	if err != nil || got != "/home/minecraft/logs" {
+		t.Fatalf("got %q err %v; prompt=%q", got, err, out.String())
+	}
+	if !strings.Contains(out.String(), "/home/minecraft/logs") {
+		t.Fatalf("prompt should list the discovered candidate: %q", out.String())
+	}
+}
+
+func TestResolveLogDirInteractiveOverride(t *testing.T) {
+	sys := newFakeSystem()
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft", LogPath: "/home/minecraft/logs"}
+	in := bytes.NewBufferString("/opt/custom/logs\n")
+	out := &bytes.Buffer{}
+	got, err := resolveLogDir(cap, true, in, out, sys)
+	if err != nil || got != "/opt/custom/logs" {
+		t.Fatalf("got %q err %v", got, err)
+	}
+}
+
 func TestFakeSystemPathExists(t *testing.T) {
 	sys := newFakeSystem()
 	sys.paths["/home/minecraft/logs/latest.log"] = true
