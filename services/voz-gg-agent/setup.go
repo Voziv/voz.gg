@@ -17,10 +17,12 @@ import (
 )
 
 const (
-	defaultRunAs    = "voz-gg"
-	monitorUnitName = "voz-gg-agent-monitor.service"
-	legacyUnitName  = "voz-status-monitor.service"
-	legacyBinary    = "/usr/local/bin/voz-status-monitor"
+	defaultRunAs     = "voz-gg"
+	monitorUnitName  = "voz-gg-agent-monitor.service"
+	logparseUnitName = "voz-gg-agent-logparse.service"
+	legacyUnitName   = "voz-status-monitor.service"
+	legacyBinary     = "/usr/local/bin/voz-status-monitor"
+	stateDir         = "/var/lib/voz-gg-agent"
 )
 
 // provisioning is the install-time policy block from the enroll response: the
@@ -252,6 +254,39 @@ ReadWritePaths=%s
 [Install]
 WantedBy=multi-user.target
 `, execPath, configPath, user, group, configDir)
+}
+
+// renderLogparseUnit builds the hardened logparse service. It differs from the
+// monitor unit in exactly what it needs to read another user's logs safely:
+// SupplementaryGroups grants read of the game server's group-readable logs,
+// ProtectHome is relaxed to read-only (Minecraft logs live under /home), the log
+// dir is read-only, and only the state dir (checkpoint) is writable.
+func renderLogparseUnit(execPath, configPath, logDir, stateDir, user, group, gameServerUser string) string {
+	supplementary := ""
+	if gameServerUser != "" {
+		supplementary = "SupplementaryGroups=" + gameServerUser + "\n"
+	}
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg agent (logparse)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%s logparse -config %s -log-dir %s -checkpoint %s/logparse-checkpoint.json
+Restart=always
+RestartSec=5
+User=%s
+Group=%s
+%sNoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadOnlyPaths=%s
+ReadWritePaths=%s
+
+[Install]
+WantedBy=multi-user.target
+`, execPath, configPath, logDir, stateDir, user, group, supplementary, logDir, stateDir)
 }
 
 func firstNonEmpty(vals ...string) string {

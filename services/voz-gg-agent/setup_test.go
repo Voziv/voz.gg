@@ -317,3 +317,29 @@ func TestEnrollResponseWithoutCapabilityDefaultsDisabled(t *testing.T) {
 		t.Fatal("missing capability must default to disabled")
 	}
 }
+
+func TestRenderLogparseUnit(t *testing.T) {
+	unit := renderLogparseUnit("/usr/local/bin/voz-gg-agent", "/etc/voz-gg-agent/monitor.json",
+		"/home/minecraft/logs", "/var/lib/voz-gg-agent", "voz-gg", "voz-gg", "minecraft")
+	for _, want := range []string{
+		"Description=voz.gg agent (logparse)",
+		"ExecStart=/usr/local/bin/voz-gg-agent logparse -config /etc/voz-gg-agent/monitor.json -log-dir /home/minecraft/logs -checkpoint /var/lib/voz-gg-agent/logparse-checkpoint.json",
+		"User=voz-gg", "Group=voz-gg",
+		"SupplementaryGroups=minecraft",
+		"NoNewPrivileges=true", "ProtectSystem=strict", "ProtectHome=read-only", "PrivateTmp=true",
+		"ReadOnlyPaths=/home/minecraft/logs",
+		"ReadWritePaths=/var/lib/voz-gg-agent",
+		"WantedBy=multi-user.target",
+	} {
+		if !strings.Contains(unit, want) {
+			t.Fatalf("unit missing %q:\n%s", want, unit)
+		}
+	}
+}
+
+func TestRenderLogparseUnitOmitsSupplementaryGroupsWhenEmpty(t *testing.T) {
+	unit := renderLogparseUnit("/x", "/c", "/logs", "/var/lib/voz-gg-agent", "voz-gg", "voz-gg", "")
+	if strings.Contains(unit, "SupplementaryGroups=") {
+		t.Fatalf("should omit SupplementaryGroups when gameServerUser empty:\n%s", unit)
+	}
+}
