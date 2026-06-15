@@ -1,3 +1,17 @@
+## 0.18.0 (2026-06-15)
+
+### 🚀 Features
+
+- **web:** persist logParserEnabled on create and edit ([f65c1e6](https://github.com/Voziv/voz.gg/commit/f65c1e6))
+- **web:** add log-parsing toggle to the server form ([ae5c212](https://github.com/Voziv/voz.gg/commit/ae5c212))
+- **web:** track logParserEnabled in agent-host form state ([d54ce0a](https://github.com/Voziv/voz.gg/commit/d54ce0a))
+- **web:** accept logParserEnabled in server input ([61e86a8](https://github.com/Voziv/voz.gg/commit/61e86a8))
+- **web:** add Switch UI component ([9020cc4](https://github.com/Voziv/voz.gg/commit/9020cc4))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.17.0 (2026-06-15)
 
 ### 🚀 Features
