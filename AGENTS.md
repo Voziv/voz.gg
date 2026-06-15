@@ -96,8 +96,10 @@ parsing is enabled, resolves the game-server log directory (interactively via
 `/dev/tty`, or from the provisioned `logPath` with `--non-interactive`) and
 installs + enables a second hardened unit `voz-gg-agent-logparse.service` — runs
 as `voz-gg` with `SupplementaryGroups=<gameServerUser>`, `ProtectHome=read-only`,
-a read-only log dir, and the checkpoint under `/var/lib/voz-gg-agent`. The web
-enable toggle lands separately.
+a read-only log dir, and the checkpoint under `/var/lib/voz-gg-agent`. The
+server form exposes an **Enable log parsing** toggle (`logParserEnabled`,
+persisted on create/edit); enroll then emits `capabilities.logParser.enabled`
+and `voz-gg-agent setup` installs the logparse unit accordingly.
 
 The host installer (`apps/web/public/install-agent.sh`) is a thin bootstrap: it
 downloads `voz-gg-agent` and execs `voz-gg-agent setup`, which enrolls, creates a
