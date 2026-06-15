@@ -78,7 +78,7 @@ const GAME_LABELS: Record<GameType, string> = {
                       <AgentInstallDialog client:load serverId={s.id} serverName={s.name} />
                       <ServerFormDialog
                         client:load
-                        server={{ id: s.id, name: s.name, gameType: s.gameType, host: s.host, port: s.port, description: s.description, runAsUser: s.runAsUser, runAsGroup: s.runAsGroup, gameServerUser: s.gameServerUser, logPath: s.logPath }}
+                        server={{ id: s.id, name: s.name, gameType: s.gameType, host: s.host, port: s.port, description: s.description, runAsUser: s.runAsUser, runAsGroup: s.runAsGroup, gameServerUser: s.gameServerUser, logPath: s.logPath, logParserEnabled: s.logParserEnabled }}
                       />
                       <DeleteServerButton client:load id={s.id} name={s.name} />
                     </div>

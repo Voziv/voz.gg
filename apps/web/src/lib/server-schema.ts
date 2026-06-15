@@ -37,6 +37,10 @@ const serverSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null))
     .refine((v) => v === null || v.startsWith('/'), 'Log path must be absolute.'),
+  logParserEnabled: z
+    .boolean()
+    .optional()
+    .transform((v) => v ?? null),
 });
 
 export type ServerInput = z.infer<typeof serverSchema>;

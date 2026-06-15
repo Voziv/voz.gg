@@ -30,6 +30,7 @@ export const POST: APIRoute = async (ctx) => {
     runAsGroup: parsed.data.runAsGroup,
     gameServerUser: parsed.data.gameServerUser,
     logPath: parsed.data.logPath,
+    logParserEnabled: parsed.data.logParserEnabled,
     createdBy: user.id,
     createdAt: now,
     updatedAt: now,
