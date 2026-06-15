@@ -1,3 +1,17 @@
+## 0.6.0 (2026-06-15)
+
+### 🚀 Features
+
+- **voz-gg-agent:** install logparse unit during setup when enabled ([fd2daf9](https://github.com/Voziv/voz.gg/commit/fd2daf9))
+- **voz-gg-agent:** render hardened logparse systemd unit ([472c80a](https://github.com/Voziv/voz.gg/commit/472c80a))
+- **voz-gg-agent:** resolve logparse log directory interactively ([a8547d8](https://github.com/Voziv/voz.gg/commit/a8547d8))
+- **voz-gg-agent:** add pathExists and non-interactive setup flag ([50eb0f8](https://github.com/Voziv/voz.gg/commit/50eb0f8))
+- **voz-gg-agent:** decode logParser provisioning capability ([c79526b](https://github.com/Voziv/voz.gg/commit/c79526b))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.5.0 (2026-06-14)
 
 ### 🚀 Features
