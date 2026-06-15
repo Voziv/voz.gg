@@ -33,6 +33,7 @@ export const PUT: APIRoute = async (ctx) => {
       runAsGroup: parsed.data.runAsGroup,
       gameServerUser: parsed.data.gameServerUser,
       logPath: parsed.data.logPath,
+      logParserEnabled: parsed.data.logParserEnabled,
       updatedAt: new Date(),
     })
     .where(eq(servers.id, id));
