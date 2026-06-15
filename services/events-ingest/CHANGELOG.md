@@ -1,3 +1,9 @@
+## 0.2.3 (2026-06-15)
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.8.0
+
 ## 0.2.2 (2026-06-15)
 
 ### 🧱 Updated Dependencies

@@ -1,3 +1,15 @@
+## 0.8.0 (2026-06-15)
+
+### 🚀 Features
+
+- **shared:** add Drizzle player mutations DAO and exports ([a30082f](https://github.com/Voziv/voz.gg/commit/a30082f))
+- **shared:** add player mutation DAO interface and handlers ([cec722b](https://github.com/Voziv/voz.gg/commit/cec722b))
+- **shared:** add player mutation validators and merge combine logic ([286f2a4](https://github.com/Voziv/voz.gg/commit/286f2a4))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.7.0 (2026-06-15)
 
 ### 🚀 Features

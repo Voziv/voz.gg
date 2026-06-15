@@ -1,3 +1,28 @@
+## 0.19.0 (2026-06-15)
+
+### 🚀 Features
+
+- **web:** mount player management islands on detail page ([bc3940a](https://github.com/Voziv/voz.gg/commit/bc3940a))
+- **web:** add MergePlayerDialog island ([5003ad8](https://github.com/Voziv/voz.gg/commit/5003ad8))
+- **web:** add PlayerIdentitiesEditor island ([f65d6ca](https://github.com/Voziv/voz.gg/commit/f65d6ca))
+- **web:** add PlayerGroupsEditor island ([d8aa370](https://github.com/Voziv/voz.gg/commit/d8aa370))
+- **web:** add PlayerFieldsEditor island ([55efcde](https://github.com/Voziv/voz.gg/commit/55efcde))
+- **web:** add Base UI combobox primitive ([77e65c0](https://github.com/Voziv/voz.gg/commit/77e65c0))
+- **web:** add Base UI select primitive ([d562fa8](https://github.com/Voziv/voz.gg/commit/d562fa8))
+- **web:** add player search route ([f1239e0](https://github.com/Voziv/voz.gg/commit/f1239e0))
+- **web:** add player merge route ([97b7a66](https://github.com/Voziv/voz.gg/commit/97b7a66))
+- **web:** add player identities add/remove routes ([81e748e](https://github.com/Voziv/voz.gg/commit/81e748e))
+- **web:** add player groups add/remove routes ([be986f2](https://github.com/Voziv/voz.gg/commit/be986f2))
+- **web:** add PATCH /api/players/[id] route ([fb4df10](https://github.com/Voziv/voz.gg/commit/fb4df10))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.8.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.18.0 (2026-06-15)
 
 ### 🚀 Features
