@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { deriveSessions, totalPlaytimeSeconds, type DerivableEvent } from './sessions';
 
 const at = (s: string) => new Date(s);
+const now = new Date('2026-06-13T12:00:00Z');
 
 function ev(partial: Partial<DerivableEvent> & Pick<DerivableEvent, 'type' | 'occurredAt'>): DerivableEvent {
   return { identityKey: null, ...partial };
@@ -17,7 +18,7 @@ describe('deriveSessions', () => {
       at('2026-06-13T12:00:00Z'),
     );
     expect(sessions).toEqual([
-      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T10:30:00Z'), open: false },
+      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T10:30:00Z'), open: false, ip: null },
     ]);
   });
 
@@ -30,7 +31,7 @@ describe('deriveSessions', () => {
       at('2026-06-13T12:00:00Z'),
     );
     expect(sessions).toEqual([
-      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T10:45:00Z'), open: false },
+      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T10:45:00Z'), open: false, ip: null },
     ]);
   });
 
@@ -52,7 +53,7 @@ describe('deriveSessions', () => {
       at('2026-06-13T12:00:00Z'),
     );
     expect(sessions).toEqual([
-      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T12:00:00Z'), open: true },
+      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T12:00:00Z'), open: true, ip: null },
     ]);
   });
 
@@ -81,8 +82,8 @@ describe('deriveSessions', () => {
       at('2026-06-13T12:00:00Z'),
     );
     expect(sessions).toEqual([
-      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T10:30:00Z'), open: false },
-      { identityKey: 'u1', start: at('2026-06-13T10:30:00Z'), end: at('2026-06-13T10:45:00Z'), open: false },
+      { identityKey: 'u1', start: at('2026-06-13T10:00:00Z'), end: at('2026-06-13T10:30:00Z'), open: false, ip: null },
+      { identityKey: 'u1', start: at('2026-06-13T10:30:00Z'), end: at('2026-06-13T10:45:00Z'), open: false, ip: null },
     ]);
   });
 
@@ -95,5 +96,27 @@ describe('deriveSessions', () => {
       at('2026-06-13T12:00:00Z'),
     );
     expect(totalPlaytimeSeconds(sessions)).toBe(30 * 60);
+  });
+});
+
+describe('deriveSessions IP carry', () => {
+  it('carries the join event IP onto the closed session', () => {
+    const [s] = deriveSessions(
+      [
+        { type: 'join', identityKey: 'u1', occurredAt: at('2026-06-13T10:00:00Z'), ip: '1.2.3.4' },
+        { type: 'leave', identityKey: 'u1', occurredAt: at('2026-06-13T10:30:00Z') },
+      ],
+      now,
+    );
+    expect(s.ip).toBe('1.2.3.4');
+  });
+
+  it('leaves ip null when the join carried none, including ongoing sessions', () => {
+    const [s] = deriveSessions(
+      [{ type: 'join', identityKey: 'u1', occurredAt: at('2026-06-13T11:00:00Z') }],
+      now,
+    );
+    expect(s.open).toBe(true);
+    expect(s.ip).toBeNull();
   });
 });

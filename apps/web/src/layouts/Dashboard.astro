@@ -10,12 +10,12 @@ const path = Astro.url.pathname;
 const nav = [
   { href: '/dashboard/profile', label: 'Profile' },
   { href: '/dashboard/servers', label: 'Servers' },
+  { href: '/dashboard/players', label: 'Players' },
 ];
 const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
 const label = user?.displayName ?? user?.name ?? user?.email ?? '';
 const isUserAdmin = isAdmin(user);
 const adminNav = [
-  { href: '/dashboard/players', label: 'Players' },
   { href: '/dashboard/admin/users', label: 'Users' },
   { href: '/dashboard/admin/invites', label: 'Invite requests' },
   { href: '/dashboard/admin/audit', label: 'Audit log' },

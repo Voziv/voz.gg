@@ -100,6 +100,19 @@ owned by it, and installs a hardened `voz-gg-agent-monitor.service` that runs th
 agent as `voz-gg` (not root). Because it creates a user and a service, the install
 command must run as root: `curl … | sudo sh -s -- <token>`.
 
+**Player management & views (#25b):** any logged-in user can browse
+`/dashboard/players`, a player detail view (`/dashboard/players/<id>`, with
+`?server=<id>` scoping), and a per-server roster
+(`/dashboard/servers/<id>/players`). Players carry a `status`
+(`new`/`allowed`/`blocked`, default `new`) and an informational `isBot` flag;
+freeform groups live in `group_tag` + `player_group_tag`. Sessions, IPs, and
+connection attempts are derived at read time (`libs/shared/src/player-detail.ts`);
+"seen on a server" means actual presence, so connection rejections never count
+toward servers-seen or last-seen. Admin/owner see the management surfaces
+(status, notes, IPs, attempts) and, in PR-B, edit them (rename, groups,
+identities, merge). IP columns stay empty until the #25a PR-2 log producer
+captures join IPs.
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.

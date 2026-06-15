@@ -1,0 +1,69 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import { eq } from 'drizzle-orm';
+import { createDb, getPlayersOverview, servers } from '@voz/shared';
+import { isAdmin } from '../../../../lib/admin';
+import Dashboard from '../../../../layouts/Dashboard.astro';
+import { Card, CardContent } from '../../../../components/ui/card.tsx';
+import { Badge } from '../../../../components/ui/badge.tsx';
+import { formatDuration, formatLastSeen } from '../../../../lib/format';
+
+// Middleware already redirects unauthenticated dashboard requests to /sign-in.
+if (!Astro.locals.user) {
+  return Astro.redirect('/sign-in');
+}
+const admin = isAdmin(Astro.locals.user);
+
+const { id } = Astro.params;
+const db = createDb(env.DB);
+const server = id ? await db.select({ id: servers.id, name: servers.name }).from(servers).where(eq(servers.id, id)).get() : null;
+if (!server) {
+  return new Response('Server not found', { status: 404 });
+}
+
+const rows = await getPlayersOverview(db, new Date(), { serverId: server.id });
+---
+<Dashboard>
+  <div class="mx-auto max-w-5xl">
+    <div class="mb-8">
+      <a href="/dashboard/servers" class="text-sm text-muted-foreground hover:text-foreground">← Servers</a>
+      <h1 class="mt-2 text-3xl font-bold tracking-tight">{server.name} — players</h1>
+      <p class="mt-1 text-muted-foreground">Players seen on this server.</p>
+    </div>
+
+    {rows.length === 0 ? (
+      <Card className="border-border bg-card">
+        <CardContent className="py-12 text-center text-muted-foreground">No players seen on this server yet.</CardContent>
+      </Card>
+    ) : (
+      <div class="overflow-hidden rounded-lg border border-border bg-card">
+        <table class="w-full text-sm">
+          <thead class="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th class="px-4 py-3 font-medium">Player</th>
+              {admin && <th class="px-4 py-3 font-medium">Status</th>}
+              <th class="px-4 py-3 font-medium">Last seen</th>
+              <th class="px-4 py-3 font-medium">Playtime</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr class="border-t border-border hover:bg-muted/40">
+                <td class="px-4 py-3">
+                  <a href={`/dashboard/players/${row.playerId}?server=${server.id}`} class="font-medium text-foreground hover:text-primary">
+                    {row.displayName ?? row.minecraftName ?? row.identityNames[0] ?? 'Unknown'}
+                  </a>
+                  {row.displayName && row.minecraftName && <Badge className="ml-2 align-middle">{row.minecraftName}</Badge>}
+                </td>
+                {admin && <td class="px-4 py-3 text-muted-foreground">{row.status}</td>}
+                <td class="px-4 py-3 text-muted-foreground">{formatLastSeen(row.lastSeen)}</td>
+                <td class="px-4 py-3 text-muted-foreground">{formatDuration(row.totalPlaytimeSeconds)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+</Dashboard>

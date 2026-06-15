@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // Placeholder table so migrations and the D1 binding can be exercised end to end.
 // Real domain tables (users, servers, ...) are added in later sub-projects.
@@ -189,6 +189,10 @@ export const PLAYER_IDENTITY_KINDS = ['minecraft', 'steam', 'discord'] as const;
 
 export type PlayerIdentityKind = (typeof PLAYER_IDENTITY_KINDS)[number];
 
+export const PLAYER_STATUSES = ['new', 'allowed', 'blocked'] as const;
+
+export type PlayerStatus = (typeof PLAYER_STATUSES)[number];
+
 // Raw, append-only event log. Sessions/playtime are derived at read time.
 // `dedupeKey` is a deterministic NOT NULL key computed at ingest: a plain
 // composite UNIQUE cannot be used because SQLite treats a NULL identity_key
@@ -216,6 +220,8 @@ export const player = sqliteTable('player', {
   displayName: text('display_name'),
   userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
   notes: text('notes'),
+  status: text('status').notNull().$type<PlayerStatus>().default('new'),
+  isBot: integer('is_bot', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (table) => [index('player_user_id_idx').on(table.userId)]);
@@ -235,4 +241,32 @@ export const playerIdentity = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => [uniqueIndex('player_identity_kind_key_unq').on(table.kind, table.identityKey)],
+);
+
+// Freeform, operator-defined tags. Named group_tag because `group` is a SQLite
+// reserved word. Names are unique (case-insensitive match happens in app code).
+export const groupTag = sqliteTable(
+  'group_tag',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [uniqueIndex('group_tag_name_unq').on(table.name)],
+);
+
+// Junction table: cascades on both sides so removing a player or a tag prunes
+// its memberships without orphaned rows.
+export const playerGroupTag = sqliteTable(
+  'player_group_tag',
+  {
+    playerId: text('player_id')
+      .notNull()
+      .references(() => player.id, { onDelete: 'cascade' }),
+    groupTagId: text('group_tag_id')
+      .notNull()
+      .references(() => groupTag.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.playerId, table.groupTagId] })],
 );

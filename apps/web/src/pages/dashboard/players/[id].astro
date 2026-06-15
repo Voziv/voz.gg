@@ -1,0 +1,138 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import { createDb, getPlayerDetail } from '@voz/shared';
+import { isAdmin } from '../../../lib/admin';
+import Dashboard from '../../../layouts/Dashboard.astro';
+import { Card, CardContent } from '../../../components/ui/card.tsx';
+import { Badge } from '../../../components/ui/badge.tsx';
+import { formatDuration, formatDatetime } from '../../../lib/format';
+
+// Middleware already redirects unauthenticated dashboard requests to /sign-in.
+if (!Astro.locals.user) {
+  return Astro.redirect('/sign-in');
+}
+const admin = isAdmin(Astro.locals.user);
+
+const { id } = Astro.params;
+const serverScope = Astro.url.searchParams.get('server') ?? undefined;
+
+const detail = id ? await getPlayerDetail(createDb(env.DB), id, new Date(), { serverId: serverScope }) : null;
+if (!detail) {
+  return new Response('Player not found', { status: 404 });
+}
+
+const title = detail.displayName ?? detail.minecraftName ?? 'Unknown player';
+---
+<Dashboard>
+  <div class="mx-auto max-w-4xl space-y-8">
+    <div>
+      <a href="/dashboard/players" class="text-sm text-muted-foreground hover:text-foreground">← All players</a>
+      <h1 class="mt-2 flex items-center gap-2 text-3xl font-bold tracking-tight">
+        {title}
+        {detail.identities.map((i) => i.displayName && i.displayName !== title && <Badge>{i.displayName}</Badge>)}
+      </h1>
+      <div class="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
+        {detail.groups.map((g) => <span class="rounded bg-muted px-2 py-0.5">{g}</span>)}
+        {admin && <span class="rounded bg-muted px-2 py-0.5">status: {detail.status}</span>}
+        {admin && detail.isBot && <span class="rounded bg-muted px-2 py-0.5">bot</span>}
+      </div>
+    </div>
+
+    {detail.account && (
+      <Card className="border-border bg-card">
+        <CardContent className="flex items-center gap-3 py-4">
+          {detail.account.image && <img src={detail.account.image} alt="" class="h-10 w-10 rounded-full" />}
+          <div class="text-sm">
+            <div class="font-medium text-foreground">Linked account: {detail.account.displayName ?? detail.account.name}</div>
+            <div class="text-muted-foreground">
+              {detail.account.minecraftName && `MC: ${detail.account.minecraftName}`}
+              {detail.account.steamPersona && ` · Steam: ${detail.account.steamPersona}`}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )}
+
+    <section>
+      <h2 class="mb-3 text-lg font-semibold">Servers seen</h2>
+      <div class="overflow-hidden rounded-lg border border-border bg-card">
+        <table class="w-full text-sm">
+          <thead class="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr><th class="px-4 py-3 font-medium">Server</th><th class="px-4 py-3 font-medium">Last seen</th><th class="px-4 py-3 font-medium">Playtime</th></tr>
+          </thead>
+          <tbody>
+            {detail.serversSeen.map((s) => (
+              <tr class="border-t border-border">
+                <td class="px-4 py-3">
+                  <a href={`/dashboard/players/${detail.playerId}?server=${s.serverId}`} class="text-foreground hover:text-primary">{s.serverName}</a>
+                </td>
+                <td class="px-4 py-3 text-muted-foreground">{formatDatetime(s.lastSeen)}</td>
+                <td class="px-4 py-3 text-muted-foreground">{formatDuration(s.totalPlaytimeSeconds)}</td>
+              </tr>
+            ))}
+            {detail.serversSeen.length === 0 && <tr><td colspan="3" class="px-4 py-6 text-center text-muted-foreground">Not seen on any server.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="mb-3 text-lg font-semibold">Sessions</h2>
+      <div class="overflow-hidden rounded-lg border border-border bg-card">
+        <table class="w-full text-sm">
+          <thead class="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th class="px-4 py-3 font-medium">Server</th>
+              <th class="px-4 py-3 font-medium">Start</th>
+              <th class="px-4 py-3 font-medium">End</th>
+              {admin && <th class="px-4 py-3 font-medium">IP</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {detail.sessions.map((s) => (
+              <tr class="border-t border-border">
+                <td class="px-4 py-3">{s.serverName}</td>
+                <td class="px-4 py-3 text-muted-foreground">{formatDatetime(s.start)}</td>
+                <td class="px-4 py-3 text-muted-foreground">{s.open ? 'online' : formatDatetime(s.end)}</td>
+                {admin && <td class="px-4 py-3 font-mono text-muted-foreground">{s.ip ?? '—'}</td>}
+              </tr>
+            ))}
+            {detail.sessions.length === 0 && <tr><td colspan={admin ? 4 : 3} class="px-4 py-6 text-center text-muted-foreground">No sessions.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {admin && (
+      <section class="grid gap-6 md:grid-cols-2">
+        <Card className="border-border bg-card">
+          <CardContent className="py-4">
+            <h3 class="mb-2 text-sm font-semibold">Notes</h3>
+            <p class="whitespace-pre-wrap text-sm text-muted-foreground">{detail.notes || '—'}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card">
+          <CardContent className="py-4">
+            <h3 class="mb-2 text-sm font-semibold">IPs seen</h3>
+            <p class="font-mono text-sm text-muted-foreground">{detail.ipsSeen.join(', ') || '—'}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card md:col-span-2">
+          <CardContent className="py-4">
+            <h3 class="mb-2 text-sm font-semibold">Connection attempts</h3>
+            {detail.connectionAttempts.length === 0 ? (
+              <p class="text-sm text-muted-foreground">None.</p>
+            ) : (
+              <ul class="space-y-1 text-sm text-muted-foreground">
+                {detail.connectionAttempts.map((a) => (
+                  <li class="font-mono">{formatDatetime(a.occurredAt)} · {a.serverName} · {a.ip ?? '—'} · {a.reason ?? 'rejected'}</li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+    )}
+  </div>
+</Dashboard>
