@@ -3,7 +3,15 @@ import {
   parsePlayerFieldsInput,
   normalizeGroupName,
   computeMergeResult,
+  handleUpdatePlayerFields,
+  handleAddGroup,
+  handleRemoveGroup,
+  handleAddIdentity,
+  handleRemoveIdentity,
+  handleMergePlayers,
+  handleSearchPlayers,
   type PlayerCore,
+  type PlayerMutationsDao,
 } from './player-mutations';
 
 const core = (over: Partial<PlayerCore> = {}): PlayerCore => ({
@@ -80,17 +88,6 @@ describe('computeMergeResult', () => {
   });
 });
 
-import {
-  handleUpdatePlayerFields,
-  handleAddGroup,
-  handleRemoveGroup,
-  handleAddIdentity,
-  handleRemoveIdentity,
-  handleMergePlayers,
-  handleSearchPlayers,
-  type PlayerMutationsDao,
-} from './player-mutations';
-
 const NOW = new Date('2026-06-14T12:00:00Z');
 
 // In-memory fake DAO mirroring the production schema relationships.
@@ -99,7 +96,7 @@ function makeFakeDao() {
   const groupsByName = new Map<string, { id: string; name: string }>(); // lowercased name -> group
   const groupNamesById = new Map<string, string>();
   const memberships = new Set<string>(); // `${playerId}::${groupId}`
-  const identities: { playerId: string; kind: string; key: string }[] = [];
+  const identities: { playerId: string; kind: string; key: string; name?: string | null }[] = [];
   let seq = 0;
   const nextId = (p: string) => `${p}${++seq}`;
 
@@ -155,11 +152,28 @@ function makeFakeDao() {
       players.delete(id);
     },
     async searchPlayers(query, limit) {
+      // Mirror the real DAO: left-join minecraft identities, match on either the
+      // player displayName or the identity name, limit rows, then dedupe by id.
       const q = query.toLowerCase();
-      return [...players.values()]
-        .filter((p) => (p.displayName ?? '').toLowerCase().includes(q))
-        .slice(0, limit)
-        .map((p) => ({ id: p.id, displayName: p.displayName, minecraftName: null }));
+      const rows: { id: string; displayName: string | null; identityName: string | null }[] = [];
+      for (const p of players.values()) {
+        const minecraftIdentities = identities.filter((i) => i.playerId === p.id && i.kind === 'minecraft');
+        const joined = minecraftIdentities.length ? minecraftIdentities : [null];
+        for (const identity of joined) {
+          const minecraftName = identity?.name ?? null;
+          const matches =
+            (p.displayName ?? '').toLowerCase().includes(q) || (minecraftName ?? '').toLowerCase().includes(q);
+          if (matches) rows.push({ id: p.id, displayName: p.displayName, identityName: minecraftName });
+        }
+      }
+      const seen = new Set<string>();
+      const out: { id: string; displayName: string | null; minecraftName: string | null }[] = [];
+      for (const r of rows.slice(0, limit)) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        out.push({ id: r.id, displayName: r.displayName, minecraftName: r.identityName });
+      }
+      return out;
     },
   };
 
@@ -317,5 +331,22 @@ describe('handleSearchPlayers', () => {
     players.set('p2', core({ id: 'p2', displayName: 'Alex' }));
     const r = await handleSearchPlayers(dao, 'ste');
     expect(r.ok && r.players.map((p) => p.id)).toEqual(['p1']);
+  });
+
+  it('matches on the minecraft identity name and returns it as minecraftName', async () => {
+    const { dao, players, identities } = makeFakeDao();
+    players.set('p1', core({ displayName: null }));
+    identities.push({ playerId: 'p1', kind: 'minecraft', key: 'uuid-1', name: 'Notch' });
+    const r = await handleSearchPlayers(dao, 'notc');
+    expect(r.ok && r.players).toEqual([{ id: 'p1', displayName: null, minecraftName: 'Notch' }]);
+  });
+
+  it('dedupes a player matched by multiple minecraft identities', async () => {
+    const { dao, players, identities } = makeFakeDao();
+    players.set('p1', core({ displayName: 'Steve' }));
+    identities.push({ playerId: 'p1', kind: 'minecraft', key: 'uuid-1', name: 'Steve' });
+    identities.push({ playerId: 'p1', kind: 'minecraft', key: 'uuid-2', name: 'Steven' });
+    const r = await handleSearchPlayers(dao, 'steve');
+    expect(r.ok && r.players.filter((p) => p.id === 'p1')).toHaveLength(1);
   });
 });

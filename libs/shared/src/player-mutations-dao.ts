@@ -1,4 +1,4 @@
-import { and, eq, like, or, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import type { Db } from './client';
 import { player, playerIdentity, groupTag, playerGroupTag } from './schema';
 import type { PlayerIdentityKind } from './schema';
@@ -105,7 +105,9 @@ export function createPlayerMutationsDao(db: Db): PlayerMutationsDao {
     },
 
     async searchPlayers(query, limit): Promise<PlayerSearchResult[]> {
-      const term = `%${query}%`;
+      // Escape LIKE wildcards so user-supplied %, _, and \ match literally.
+      const escaped = query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const term = `%${escaped}%`;
       const rows = await db
         .select({
           id: player.id,
@@ -118,7 +120,12 @@ export function createPlayerMutationsDao(db: Db): PlayerMutationsDao {
           playerIdentity,
           and(eq(playerIdentity.playerId, player.id), eq(playerIdentity.kind, 'minecraft')),
         )
-        .where(or(like(player.displayName, term), like(playerIdentity.displayName, term)))
+        .where(
+          or(
+            sql`${player.displayName} like ${term} escape '\\'`,
+            sql`${playerIdentity.displayName} like ${term} escape '\\'`,
+          ),
+        )
         .limit(limit)
         .all();
       const seen = new Set<string>();

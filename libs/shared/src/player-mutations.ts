@@ -107,7 +107,9 @@ export interface PlayerMutationsDao {
   searchPlayers(query: string, limit: number): Promise<PlayerSearchResult[]>;
 }
 
-const fail = (status: number, error: string): MutationResult => ({ ok: false, status, error });
+function fail<T = Record<never, never>>(status: number, error: string): MutationResult<T> {
+  return { ok: false, status, error };
+}
 
 function isIdentityKind(v: unknown): v is PlayerIdentityKind {
   return typeof v === 'string' && (PLAYER_IDENTITY_KINDS as readonly string[]).includes(v);
@@ -149,6 +151,8 @@ export async function handleRemoveGroup(
   const name = normalizeGroupName(rawName);
   if (!name) return fail(400, 'Group name is required.');
   const group = await dao.findGroupByName(name);
+  // Intentionally idempotent: ok even if the player isn't a member or the group
+  // doesn't exist, unlike handleRemoveIdentity which 404s on a missing identity.
   if (group) await dao.detachGroup(playerId, group.id);
   return { ok: true };
 }
@@ -199,6 +203,9 @@ export async function handleMergePlayers(
   if (!computed.ok) return fail(409, 'Both players are linked to different accounts; resolve the link first.');
 
   // Re-point children BEFORE deleting the absorbed row (FK cascade would drop them).
+  // The four writes are not wrapped in a transaction (consistent with the codebase's
+  // non-transactional D1 pattern in presence-dao.ts); a mid-sequence failure could
+  // leave a partial merge.
   await dao.repointIdentities(absorbedId, survivorId);
   await dao.unionGroups(absorbedId, survivorId);
   await dao.updatePlayer(survivorId, computed.combine, now);
@@ -211,7 +218,7 @@ export async function handleSearchPlayers(
   rawQuery: string,
 ): Promise<MutationResult<{ players: PlayerSearchResult[] }>> {
   const q = (rawQuery ?? '').trim();
-  if (q.length < 1) return fail(400, 'Query is required.') as MutationResult<{ players: PlayerSearchResult[] }>;
+  if (q.length < 1) return fail(400, 'Query is required.');
   const players = await dao.searchPlayers(q, 20);
   return { ok: true, players };
 }
