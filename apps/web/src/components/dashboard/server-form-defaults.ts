@@ -3,6 +3,7 @@ import { GAME_TYPE_DEFAULTS, type GameType } from '@voz/shared';
 export interface AgentHostValues {
   gameServerUser: string;
   logPath: string;
+  logParserEnabled: boolean;
 }
 
 function defaultsFor(gameType: GameType) {
@@ -11,12 +12,13 @@ function defaultsFor(gameType: GameType) {
 
 export function initialAgentHostValues(
   gameType: GameType,
-  stored?: { gameServerUser?: string | null; logPath?: string | null },
+  stored?: { gameServerUser?: string | null; logPath?: string | null; logParserEnabled?: boolean | null },
 ): AgentHostValues {
   const d = defaultsFor(gameType);
   return {
     gameServerUser: stored?.gameServerUser ?? d.gameServerUser ?? '',
     logPath: stored?.logPath ?? d.logPath ?? '',
+    logParserEnabled: stored?.logParserEnabled ?? false,
   };
 }
 
@@ -34,5 +36,6 @@ export function nextAgentHostValues(
   return {
     gameServerUser: refresh(current.gameServerUser, prevDef.gameServerUser, nextDef.gameServerUser),
     logPath: refresh(current.logPath, prevDef.logPath, nextDef.logPath),
+    logParserEnabled: current.logParserEnabled,
   };
 }
