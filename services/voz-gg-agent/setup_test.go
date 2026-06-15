@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 )
@@ -22,6 +24,7 @@ type fakeSystem struct {
 	chowns        []string // "path user:group"
 	runs          [][]string
 	units         map[string]bool
+	paths         map[string]bool
 	removed       []string
 }
 
@@ -30,7 +33,7 @@ func newFakeSystem() *fakeSystem {
 		systemd: true,
 		groups:  map[string]bool{}, users: map[string]bool{},
 		files: map[string][]byte{}, filePerms: map[string]uint32{},
-		units: map[string]bool{},
+		units: map[string]bool{}, paths: map[string]bool{},
 	}
 }
 
@@ -62,6 +65,7 @@ func (f *fakeSystem) run(name string, args ...string) error {
 	return nil
 }
 func (f *fakeSystem) unitInstalled(n string) bool { return f.units[n] }
+func (f *fakeSystem) pathExists(p string) bool    { return f.paths[p] }
 func (f *fakeSystem) remove(p string) error       { f.removed = append(f.removed, p); return nil }
 
 func fakeEnroll(resp enrollResponse, err error) enrollFn {
@@ -70,9 +74,9 @@ func fakeEnroll(resp enrollResponse, err error) enrollFn {
 
 func sampleEnroll() enrollResponse {
 	return enrollResponse{
-		AgentToken: "AT",
-		ConfigHash: "H1",
-		Config:     ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
+		AgentToken:   "AT",
+		ConfigHash:   "H1",
+		Config:       ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
 		Provisioning: provisioning{RunAsUser: "voz-gg", RunAsGroup: "voz-gg"},
 	}
 }
@@ -81,6 +85,11 @@ func baseOpts() setupOptions {
 	return setupOptions{
 		EnrollmentToken: "tok", WorkerBaseURL: "https://voz.gg",
 		ConfigPath: "/etc/voz-gg-agent/monitor.json", ExecPath: "/usr/local/bin/voz-gg-agent",
+		// A logparse-enabled, interactive test that forgets to set OpenTTY would
+		// otherwise nil-panic deep in runSetupWith; fail it legibly instead.
+		OpenTTY: func() (io.ReadWriteCloser, error) {
+			panic("test must set opts.OpenTTY or opts.NonInteractive for logparse paths")
+		},
 	}
 }
 
@@ -206,4 +215,236 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+type fakeTTY struct {
+	in  *bytes.Buffer
+	out *bytes.Buffer
+}
+
+func (f *fakeTTY) Read(p []byte) (int, error)  { return f.in.Read(p) }
+func (f *fakeTTY) Write(p []byte) (int, error) { return f.out.Write(p) }
+func (f *fakeTTY) Close() error                { return nil }
+
+func TestResolveLogDirNonInteractiveUsesProvisionedPath(t *testing.T) {
+	sys := newFakeSystem()
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft", LogPath: "/srv/mc/logs"}
+	got, err := resolveLogDir(cap, false, nil, nil, sys)
+	if err != nil || got != "/srv/mc/logs" {
+		t.Fatalf("got %q err %v", got, err)
+	}
+}
+
+func TestResolveLogDirNonInteractiveErrorsWhenMissing(t *testing.T) {
+	sys := newFakeSystem()
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft"}
+	if _, err := resolveLogDir(cap, false, nil, nil, sys); err == nil {
+		t.Fatal("expected error when log path missing in non-interactive mode")
+	}
+}
+
+func TestResolveLogDirInteractiveAcceptsDiscoveredDefault(t *testing.T) {
+	sys := newFakeSystem()
+	sys.paths["/home/minecraft/logs/latest.log"] = true                    // discovered candidate
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft"} // no provisioned path
+	in := bytes.NewBufferString("\n")                                      // empty line accepts default
+	out := &bytes.Buffer{}
+	got, err := resolveLogDir(cap, true, in, out, sys)
+	if err != nil || got != "/home/minecraft/logs" {
+		t.Fatalf("got %q err %v; prompt=%q", got, err, out.String())
+	}
+	if !strings.Contains(out.String(), "/home/minecraft/logs") {
+		t.Fatalf("prompt should list the discovered candidate: %q", out.String())
+	}
+}
+
+func TestResolveLogDirInteractiveOverride(t *testing.T) {
+	sys := newFakeSystem()
+	cap := logParserCapability{Enabled: true, GameServerUser: "minecraft", LogPath: "/home/minecraft/logs"}
+	in := bytes.NewBufferString("/opt/custom/logs\n")
+	out := &bytes.Buffer{}
+	got, err := resolveLogDir(cap, true, in, out, sys)
+	if err != nil || got != "/opt/custom/logs" {
+		t.Fatalf("got %q err %v", got, err)
+	}
+}
+
+func TestFakeSystemPathExists(t *testing.T) {
+	sys := newFakeSystem()
+	sys.paths["/home/minecraft/logs/latest.log"] = true
+	if !sys.pathExists("/home/minecraft/logs/latest.log") {
+		t.Fatal("expected known path to exist")
+	}
+	if sys.pathExists("/nope") {
+		t.Fatal("unknown path should not exist")
+	}
+}
+
+func TestSetupParsesNonInteractiveFlag(t *testing.T) {
+	// --non-interactive with missing required flags still errors on those (exit 2),
+	// proving the flag is accepted by the flagset (not an "unknown flag" exit).
+	var errb bytes.Buffer
+	code := runSetup([]string{"--non-interactive"}, &bytes.Buffer{}, &errb)
+	if code != 2 || !strings.Contains(errb.String(), "required") {
+		t.Fatalf("expected required-flag error (exit 2), got code=%d err=%q", code, errb.String())
+	}
+}
+
+func TestEnrollResponseDecodesLogParserCapability(t *testing.T) {
+	raw := []byte(`{
+		"agentToken": "AT",
+		"configHash": "H1",
+		"config": {"serverId": "srv1", "gameType": "minecraft-java"},
+		"provisioning": {
+			"runAsUser": "voz-gg",
+			"runAsGroup": "voz-gg",
+			"capabilities": {
+				"monitor": {"enabled": true},
+				"logParser": {"enabled": true, "gameServerUser": "minecraft", "logPath": "/home/minecraft/logs"}
+			}
+		}
+	}`)
+	var resp enrollResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		t.Fatal(err)
+	}
+	lp := resp.Provisioning.Capabilities.LogParser
+	if !lp.Enabled || lp.GameServerUser != "minecraft" || lp.LogPath != "/home/minecraft/logs" {
+		t.Fatalf("logParser not decoded: %+v", lp)
+	}
+}
+
+func TestEnrollResponseWithoutCapabilityDefaultsDisabled(t *testing.T) {
+	var resp enrollResponse
+	if err := json.Unmarshal([]byte(`{"agentToken":"AT","provisioning":{"runAsUser":"voz-gg"}}`), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Provisioning.Capabilities.LogParser.Enabled {
+		t.Fatal("missing capability must default to disabled")
+	}
+}
+
+func TestRenderLogparseUnit(t *testing.T) {
+	unit := renderLogparseUnit("/usr/local/bin/voz-gg-agent", "/etc/voz-gg-agent/monitor.json",
+		"/home/minecraft/logs", "/var/lib/voz-gg-agent", "voz-gg", "voz-gg", "minecraft")
+	for _, want := range []string{
+		"Description=voz.gg agent (logparse)",
+		"ExecStart=/usr/local/bin/voz-gg-agent logparse -config /etc/voz-gg-agent/monitor.json -log-dir /home/minecraft/logs -checkpoint /var/lib/voz-gg-agent/logparse-checkpoint.json",
+		"User=voz-gg", "Group=voz-gg",
+		"SupplementaryGroups=minecraft",
+		"NoNewPrivileges=true", "ProtectSystem=strict", "ProtectHome=read-only", "PrivateTmp=true",
+		"ReadOnlyPaths=/home/minecraft/logs",
+		"ReadWritePaths=/var/lib/voz-gg-agent",
+		"WantedBy=multi-user.target",
+	} {
+		if !strings.Contains(unit, want) {
+			t.Fatalf("unit missing %q:\n%s", want, unit)
+		}
+	}
+}
+
+func TestRenderLogparseUnitOmitsSupplementaryGroupsWhenEmpty(t *testing.T) {
+	unit := renderLogparseUnit("/x", "/c", "/logs", "/var/lib/voz-gg-agent", "voz-gg", "voz-gg", "")
+	if strings.Contains(unit, "SupplementaryGroups=") {
+		t.Fatalf("should omit SupplementaryGroups when gameServerUser empty:\n%s", unit)
+	}
+}
+
+func logparseEnroll(logPath string) enrollResponse {
+	resp := sampleEnroll()
+	resp.Provisioning.Capabilities.LogParser = logParserCapability{
+		Enabled: true, GameServerUser: "minecraft", LogPath: logPath,
+	}
+	return resp
+}
+
+func TestSetupSkipsLogparseWhenDisabled(t *testing.T) {
+	sys := newFakeSystem()
+	runSetupWith(baseOpts(), sys, fakeEnroll(sampleEnroll(), nil), &bytes.Buffer{}, &bytes.Buffer{})
+	if _, ok := sys.files["/etc/systemd/system/voz-gg-agent-logparse.service"]; ok {
+		t.Fatal("logparse unit must not be installed when capability is disabled")
+	}
+}
+
+func TestSetupNonInteractiveInstallsLogparseUnit(t *testing.T) {
+	sys := newFakeSystem()
+	opts := baseOpts()
+	opts.NonInteractive = true
+	var out, errb bytes.Buffer
+	code := runSetupWith(opts, sys, fakeEnroll(logparseEnroll("/home/minecraft/logs"), nil), &out, &errb)
+	if code != 0 {
+		t.Fatalf("exit = %d (stderr=%q)", code, errb.String())
+	}
+	unit, ok := sys.files["/etc/systemd/system/voz-gg-agent-logparse.service"]
+	if !ok {
+		t.Fatal("logparse unit not written")
+	}
+	for _, want := range []string{
+		"-log-dir /home/minecraft/logs",
+		"-checkpoint /var/lib/voz-gg-agent/logparse-checkpoint.json",
+		"SupplementaryGroups=minecraft", "ProtectHome=read-only",
+	} {
+		if !strings.Contains(string(unit), want) {
+			t.Fatalf("unit missing %q:\n%s", want, unit)
+		}
+	}
+	if !contains(sys.chowns, "/var/lib/voz-gg-agent voz-gg:voz-gg") {
+		t.Fatalf("state dir not chowned: %v", sys.chowns)
+	}
+	foundEnable := false
+	reloads := 0
+	for _, r := range sys.runs {
+		if len(r) >= 4 && r[0] == "systemctl" && r[1] == "enable" && r[2] == "--now" && r[3] == "voz-gg-agent-logparse.service" {
+			foundEnable = true
+		}
+		if len(r) == 2 && r[0] == "systemctl" && r[1] == "daemon-reload" {
+			reloads++
+		}
+	}
+	if !foundEnable {
+		t.Fatalf("logparse unit not enabled --now: runs=%v", sys.runs)
+	}
+	// One daemon-reload for the monitor unit, one for the logparse unit.
+	if reloads != 2 {
+		t.Fatalf("expected 2 daemon-reload calls (monitor + logparse), got %d: runs=%v", reloads, sys.runs)
+	}
+}
+
+func TestSetupNonInteractiveMissingLogPathFails(t *testing.T) {
+	sys := newFakeSystem()
+	opts := baseOpts()
+	opts.NonInteractive = true
+	code := runSetupWith(opts, sys, fakeEnroll(logparseEnroll(""), nil), &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1", code)
+	}
+	if _, ok := sys.files["/etc/systemd/system/voz-gg-agent-logparse.service"]; ok {
+		t.Fatal("no logparse unit should be written when the path is missing")
+	}
+}
+
+func TestSetupInteractiveResolvesLogDirViaTTY(t *testing.T) {
+	sys := newFakeSystem()
+	opts := baseOpts() // NonInteractive=false
+	tty := &fakeTTY{in: bytes.NewBufferString("/opt/mc/logs\n"), out: &bytes.Buffer{}}
+	opts.OpenTTY = func() (io.ReadWriteCloser, error) { return tty, nil }
+	code := runSetupWith(opts, sys, fakeEnroll(logparseEnroll("/home/minecraft/logs"), nil), &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	unit := string(sys.files["/etc/systemd/system/voz-gg-agent-logparse.service"])
+	if !strings.Contains(unit, "-log-dir /opt/mc/logs") {
+		t.Fatalf("interactive override not applied:\n%s", unit)
+	}
+}
+
+func TestSetupInteractiveTTYOpenFailureFails(t *testing.T) {
+	sys := newFakeSystem()
+	opts := baseOpts()
+	opts.OpenTTY = func() (io.ReadWriteCloser, error) { return nil, errSentinel }
+	var errb bytes.Buffer
+	code := runSetupWith(opts, sys, fakeEnroll(logparseEnroll("/home/minecraft/logs"), nil), &bytes.Buffer{}, &errb)
+	if code != 1 || !strings.Contains(errb.String(), "non-interactive") {
+		t.Fatalf("expected tty-open failure to advise --non-interactive: code=%d err=%q", code, errb.String())
+	}
 }
