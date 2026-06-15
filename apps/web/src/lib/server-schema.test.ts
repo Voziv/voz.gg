@@ -24,6 +24,7 @@ describe('parseServerInput', () => {
         runAsGroup: null,
         gameServerUser: null,
         logPath: null,
+        logParserEnabled: null,
       });
     }
   });
@@ -112,6 +113,27 @@ describe('agent-host fields', () => {
 
   it('rejects a relative log path', () => {
     const r = parseServerInput({ ...base, logPath: 'relative/logs' });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe('logParserEnabled', () => {
+  const base = { name: 'S', gameType: 'minecraft-java', host: 'h', port: 25565 };
+
+  it('parses true and false', () => {
+    const on = parseServerInput({ ...base, logParserEnabled: true });
+    expect(on.ok && on.data.logParserEnabled).toBe(true);
+    const off = parseServerInput({ ...base, logParserEnabled: false });
+    expect(off.ok && off.data.logParserEnabled).toBe(false);
+  });
+
+  it('defaults to null when absent', () => {
+    const r = parseServerInput(base);
+    expect(r.ok && r.data.logParserEnabled).toBe(null);
+  });
+
+  it('rejects a non-boolean', () => {
+    const r = parseServerInput({ ...base, logParserEnabled: 'yes' });
     expect(r.ok).toBe(false);
   });
 });
