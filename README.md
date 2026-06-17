@@ -6,7 +6,6 @@ services/CLIs that run on physical servers.
 - `apps/web` — Astro SSR site + Worker (Cloudflare)
 - `services/events-ingest` — Cloudflare Worker (TS)
 - `services/voz-gg-agent` — Go daemon (physical server)
-- `tools/mc-logparser` — Go CLI
 - `libs/shared` (TS, `@voz/shared`) · `libs/go-shared` (Go)
 
 See [AGENTS.md](AGENTS.md) for architecture, tags/boundaries, and tech notes.
@@ -76,7 +75,7 @@ cd apps/web && npx wrangler secret put <NAME>
 Locally, put secrets in `apps/web/.dev.vars` (gitignored). Non-secret config lives
 in each project's `wrangler.toml` under `[vars]`.
 
-### Go services (voz-gg-agent, mc-logparser)
+### Go services (voz-gg-agent)
 
 These run on physical servers, not Cloudflare, and have no `deploy` target. Build,
 then copy the binary to the server with your own server tooling:
