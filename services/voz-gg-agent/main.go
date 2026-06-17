@@ -24,7 +24,7 @@ var version = "dev"
 const defaultConfigPath = "/etc/voz-gg-agent/monitor.json"
 
 func main() {
-	os.Exit(dispatch(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	os.Exit(dispatch(os.Args[1:], os.Stdout, os.Stderr))
 }
 
 func usage(w io.Writer) {
@@ -33,14 +33,13 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  monitor       probe the local game server and report status")
 	fmt.Fprintln(w, "  setup         enroll, create the voz-gg service user, and install the hardened unit")
 	fmt.Fprintln(w, "  logparse      parse the game-server log and report player presence")
-	fmt.Fprintln(w, "  write-config  read an enroll response from stdin and write the monitor config")
 	fmt.Fprintln(w, "  version       print the version")
 }
 
 // dispatch routes a command line to a subcommand and returns the process exit
 // code. Kept separate from main() so routing is unit-testable without building
 // the binary or touching the real process.
-func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+func dispatch(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		usage(stderr)
 		return 2
@@ -56,8 +55,6 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runMonitor(args[1:], stderr)
 	case "setup":
 		return runSetup(args[1:], stdout, stderr)
-	case "write-config":
-		return runWriteConfig(args[1:], stdin, stderr)
 	case "logparse":
 		return runLogparse(args[1:], stderr)
 	default:
@@ -91,30 +88,6 @@ func runMonitor(args []string, stderr io.Writer) int {
 		ConfigPath:  *configPath,
 	}
 	run(context.Background(), agent)
-	return 0
-}
-
-func runWriteConfig(args []string, stdin io.Reader, stderr io.Writer) int {
-	fs := flag.NewFlagSet("write-config", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	configPath := fs.String("config", defaultConfigPath, "path to write the monitor config json")
-	workerBaseURL := fs.String("worker-base-url", "", "worker base URL to embed in the config")
-	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return 0
-		}
-		return 2
-	}
-
-	cfg, err := ConfigFromEnroll(stdin, *workerBaseURL)
-	if err != nil {
-		fmt.Fprintf(stderr, "write-config: %v\n", err)
-		return 1
-	}
-	if err := SaveConfig(*configPath, cfg); err != nil {
-		fmt.Fprintf(stderr, "write-config: %v\n", err)
-		return 1
-	}
 	return 0
 }
 
