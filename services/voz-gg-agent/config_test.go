@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -42,20 +41,6 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 func TestLoadMissingFileErrors(t *testing.T) {
 	if _, err := LoadConfig(filepath.Join(t.TempDir(), "nope.json")); err == nil {
 		t.Fatal("expected error for missing file")
-	}
-}
-
-func TestConfigFromEnrollMergesBootstrap(t *testing.T) {
-	enroll := `{"agentToken":"AT","config":{"serverId":"srv1","gameType":"source","probeHost":"127.0.0.1","port":27015,"queryPort":0,"pollIntervalSeconds":30},"configHash":"H1"}`
-	cfg, err := ConfigFromEnroll(strings.NewReader(enroll), "https://voz.gg")
-	if err != nil {
-		t.Fatalf("ConfigFromEnroll: %v", err)
-	}
-	if cfg.AgentToken != "AT" || cfg.ConfigHash != "H1" || cfg.WorkerBaseURL != "https://voz.gg" {
-		t.Fatalf("bad merge: %+v", cfg)
-	}
-	if cfg.Server.GameType != "source" || cfg.Server.Port != 27015 {
-		t.Fatalf("bad server merge: %+v", cfg.Server)
 	}
 }
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 )
 
@@ -44,25 +43,10 @@ func SaveConfig(path string, cfg Config) error {
 	return os.WriteFile(path, raw, 0o600)
 }
 
-// enrollResponse is the POST /api/agents/enroll response shape.
+// enrollResponse is the POST /api/agents/enroll response shape, decoded by setup.
 type enrollResponse struct {
 	AgentToken   string       `json:"agentToken"`
 	Config       ServerConfig `json:"config"`
 	ConfigHash   string       `json:"configHash"`
 	Provisioning provisioning `json:"provisioning"`
-}
-
-// ConfigFromEnroll merges an enroll response (read from r) with the worker base
-// URL into a Config ready to persist. Used by the `-write-config` bootstrap path.
-func ConfigFromEnroll(r io.Reader, workerBaseURL string) (Config, error) {
-	var resp enrollResponse
-	if err := json.NewDecoder(r).Decode(&resp); err != nil {
-		return Config{}, err
-	}
-	return Config{
-		WorkerBaseURL: workerBaseURL,
-		AgentToken:    resp.AgentToken,
-		ConfigHash:    resp.ConfigHash,
-		Server:        resp.Config,
-	}, nil
 }
