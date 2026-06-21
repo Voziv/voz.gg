@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,31 @@ func TestReprovisionEnablesLogparseAndRestartsBothUnits(t *testing.T) {
 	}
 	if !hasRun(sys.runs, "systemctl", "restart", monitorUnitName) {
 		t.Fatalf("monitor not restarted: %v", sys.runs)
+	}
+}
+
+func TestReprovisionReusesInstalledLogDirWithoutPrompting(t *testing.T) {
+	sys := newFakeSystem()
+	sys.units[monitorUnitName] = true
+	sys.units[logparseUnitName] = true
+	// A prior setup baked a custom log dir into the installed unit. The default
+	// OpenTTY panics, so reaching the interactive prompt would fail this test.
+	sys.files["/etc/systemd/system/"+logparseUnitName] =
+		[]byte(renderLogparseUnit("/usr/local/bin/voz-gg-agent", "/etc/voz-gg-agent/monitor.json", "/srv/custom/logs", stateDir, "voz-gg", "voz-gg", "minecraft"))
+	save, _ := reprovisionSave()
+	var out, errb bytes.Buffer
+
+	// Provisioning carries a different default log path; the installed dir must win.
+	code := runReprovisionWith(baseReprovisionOpts(), existingConfig(), sys, fakeProvision(logparseEnroll("/home/minecraft/logs"), nil), save, &out, &errb)
+	if code != 0 {
+		t.Fatalf("exit = %d (stderr=%q)", code, errb.String())
+	}
+	unit := string(sys.files["/etc/systemd/system/"+logparseUnitName])
+	if !strings.Contains(unit, "-log-dir /srv/custom/logs ") {
+		t.Fatalf("reprovision did not reuse installed log dir; unit=%q", unit)
+	}
+	if !hasRun(sys.runs, "systemctl", "restart", logparseUnitName) {
+		t.Fatalf("logparse not restarted: %v", sys.runs)
 	}
 }
 

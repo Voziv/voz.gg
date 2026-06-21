@@ -55,6 +55,7 @@ type systemOps interface {
 	createSystemUser(name, group string) error
 	mkdirAll(path string, perm uint32) error
 	writeFile(path string, data []byte, perm uint32) error
+	readFile(path string) ([]byte, error)
 	chownRecursive(path, user, group string) error
 	run(name string, args ...string) error
 	unitInstalled(name string) bool
@@ -167,7 +168,7 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 
 	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
 
-	if err := reconcileLogparse(sys, resp.Provisioning.Capabilities.LogParser, opts.ExecPath, opts.ConfigPath, runAsUser, runAsGroup, opts.NonInteractive, opts.OpenTTY, stdout); err != nil {
+	if err := reconcileLogparse(sys, resp.Provisioning.Capabilities.LogParser, opts.ExecPath, opts.ConfigPath, runAsUser, runAsGroup, opts.NonInteractive, false, opts.OpenTTY, stdout); err != nil {
 		fmt.Fprintf(stderr, "setup: %v\n", err)
 		return 1
 	}
@@ -180,7 +181,7 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 // enables the hardened unit; when disabled it disables and removes any unit left
 // behind. Shared by setup and reprovision so both converge on the same systemd
 // state for a given provisioning.
-func reconcileLogparse(sys systemOps, lp logParserCapability, execPath, configPath, runAsUser, runAsGroup string, nonInteractive bool, openTTY func() (io.ReadWriteCloser, error), stdout io.Writer) error {
+func reconcileLogparse(sys systemOps, lp logParserCapability, execPath, configPath, runAsUser, runAsGroup string, nonInteractive, reuseExisting bool, openTTY func() (io.ReadWriteCloser, error), stdout io.Writer) error {
 	if !lp.Enabled {
 		if sys.unitInstalled(logparseUnitName) {
 			_ = sys.run("systemctl", "disable", "--now", logparseUnitName)
@@ -193,19 +194,30 @@ func reconcileLogparse(sys systemOps, lp logParserCapability, execPath, configPa
 		return nil
 	}
 
-	var ttyIn io.Reader
-	var ttyOut io.Writer
-	if !nonInteractive {
-		tty, err := openTTY()
-		if err != nil {
-			return fmt.Errorf("cannot open /dev/tty for log-dir setup; re-run with --non-interactive: %w", err)
-		}
-		defer tty.Close()
-		ttyIn, ttyOut = tty, tty
+	// On reprovision/update the log directory was already resolved at setup and
+	// baked into the installed unit; reuse it so we never re-prompt for a setting
+	// that is already in place. Only a fresh enable (no unit yet) falls through to
+	// provisioning/the interactive prompt.
+	logDir := ""
+	if reuseExisting {
+		logDir = installedLogparseDir(sys)
 	}
-	logDir, err := resolveLogDir(lp, !nonInteractive, ttyIn, ttyOut, sys)
-	if err != nil {
-		return err
+	if logDir == "" {
+		var ttyIn io.Reader
+		var ttyOut io.Writer
+		if !nonInteractive {
+			tty, err := openTTY()
+			if err != nil {
+				return fmt.Errorf("cannot open /dev/tty for log-dir setup; re-run with --non-interactive: %w", err)
+			}
+			defer tty.Close()
+			ttyIn, ttyOut = tty, tty
+		}
+		resolved, err := resolveLogDir(lp, !nonInteractive, ttyIn, ttyOut, sys)
+		if err != nil {
+			return err
+		}
+		logDir = resolved
 	}
 	if err := sys.mkdirAll(stateDir, 0o750); err != nil {
 		return fmt.Errorf("mkdir %s: %w", stateDir, err)
@@ -225,6 +237,29 @@ func reconcileLogparse(sys systemOps, lp logParserCapability, execPath, configPa
 	}
 	fmt.Fprintf(stdout, "voz-gg-agent logparse installed and started; reading %s\n", logDir)
 	return nil
+}
+
+// installedLogparseDir returns the -log-dir already baked into the installed
+// logparse unit's ExecStart, or "" if the unit is absent or has no such flag.
+// Reusing it lets reprovision/update reconcile without re-prompting for the log
+// directory the operator already chose at setup.
+func installedLogparseDir(sys systemOps) string {
+	raw, err := sys.readFile("/etc/systemd/system/" + logparseUnitName)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if !strings.HasPrefix(line, "ExecStart=") {
+			continue
+		}
+		fields := strings.Fields(line)
+		for i, f := range fields {
+			if f == "-log-dir" && i+1 < len(fields) {
+				return fields[i+1]
+			}
+		}
+	}
+	return ""
 }
 
 // resolveLogDir determines the game-server log directory for the logparse unit.
@@ -457,6 +492,7 @@ func (realSystem) mkdirAll(p string, perm uint32) error { return os.MkdirAll(p, 
 func (realSystem) writeFile(p string, d []byte, perm uint32) error {
 	return os.WriteFile(p, d, os.FileMode(perm))
 }
+func (realSystem) readFile(p string) ([]byte, error) { return os.ReadFile(p) }
 func (realSystem) chownRecursive(p, u, g string) error   { return runLogged("chown", "-R", u+":"+g, p) }
 func (realSystem) run(name string, args ...string) error { return runLogged(name, args...) }
 func (realSystem) unitInstalled(n string) bool {
