@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -167,5 +168,59 @@ func TestRenderRestartServiceAndTimer(t *testing.T) {
 	tmr := renderRestartTimer("survival", "08:00")
 	if !strings.Contains(tmr, "OnCalendar=*-*-* 08:00:00 UTC") || !strings.Contains(tmr, "Persistent=true") {
 		t.Fatalf("timer wrong:\n%s", tmr)
+	}
+}
+
+func TestReconcileServerControlInstalls(t *testing.T) {
+	f := newFakeSystem()
+	props := "/home/minecraft/server/server.properties"
+	f.paths[props] = true
+	f.files[props] = []byte("motd=Hi\nenable-rcon=false\n")
+	sc := serverControlCapability{
+		Enabled: true, Slug: "survival", ServerUser: "minecraft",
+		WorkingDir: "/home/minecraft/server", StartCommand: "./run.sh nogui",
+		RestartSchedule: "08:00", RconPort: 25575,
+	}
+	var out bytes.Buffer
+	if err := reconcileServerControl(f, sc, "s3cret", 25575, "/usr/local/bin/voz-gg-agent", "/etc/voz-gg-agent/monitor.json", &out); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	got := string(f.files[props])
+	if !strings.Contains(got, "enable-rcon=true") || !strings.Contains(got, "rcon.password=s3cret") || !strings.Contains(got, "motd=Hi") {
+		t.Fatalf("server.properties wrong:\n%s", got)
+	}
+	if _, ok := f.files["/etc/systemd/system/voz-gg-survival.service"]; !ok {
+		t.Fatal("gameserver unit not written")
+	}
+	if _, ok := f.files["/etc/systemd/system/voz-gg-survival-restart.timer"]; !ok {
+		t.Fatal("restart timer not written")
+	}
+}
+
+func TestReconcileServerControlNoScheduleSkipsTimer(t *testing.T) {
+	f := newFakeSystem()
+	sc := serverControlCapability{
+		Enabled: true, Slug: "survival", ServerUser: "minecraft",
+		WorkingDir: "/srv/mc", StartCommand: "./run.sh", RestartSchedule: "",
+	}
+	if err := reconcileServerControl(f, sc, "pw", 25575, "/bin/agent", "/cfg", &bytes.Buffer{}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if _, ok := f.files["/etc/systemd/system/voz-gg-survival-restart.timer"]; ok {
+		t.Fatal("timer should not be installed without a schedule")
+	}
+}
+
+func TestReconcileServerControlDisabledRemoves(t *testing.T) {
+	f := newFakeSystem()
+	f.units["voz-gg-survival.service"] = true
+	f.units["voz-gg-survival-restart.timer"] = true
+	sc := serverControlCapability{Enabled: false, Slug: "survival"}
+	if err := reconcileServerControl(f, sc, "", 0, "/bin/agent", "/cfg", &bytes.Buffer{}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	removed := strings.Join(f.removed, " ")
+	if !strings.Contains(removed, "/etc/systemd/system/voz-gg-survival.service") {
+		t.Fatalf("disabled capability should remove the unit; removed=%v", f.removed)
 	}
 }

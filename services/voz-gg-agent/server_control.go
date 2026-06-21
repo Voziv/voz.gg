@@ -5,9 +5,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -205,4 +207,118 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 `, slug, scheduleUTC)
+}
+
+// reconcileServerControl brings the game-server unit and optional restart timer
+// into line with the capability. The password is passed in (already minted by
+// ensureRconPassword) so this function never touches the agent config. It
+// propagates RCON settings into the server's server.properties, then installs and
+// enables the units. Disabling removes them. Note: it never restarts an
+// already-running game server — RCON setting changes apply on the next restart,
+// keeping reprovision non-disruptive to players.
+func reconcileServerControl(sys systemOps, sc serverControlCapability, rconPassword string, rconPort int, execPath, configPath string, stdout io.Writer) error {
+	slug := ""
+	if sc.Slug != "" {
+		s, err := sanitizeSlug(sc.Slug)
+		if err != nil {
+			if sc.Enabled {
+				return err
+			}
+			return nil // disabled + unusable slug: nothing to remove
+		}
+		slug = s
+	}
+
+	if !sc.Enabled {
+		if slug != "" {
+			removeServerControlUnits(sys, slug)
+		}
+		return nil
+	}
+	if slug == "" {
+		return errors.New("server control enabled but no slug provided")
+	}
+	if sc.WorkingDir == "" || sc.ServerUser == "" || sc.StartCommand == "" {
+		return errors.New("server control enabled but serverUser/workingDir/startCommand are incomplete")
+	}
+	if !sys.hasSystemd() {
+		fmt.Fprintln(stdout, "server control: systemd not found; skipping unit install")
+		return nil
+	}
+
+	port := rconPort
+	if port == 0 {
+		port = defaultRconPort
+	}
+
+	// Propagate RCON settings into server.properties (key-preserving).
+	propsPath := filepath.Join(sc.WorkingDir, "server.properties")
+	existing := ""
+	if sys.pathExists(propsPath) {
+		raw, err := sys.readFile(propsPath)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", propsPath, err)
+		}
+		existing = string(raw)
+	}
+	updated := setProperties(existing, map[string]string{
+		"enable-rcon":           "true",
+		"rcon.port":             strconv.Itoa(port),
+		"rcon.password":         rconPassword,
+		"broadcast-rcon-to-ops": "false",
+	})
+	if updated != existing {
+		if err := sys.writeFile(propsPath, []byte(updated), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", propsPath, err)
+		}
+		_ = sys.chownRecursive(propsPath, sc.ServerUser, sc.ServerUser)
+	}
+
+	// Render + install the gameserver unit.
+	unit := renderServerControlUnit(execPath, slug, sc.ServerUser, sc.WorkingDir, sc.StartCommand, configPath)
+	if err := sys.writeFile("/etc/systemd/system/"+serverControlUnitName(slug), []byte(unit), 0o644); err != nil {
+		return err
+	}
+
+	// Restart timer (optional).
+	if sc.RestartSchedule != "" {
+		sched, err := validateSchedule(sc.RestartSchedule)
+		if err != nil {
+			return err
+		}
+		if err := sys.writeFile("/etc/systemd/system/"+restartServiceName(slug), []byte(renderRestartService(execPath, slug, configPath)), 0o644); err != nil {
+			return err
+		}
+		if err := sys.writeFile("/etc/systemd/system/"+restartTimerName(slug), []byte(renderRestartTimer(slug, sched)), 0o644); err != nil {
+			return err
+		}
+	} else {
+		_ = sys.run("systemctl", "disable", "--now", restartTimerName(slug))
+		_ = sys.remove("/etc/systemd/system/" + restartServiceName(slug))
+		_ = sys.remove("/etc/systemd/system/" + restartTimerName(slug))
+	}
+
+	if err := sys.run("systemctl", "daemon-reload"); err != nil {
+		return err
+	}
+	if err := sys.run("systemctl", "enable", "--now", serverControlUnitName(slug)); err != nil {
+		return err
+	}
+	if sc.RestartSchedule != "" {
+		if err := sys.run("systemctl", "enable", "--now", restartTimerName(slug)); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintf(stdout, "voz-gg-agent server control installed for %s (unit %s)\n", slug, serverControlUnitName(slug))
+	return nil
+}
+
+func removeServerControlUnits(sys systemOps, slug string) {
+	for _, name := range []string{serverControlUnitName(slug), restartTimerName(slug), restartServiceName(slug)} {
+		if sys.unitInstalled(name) {
+			_ = sys.run("systemctl", "disable", "--now", name)
+			_ = sys.remove("/etc/systemd/system/" + name)
+		}
+	}
+	_ = sys.run("systemctl", "daemon-reload")
 }
