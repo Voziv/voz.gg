@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canActOnTarget, canSetRole, canTransferOwnership } from './user-admin-guards';
+import { canActOnTarget, canSetRole, canTransferOwnership, rowActionAvailability } from './user-admin-guards';
 
 const ctx = (over: Partial<Parameters<typeof canActOnTarget>[0]> = {}) => ({
   actorRole: 'admin' as const,
@@ -63,5 +63,76 @@ describe('canTransferOwnership', () => {
   });
   it('forbids transferring to self', () => {
     expect(canTransferOwnership(ctx({ actorRole: 'owner', targetId: 'a' })).ok).toBe(false);
+  });
+});
+
+describe('rowActionAvailability', () => {
+  it('admin viewing own row — all false (self-row issue #43: server blocks self unban/revoke via admin→non-user rule)', () => {
+    const a = rowActionAvailability(ctx({ actorRole: 'admin', targetRole: 'admin', targetId: 'a' }));
+    expect(a).toEqual({
+      ban: false,
+      unban: false,
+      revokeSessions: false,
+      makeAdmin: false,
+      demote: false,
+      transferOwnership: false,
+      delete: false,
+      any: false,
+    });
+  });
+
+  it('admin acting on a regular user — ban/revokeSessions/delete true, role-change/transfer false', () => {
+    const a = rowActionAvailability(ctx({ actorRole: 'admin', targetRole: 'user' }));
+    expect(a.ban).toBe(true);
+    expect(a.revokeSessions).toBe(true);
+    expect(a.delete).toBe(true);
+    expect(a.makeAdmin).toBe(false);
+    expect(a.demote).toBe(false);
+    expect(a.transferOwnership).toBe(false);
+    expect(a.any).toBe(true);
+  });
+
+  it('owner acting on a regular user — ban/revokeSessions/delete/makeAdmin/transferOwnership true, demote false', () => {
+    const a = rowActionAvailability(ctx({ actorRole: 'owner', targetRole: 'user' }));
+    expect(a.ban).toBe(true);
+    expect(a.revokeSessions).toBe(true);
+    expect(a.delete).toBe(true);
+    expect(a.makeAdmin).toBe(true);
+    expect(a.demote).toBe(false);
+    expect(a.transferOwnership).toBe(true);
+    expect(a.any).toBe(true);
+  });
+
+  it('owner acting on an admin — ban/revokeSessions/delete/demote/transferOwnership true, makeAdmin false', () => {
+    const a = rowActionAvailability(ctx({ actorRole: 'owner', targetRole: 'admin' }));
+    expect(a.ban).toBe(true);
+    expect(a.revokeSessions).toBe(true);
+    expect(a.delete).toBe(true);
+    expect(a.makeAdmin).toBe(false);
+    expect(a.demote).toBe(true);
+    expect(a.transferOwnership).toBe(true);
+    expect(a.any).toBe(true);
+  });
+
+  it('anyone acting on an owner target — all false', () => {
+    const a = rowActionAvailability(ctx({ actorRole: 'owner', targetRole: 'owner', targetId: 'other' }));
+    expect(a).toEqual({
+      ban: false,
+      unban: false,
+      revokeSessions: false,
+      makeAdmin: false,
+      demote: false,
+      transferOwnership: false,
+      delete: false,
+      any: false,
+    });
+  });
+
+  it('banned regular-user target — unban true (same guard as ban)', () => {
+    // The guard is agnostic to the banned flag; both ban and unban pass when allowed.
+    // The UI uses actions.ban vs actions.unban to toggle which button to show.
+    const a = rowActionAvailability(ctx({ actorRole: 'admin', targetRole: 'user' }));
+    expect(a.unban).toBe(true);
+    expect(a.ban).toBe(true);
   });
 });

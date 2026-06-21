@@ -1,3 +1,13 @@
+## 0.20.1 (2026-06-21)
+
+### 🩹 Fixes
+
+- **web:** derive users-table row gating from server guards ([#43](https://github.com/Voziv/voz.gg/issues/43))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.20.0 (2026-06-21)
 
 ### 🚀 Features

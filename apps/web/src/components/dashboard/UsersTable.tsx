@@ -13,6 +13,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button, buttonVariants } from '../ui/button';
 import { cn } from '../../lib/utils';
+import { rowActionAvailability, type GuardContext } from '../../lib/user-admin-guards';
 
 export type AdminUserRole = 'user' | 'admin' | 'owner';
 
@@ -53,13 +54,6 @@ async function post(url: string, body?: unknown): Promise<boolean> {
   return r.ok;
 }
 
-// Mirror of the server guards (UX only — the routes are authoritative).
-function canManage(actor: Props['actor'], target: AdminUserRow): boolean {
-  if (target.role === 'owner') return false;
-  if (actor.id === target.id) return false;
-  if (actor.role === 'owner') return true;
-  return target.role === 'user'; // admins act only on regular users
-}
 
 function BanDialog({
   user,
@@ -134,34 +128,44 @@ function RowActions({ actor, user, reload }: { actor: Props['actor']; user: Admi
   if (user.role === 'owner') {
     return <span className="text-xs text-muted-foreground">Owner (locked)</span>;
   }
-  if (!canManage(actor, user)) {
+
+  const guardCtx: GuardContext = { actorRole: actor.role, actorId: actor.id, targetRole: user.role, targetId: user.id };
+  const actions = rowActionAvailability(guardCtx);
+
+  if (!actions.any) {
     return <span className="text-xs text-muted-foreground">—</span>;
   }
 
   return (
     <div className="flex justify-end gap-2">
-      {user.banned ? (
-        <Button type="button" size="sm" variant="outline" disabled={pending}
-          onClick={() => run('unban', `Unban ${user.email}?`)}>Unban</Button>
-      ) : (
-        <BanDialog user={user} onDone={reload} pending={pending} setPending={setPending} />
+      {user.banned
+        ? actions.unban && (
+            <Button type="button" size="sm" variant="outline" disabled={pending}
+              onClick={() => run('unban', `Unban ${user.email}?`)}>Unban</Button>
+          )
+        : actions.ban && (
+            <BanDialog user={user} onDone={reload} pending={pending} setPending={setPending} />
+          )}
+      {actions.revokeSessions && (
+        <Button type="button" size="sm" variant="ghost" disabled={pending}
+          onClick={() => run('revoke-sessions', `Sign ${user.email} out of all sessions?`)}>Sign out</Button>
       )}
-      <Button type="button" size="sm" variant="ghost" disabled={pending}
-        onClick={() => run('revoke-sessions', `Sign ${user.email} out of all sessions?`)}>Sign out</Button>
-      {actor.role === 'owner' && user.role === 'user' && (
+      {actions.makeAdmin && (
         <Button type="button" size="sm" variant="outline" disabled={pending}
           onClick={() => run('set-role', `Make ${user.email} an admin?`, { role: 'admin' })}>Make admin</Button>
       )}
-      {actor.role === 'owner' && user.role === 'admin' && (
+      {actions.demote && (
         <Button type="button" size="sm" variant="outline" disabled={pending}
           onClick={() => run('set-role', `Demote ${user.email} to a regular user?`, { role: 'user' })}>Demote</Button>
       )}
-      {actor.role === 'owner' && (
+      {actions.transferOwnership && (
         <Button type="button" size="sm" variant="outline" disabled={pending}
           onClick={() => run('transfer-ownership', `Transfer ownership to ${user.email}? You will become an admin.`)}>Make owner</Button>
       )}
-      <Button type="button" size="sm" variant="destructive" disabled={pending}
-        onClick={() => run('delete', `Permanently delete ${user.email}? This cannot be undone.`)}>Delete</Button>
+      {actions.delete && (
+        <Button type="button" size="sm" variant="destructive" disabled={pending}
+          onClick={() => run('delete', `Permanently delete ${user.email}? This cannot be undone.`)}>Delete</Button>
+      )}
     </div>
   );
 }
