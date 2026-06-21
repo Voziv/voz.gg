@@ -47,7 +47,10 @@ export async function handleConfig(dao: AgentDao, serverId: string | null): Prom
   if (!serverId) return { status: 401, body: { error: 'Unauthorized.' } };
   const server = await dao.serverById(serverId);
   if (!server) return { status: 401, body: { error: 'Unauthorized.' } };
-  return { status: 200, body: await configResponse(server) };
+  return {
+    status: 200,
+    body: { ...(await configResponse(server)), provisioning: buildProvisioning(server) },
+  };
 }
 
 export async function handleStatus(

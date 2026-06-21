@@ -32,6 +32,8 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "commands:")
 	fmt.Fprintln(w, "  monitor       probe the local game server and report status")
 	fmt.Fprintln(w, "  setup         enroll, create the voz-gg service user, and install the hardened unit")
+	fmt.Fprintln(w, "  reprovision   re-fetch config + capabilities with the existing token and reconcile units")
+	fmt.Fprintln(w, "  update        self-update to the latest release, then refresh config and restart units")
 	fmt.Fprintln(w, "  logparse      parse the game-server log and report player presence")
 	fmt.Fprintln(w, "  version       print the version")
 }
@@ -55,6 +57,10 @@ func dispatch(args []string, stdout, stderr io.Writer) int {
 		return runMonitor(args[1:], stderr)
 	case "setup":
 		return runSetup(args[1:], stdout, stderr)
+	case "reprovision":
+		return runReprovision(args[1:], stdout, stderr)
+	case "update":
+		return runUpdate(args[1:], stdout, stderr)
 	case "logparse":
 		return runLogparse(args[1:], stderr)
 	default:

@@ -101,6 +101,32 @@ server form exposes an **Enable log parsing** toggle (`logParserEnabled`,
 persisted on create/edit); enroll then emits `capabilities.logParser.enabled`
 and `voz-gg-agent setup` installs the logparse unit accordingly.
 
+To apply config or capability changes to an **already-installed** agent without a
+re-enroll, run `sudo voz-gg-agent reprovision` on the host. It re-fetches
+`/api/agents/config` (which now also returns `provisioning`) using the existing
+agent token — **no token rotation** — rewrites `monitor.json`, reconciles the
+logparse unit (installs it when log parsing was turned on, disables + removes it
+when turned off), and restarts the affected units so changes take effect
+immediately. The edit-server modal surfaces this command. Contrast with re-running
+the installer, which re-enrolls and requires a fresh single-use token.
+
+To bring a host fully current, run `sudo voz-gg-agent update`. It is a two-phase
+self-update: **phase one** (old binary) downloads the latest release asset for the
+host's OS/arch from the rolling `voz-gg-agent-latest` GitHub release (the same
+source the installer uses), and if the downloaded version differs it atomically
+swaps it in over the running executable, then re-execs the now-current binary with
+an internal `--reconcile-only`; **phase two** (new binary) refreshes config and
+reconciles units — when `monitor.json` holds a valid agent key it runs the same
+flow as `reprovision` (re-fetch provisioning with the existing token, rewrite
+config, add/remove/update the logparse unit, restart), and with no key it simply
+restarts the installed units onto the new binary. Re-execing is what guarantees
+the reconcile uses the *new* release's logic, not the running (old) binary's. The
+download is buffered and only renamed into place on success, so a failed fetch
+never corrupts the installed binary; the swapped binary's version is verified by
+running it before the swap is trusted. `--url` overrides the source for testing.
+So `update` = upgrade binary **and** reconcile; `reprovision` = reconcile only
+(no download).
+
 The host installer (`apps/web/public/install-agent.sh`) is a thin bootstrap: it
 downloads `voz-gg-agent` and execs `voz-gg-agent setup`, which enrolls, creates a
 dedicated unprivileged **`voz-gg`** system user, writes `/etc/voz-gg-agent/monitor.json`

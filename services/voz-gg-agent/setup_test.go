@@ -26,6 +26,12 @@ type fakeSystem struct {
 	units         map[string]bool
 	paths         map[string]bool
 	removed       []string
+
+	downloadedVersion string // returned by binaryVersion
+	versionErr        error
+	reExeced          bool
+	reExecArgs        []string
+	reExecErr         error
 }
 
 func newFakeSystem() *fakeSystem {
@@ -66,7 +72,31 @@ func (f *fakeSystem) run(name string, args ...string) error {
 }
 func (f *fakeSystem) unitInstalled(n string) bool { return f.units[n] }
 func (f *fakeSystem) pathExists(p string) bool    { return f.paths[p] }
-func (f *fakeSystem) remove(p string) error       { f.removed = append(f.removed, p); return nil }
+func (f *fakeSystem) remove(p string) error {
+	f.removed = append(f.removed, p)
+	delete(f.files, p)
+	delete(f.filePerms, p)
+	return nil
+}
+func (f *fakeSystem) rename(oldPath, newPath string) error {
+	data, ok := f.files[oldPath]
+	if !ok {
+		return errors.New("rename: missing " + oldPath)
+	}
+	f.files[newPath] = data
+	f.filePerms[newPath] = f.filePerms[oldPath]
+	delete(f.files, oldPath)
+	delete(f.filePerms, oldPath)
+	return nil
+}
+func (f *fakeSystem) binaryVersion(string) (string, error) {
+	return f.downloadedVersion, f.versionErr
+}
+func (f *fakeSystem) reExec(path string, args []string) error {
+	f.reExeced = true
+	f.reExecArgs = args
+	return f.reExecErr
+}
 
 func fakeEnroll(resp enrollResponse, err error) enrollFn {
 	return func(string, string) (enrollResponse, error) { return resp, err }
