@@ -10,3 +10,16 @@ enabled = true
 binding = "DB"
 database_name = "voz-gg"
 database_id = "845f9113-12a5-4911-8f0f-d96a9133bcc8"
+
+[vars]
+SITE_URL = "https://voz.gg"
+
+[[queues.producers]]
+binding = "NOTIFY_QUEUE"
+queue = "voz-gg-notifications"
+
+[[queues.consumers]]
+queue = "voz-gg-notifications"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
