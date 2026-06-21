@@ -98,3 +98,74 @@ func TestReadProperty(t *testing.T) {
 		t.Fatalf("absent = %q, want empty", got)
 	}
 }
+
+func TestSanitizeSlug(t *testing.T) {
+	cases := map[string]string{
+		"Survival":     "survival",
+		"My Server_01": "my-server-01",
+		"  trim-me  ":  "trim-me",
+		"a/b!c":        "abc",
+	}
+	for in, want := range cases {
+		got, err := sanitizeSlug(in)
+		if err != nil {
+			t.Fatalf("sanitizeSlug(%q): %v", in, err)
+		}
+		if got != want {
+			t.Fatalf("sanitizeSlug(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if _, err := sanitizeSlug("!!!"); err == nil {
+		t.Fatal("expected error for slug that sanitizes to empty")
+	}
+}
+
+func TestValidateSchedule(t *testing.T) {
+	if _, err := validateSchedule("08:00"); err != nil {
+		t.Fatalf("08:00: %v", err)
+	}
+	if _, err := validateSchedule("23:59"); err != nil {
+		t.Fatalf("23:59: %v", err)
+	}
+	for _, bad := range []string{"24:00", "8:00", "08:60", "0800", "noon"} {
+		if _, err := validateSchedule(bad); err == nil {
+			t.Fatalf("expected error for %q", bad)
+		}
+	}
+}
+
+func TestRenderServerControlUnit(t *testing.T) {
+	u := renderServerControlUnit("/usr/local/bin/voz-gg-agent", "survival", "minecraft", "/home/minecraft/server", "./run.sh nogui", "/etc/voz-gg-agent/monitor.json")
+	for _, want := range []string{
+		"Description=voz.gg game server (survival)",
+		"User=minecraft",
+		"WorkingDirectory=/home/minecraft/server",
+		"ExecStart=./run.sh nogui",
+		"ExecStop=-/usr/local/bin/voz-gg-agent rcon --properties /home/minecraft/server/server.properties save-all",
+		"ExecStop=-/usr/local/bin/voz-gg-agent rcon --properties /home/minecraft/server/server.properties stop",
+		"TimeoutStopSec=120",
+		"Restart=on-failure",
+		"NoNewPrivileges=true",
+	} {
+		if !strings.Contains(u, want) {
+			t.Fatalf("unit missing %q:\n%s", want, u)
+		}
+	}
+}
+
+func TestRenderRestartServiceAndTimer(t *testing.T) {
+	svc := renderRestartService("/usr/local/bin/voz-gg-agent", "survival", "/etc/voz-gg-agent/monitor.json")
+	for _, want := range []string{
+		"ExecStart=-/usr/local/bin/voz-gg-agent rcon -config /etc/voz-gg-agent/monitor.json \"say Server restarting in 60 seconds\"",
+		"ExecStart=/bin/sleep 50",
+		"ExecStart=/usr/bin/systemctl restart voz-gg-survival.service",
+	} {
+		if !strings.Contains(svc, want) {
+			t.Fatalf("restart service missing %q:\n%s", want, svc)
+		}
+	}
+	tmr := renderRestartTimer("survival", "08:00")
+	if !strings.Contains(tmr, "OnCalendar=*-*-* 08:00:00 UTC") || !strings.Contains(tmr, "Persistent=true") {
+		t.Fatalf("timer wrong:\n%s", tmr)
+	}
+}

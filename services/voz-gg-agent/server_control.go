@@ -3,6 +3,10 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"fmt"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -112,4 +116,93 @@ func readProperty(content, key string) string {
 		}
 	}
 	return ""
+}
+
+func serverControlUnitName(slug string) string { return "voz-gg-" + slug + ".service" }
+func restartServiceName(slug string) string    { return "voz-gg-" + slug + "-restart.service" }
+func restartTimerName(slug string) string      { return "voz-gg-" + slug + "-restart.timer" }
+
+// sanitizeSlug lowercases and reduces s to systemd/filesystem-safe [a-z0-9-]
+// (spaces and underscores become hyphens). An empty result is an error — we will
+// not guess a unit name.
+func sanitizeSlug(s string) (string, error) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			b.WriteRune(r)
+		case r == ' ' || r == '_':
+			b.WriteByte('-')
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "", errors.New("server control: slug is empty or invalid")
+	}
+	return out, nil
+}
+
+var scheduleRe = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+
+// validateSchedule checks a UTC HH:MM restart time.
+func validateSchedule(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if !scheduleRe.MatchString(s) {
+		return "", fmt.Errorf("server control: invalid restart schedule %q (want UTC HH:MM)", s)
+	}
+	return s, nil
+}
+
+func renderServerControlUnit(execPath, slug, user, workingDir, startCommand, configPath string) string {
+	props := filepath.Join(workingDir, "server.properties")
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg game server (%s)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%s
+WorkingDirectory=%s
+ExecStart=%s
+ExecStop=-%s rcon --properties %s save-all
+ExecStop=-%s rcon --properties %s stop
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+`, slug, user, workingDir, startCommand, execPath, props, execPath, props)
+}
+
+func renderRestartService(execPath, slug, configPath string) string {
+	unit := serverControlUnitName(slug)
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg game server restart (%s)
+After=%s
+
+[Service]
+Type=oneshot
+ExecStart=-%s rcon -config %s "say Server restarting in 60 seconds"
+ExecStart=/bin/sleep 50
+ExecStart=-%s rcon -config %s "say Server restarting in 10 seconds"
+ExecStart=/bin/sleep 10
+ExecStart=/usr/bin/systemctl restart %s
+`, slug, unit, execPath, configPath, execPath, configPath, unit)
+}
+
+func renderRestartTimer(slug, scheduleUTC string) string {
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg game server restart timer (%s)
+
+[Timer]
+OnCalendar=*-*-* %s:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+`, slug, scheduleUTC)
 }
