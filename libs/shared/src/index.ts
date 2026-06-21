@@ -9,3 +9,5 @@ export * from './players';
 export * from './player-detail';
 export * from './player-mutations';
 export * from './player-mutations-dao';
+export * from './notifications';
+export * from './notification-dao';
