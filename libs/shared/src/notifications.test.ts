@@ -50,9 +50,17 @@ describe('evaluateNotifications', () => {
     expect(trig({ status: 'blocked', type: 'connection_rejected', muted: true })).toEqual([]);
     expect(trig({ status: 'allowed', muted: true, type: 'connection_rejected' })).toEqual([]);
   });
+  it('respects the 24h cooldown on blocked_return', () => {
+    const last = base.occurredAt - 86_399;
+    expect(trig({ status: 'blocked', lastSentAt: { blocked_return: last } })).toEqual([]);
+    const old = base.occurredAt - 86_400;
+    expect(trig({ status: 'blocked', lastSentAt: { blocked_return: old } })).toEqual(['blocked_return']);
+  });
   it('respects the 1h cooldown on bot_escalation', () => {
     const last = base.occurredAt - 3599;
     expect(trig({ status: 'allowed', isBot: true, lastSentAt: { bot_escalation: last } })).toEqual([]);
+    const old = base.occurredAt - 3600;
+    expect(trig({ status: 'allowed', isBot: true, lastSentAt: { bot_escalation: old } })).toEqual(['bot_escalation']);
   });
   it('returns nothing for an allowed rejection that matches no trigger', () => {
     expect(trig({ type: 'connection_rejected', status: 'allowed' })).toEqual([]);

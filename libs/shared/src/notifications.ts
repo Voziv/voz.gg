@@ -1,4 +1,4 @@
-import type { PlayerStatus, PlayerIdentityKind, NotificationTrigger } from './schema';
+import type { PlayerStatus, NotificationTrigger } from './schema';
 
 export { NOTIFICATION_TRIGGERS } from './schema';
 export type { NotificationTrigger } from './schema';
@@ -33,8 +33,7 @@ function fire(
   return last == null || input.occurredAt - last >= cooldownSeconds ? [{ trigger }] : [];
 }
 
-// Precedence: first match wins per event. bot_escalation ignores mute (the alarm);
-// the other three are suppressed when the player is muted.
+// bot_escalation bypasses the mute guard below — it is an alarm, not a routine notification.
 export function evaluateNotifications(input: EvaluateInput): PendingNotification[] {
   if (input.type === 'join' && (input.isBot || input.muted)) {
     return fire(input, 'bot_escalation', COOLDOWN_BOT_ESCALATION);
