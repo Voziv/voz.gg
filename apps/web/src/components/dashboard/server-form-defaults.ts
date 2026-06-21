@@ -22,6 +22,27 @@ export function initialAgentHostValues(
   };
 }
 
+export interface ServerControlValues {
+  serverControlEnabled: boolean;
+  serverWorkingDir: string;
+  startCommand: string;
+  restartTime: string; // local HH:MM (already converted from stored UTC by the caller)
+}
+
+export function initialServerControlValues(stored?: {
+  serverControlEnabled: boolean | null;
+  serverWorkingDir: string | null;
+  startCommand: string | null;
+  restartScheduleLocal: string | null;
+}): ServerControlValues {
+  return {
+    serverControlEnabled: stored?.serverControlEnabled ?? false,
+    serverWorkingDir: stored?.serverWorkingDir ?? '',
+    startCommand: stored?.startCommand ?? '',
+    restartTime: stored?.restartScheduleLocal ?? '',
+  };
+}
+
 // When the game type changes, refresh a field's default only if the user has not
 // customized it (it is empty or still equals the previous game type's default).
 export function nextAgentHostValues(

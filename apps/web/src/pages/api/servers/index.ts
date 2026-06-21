@@ -5,6 +5,7 @@ import { createDb, servers, serverAgent } from '@voz/shared';
 import { isAdmin } from '../../../lib/admin';
 import { parseServerInput } from '../../../lib/server-schema';
 import { generateToken, hashToken } from '../../../lib/agent-auth';
+import { slugifyServerName } from '../../../lib/slug';
 
 export const prerender = false;
 
@@ -22,6 +23,7 @@ export const POST: APIRoute = async (ctx) => {
   await db.insert(servers).values({
     id,
     name: parsed.data.name,
+    slug: slugifyServerName(parsed.data.name),
     gameType: parsed.data.gameType,
     host: parsed.data.host,
     port: parsed.data.port,
@@ -31,6 +33,10 @@ export const POST: APIRoute = async (ctx) => {
     gameServerUser: parsed.data.gameServerUser,
     logPath: parsed.data.logPath,
     logParserEnabled: parsed.data.logParserEnabled,
+    serverControlEnabled: parsed.data.serverControlEnabled,
+    serverWorkingDir: parsed.data.serverWorkingDir,
+    startCommand: parsed.data.startCommand,
+    restartSchedule: parsed.data.restartSchedule,
     discordWebhookUrl: parsed.data.discordWebhookUrl,
     createdBy: user.id,
     createdAt: now,

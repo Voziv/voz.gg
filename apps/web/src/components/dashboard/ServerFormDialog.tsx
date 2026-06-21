@@ -16,7 +16,8 @@ import { Button, buttonVariants } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { cn } from '../../lib/utils';
 import { GAME_TYPES, type GameType } from '@voz/shared';
-import { initialAgentHostValues, nextAgentHostValues } from './server-form-defaults';
+import { initialAgentHostValues, nextAgentHostValues, initialServerControlValues } from './server-form-defaults';
+import { localTimeToUtc, utcTimeToLocal } from '../../lib/restart-time';
 
 const GAME_LABELS: Record<GameType, string> = {
   'minecraft-java': 'Minecraft (Java)',
@@ -39,6 +40,11 @@ type ServerData = {
   logPath: string | null;
   logParserEnabled: boolean | null;
   discordWebhookUrl: string | null;
+  slug: string | null;
+  serverControlEnabled: boolean | null;
+  serverWorkingDir: string | null;
+  startCommand: string | null;
+  restartSchedule: string | null;
 };
 type Props = { server?: ServerData };
 
@@ -54,6 +60,18 @@ export default function ServerFormDialog({ server }: Props) {
       logPath: server?.logPath,
       logParserEnabled: server?.logParserEnabled,
     }),
+  );
+  const [serverControl, setServerControl] = useState(() =>
+    initialServerControlValues(
+      server
+        ? {
+            serverControlEnabled: server.serverControlEnabled,
+            serverWorkingDir: server.serverWorkingDir,
+            startCommand: server.startCommand,
+            restartScheduleLocal: server.restartSchedule ? utcTimeToLocal(server.restartSchedule) : null,
+          }
+        : undefined,
+    ),
   );
 
   function handleGameTypeChange(next: GameType) {
@@ -75,6 +93,10 @@ export default function ServerFormDialog({ server }: Props) {
       gameServerUser: form.get('gameServerUser'),
       logPath: form.get('logPath'),
       logParserEnabled: agentHost.logParserEnabled,
+      serverControlEnabled: serverControl.serverControlEnabled,
+      serverWorkingDir: serverControl.serverWorkingDir.trim() || null,
+      startCommand: serverControl.startCommand.trim() || null,
+      restartSchedule: serverControl.restartTime ? localTimeToUtc(serverControl.restartTime) : null,
       discordWebhookUrl: form.get('discordWebhookUrl'),
     };
     setPending(true);
@@ -246,6 +268,45 @@ export default function ServerFormDialog({ server }: Props) {
             />
             <p className="text-xs text-muted-foreground">Presence alerts post here. Leave blank to disable.</p>
           </div>
+
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-medium">Server management</legend>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="serverControlEnabled"
+                checked={serverControl.serverControlEnabled}
+                onCheckedChange={(checked) => setServerControl((c) => ({ ...c, serverControlEnabled: checked }))}
+              />
+              <Label htmlFor="serverControlEnabled">Enable server management (systemd + RCON)</Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="serverWorkingDir">Working directory</Label>
+              <Input
+                id="serverWorkingDir"
+                value={serverControl.serverWorkingDir}
+                onChange={(e) => setServerControl((c) => ({ ...c, serverWorkingDir: e.target.value }))}
+                placeholder="/home/minecraft/server"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="startCommand">Start command (foreground; no self-restart loop)</Label>
+              <Input
+                id="startCommand"
+                value={serverControl.startCommand}
+                onChange={(e) => setServerControl((c) => ({ ...c, startCommand: e.target.value }))}
+                placeholder="./run.sh nogui"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restartTime">Nightly restart time (your local time; blank = none)</Label>
+              <Input
+                id="restartTime"
+                type="time"
+                value={serverControl.restartTime}
+                onChange={(e) => setServerControl((c) => ({ ...c, restartTime: e.target.value }))}
+              />
+            </div>
+          </fieldset>
           </div>
 
           <DialogFooter showCloseButton>
