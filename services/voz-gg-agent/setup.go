@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -59,6 +60,9 @@ type systemOps interface {
 	unitInstalled(name string) bool
 	pathExists(path string) bool
 	remove(path string) error
+	rename(oldPath, newPath string) error
+	binaryVersion(path string) (string, error)
+	reExec(path string, args []string) error
 }
 
 // enrollFn performs the enroll HTTP call. Abstracted for testing.
@@ -163,48 +167,64 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 
 	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
 
-	if lp := resp.Provisioning.Capabilities.LogParser; lp.Enabled {
-		var ttyIn io.Reader
-		var ttyOut io.Writer
-		if !opts.NonInteractive {
-			tty, err := opts.OpenTTY()
-			if err != nil {
-				fmt.Fprintf(stderr, "setup: cannot open /dev/tty for log-dir setup; re-run with --non-interactive: %v\n", err)
-				return 1
-			}
-			defer tty.Close()
-			ttyIn, ttyOut = tty, tty
-		}
-		logDir, err := resolveLogDir(lp, !opts.NonInteractive, ttyIn, ttyOut, sys)
-		if err != nil {
-			fmt.Fprintf(stderr, "setup: %v\n", err)
-			return 1
-		}
-		if err := sys.mkdirAll(stateDir, 0o750); err != nil {
-			fmt.Fprintf(stderr, "setup: mkdir %s: %v\n", stateDir, err)
-			return 1
-		}
-		if err := sys.chownRecursive(stateDir, runAsUser, runAsGroup); err != nil {
-			fmt.Fprintf(stderr, "setup: chown %s: %v\n", stateDir, err)
-			return 1
-		}
-		lpUnit := renderLogparseUnit(opts.ExecPath, opts.ConfigPath, logDir, stateDir, runAsUser, runAsGroup, lp.GameServerUser)
-		if err := sys.writeFile("/etc/systemd/system/"+logparseUnitName, []byte(lpUnit), 0o644); err != nil {
-			fmt.Fprintf(stderr, "setup: write logparse unit: %v\n", err)
-			return 1
-		}
-		if err := sys.run("systemctl", "daemon-reload"); err != nil {
-			fmt.Fprintf(stderr, "setup: daemon-reload: %v\n", err)
-			return 1
-		}
-		if err := sys.run("systemctl", "enable", "--now", logparseUnitName); err != nil {
-			fmt.Fprintf(stderr, "setup: enable logparse service: %v\n", err)
-			return 1
-		}
-		fmt.Fprintf(stdout, "voz-gg-agent logparse installed and started; reading %s\n", logDir)
+	if err := reconcileLogparse(sys, resp.Provisioning.Capabilities.LogParser, opts.ExecPath, opts.ConfigPath, runAsUser, runAsGroup, opts.NonInteractive, opts.OpenTTY, stdout); err != nil {
+		fmt.Fprintf(stderr, "setup: %v\n", err)
+		return 1
 	}
 
 	return 0
+}
+
+// reconcileLogparse brings the logparse unit into line with the capability: when
+// enabled it resolves the log directory, ensures the state dir, and installs +
+// enables the hardened unit; when disabled it disables and removes any unit left
+// behind. Shared by setup and reprovision so both converge on the same systemd
+// state for a given provisioning.
+func reconcileLogparse(sys systemOps, lp logParserCapability, execPath, configPath, runAsUser, runAsGroup string, nonInteractive bool, openTTY func() (io.ReadWriteCloser, error), stdout io.Writer) error {
+	if !lp.Enabled {
+		if sys.unitInstalled(logparseUnitName) {
+			_ = sys.run("systemctl", "disable", "--now", logparseUnitName)
+			_ = sys.remove("/etc/systemd/system/" + logparseUnitName)
+			if err := sys.run("systemctl", "daemon-reload"); err != nil {
+				return fmt.Errorf("daemon-reload: %w", err)
+			}
+			fmt.Fprintln(stdout, "voz-gg-agent logparse disabled and removed")
+		}
+		return nil
+	}
+
+	var ttyIn io.Reader
+	var ttyOut io.Writer
+	if !nonInteractive {
+		tty, err := openTTY()
+		if err != nil {
+			return fmt.Errorf("cannot open /dev/tty for log-dir setup; re-run with --non-interactive: %w", err)
+		}
+		defer tty.Close()
+		ttyIn, ttyOut = tty, tty
+	}
+	logDir, err := resolveLogDir(lp, !nonInteractive, ttyIn, ttyOut, sys)
+	if err != nil {
+		return err
+	}
+	if err := sys.mkdirAll(stateDir, 0o750); err != nil {
+		return fmt.Errorf("mkdir %s: %w", stateDir, err)
+	}
+	if err := sys.chownRecursive(stateDir, runAsUser, runAsGroup); err != nil {
+		return fmt.Errorf("chown %s: %w", stateDir, err)
+	}
+	lpUnit := renderLogparseUnit(execPath, configPath, logDir, stateDir, runAsUser, runAsGroup, lp.GameServerUser)
+	if err := sys.writeFile("/etc/systemd/system/"+logparseUnitName, []byte(lpUnit), 0o644); err != nil {
+		return fmt.Errorf("write logparse unit: %w", err)
+	}
+	if err := sys.run("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("daemon-reload: %w", err)
+	}
+	if err := sys.run("systemctl", "enable", "--now", logparseUnitName); err != nil {
+		return fmt.Errorf("enable logparse service: %w", err)
+	}
+	fmt.Fprintf(stdout, "voz-gg-agent logparse installed and started; reading %s\n", logDir)
+	return nil
 }
 
 // resolveLogDir determines the game-server log directory for the logparse unit.
@@ -449,6 +469,21 @@ func (realSystem) remove(p string) error {
 		return err
 	}
 	return nil
+}
+func (realSystem) rename(oldPath, newPath string) error { return os.Rename(oldPath, newPath) }
+func (realSystem) binaryVersion(path string) (string, error) {
+	out, err := exec.Command(path, "version").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// reExec replaces the current process image with path. On success it does not
+// return; the new binary takes over with the same controlling terminal, so any
+// /dev/tty prompts in the reconcile phase still work.
+func (realSystem) reExec(path string, args []string) error {
+	return syscall.Exec(path, args, os.Environ())
 }
 
 func runLogged(name string, args ...string) error {

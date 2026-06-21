@@ -122,14 +122,15 @@ export default function ServerFormDialog({ server }: Props) {
           </>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit server' : 'Add server'}</DialogTitle>
           <DialogDescription>
             Connection details and game type are visible to all signed-in users.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form onSubmit={handleSubmit} className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4 overflow-hidden">
+          <div className="grid min-h-0 gap-4 overflow-y-auto px-1 -mx-1">
           <div className="grid gap-2">
             <Label htmlFor="name" className="text-muted-foreground">Name</Label>
             <Input id="name" name="name" defaultValue={server?.name ?? ''} required maxLength={80} />
@@ -220,6 +221,17 @@ export default function ServerFormDialog({ server }: Props) {
                 onCheckedChange={(checked) => setAgentHost((c) => ({ ...c, logParserEnabled: checked }))}
               />
             </div>
+            {isEdit && (
+              <div className="grid gap-1 rounded-md bg-muted/50 p-2">
+                <p className="text-xs text-muted-foreground">
+                  After saving agent-host changes, apply them on the host (no re-enroll or new token
+                  needed):
+                </p>
+                <code className="rounded bg-background px-2 py-1 font-mono text-xs select-all">
+                  sudo voz-gg-agent reprovision
+                </code>
+              </div>
+            )}
           </fieldset>
 
           <div className="grid gap-2">
@@ -233,6 +245,7 @@ export default function ServerFormDialog({ server }: Props) {
               placeholder="https://discord.com/api/webhooks/..."
             />
             <p className="text-xs text-muted-foreground">Presence alerts post here. Leave blank to disable.</p>
+          </div>
           </div>
 
           <DialogFooter showCloseButton>

@@ -62,6 +62,25 @@ func TestDispatchSubcommandHelpExitsZero(t *testing.T) {
 	}
 }
 
+func TestDispatchReprovisionMissingConfigFails(t *testing.T) {
+	var errb bytes.Buffer
+	// A nonexistent config can't be loaded → exit 1, no network attempted.
+	if code := dispatch([]string{"reprovision", "-config", "/nonexistent/voz-gg-agent.json"}, io.Discard, &errb); code != 1 {
+		t.Fatalf("reprovision with missing config exit = %d, want 1", code)
+	}
+	if !strings.Contains(errb.String(), "load config") {
+		t.Fatalf("stderr = %q, want it to mention load config", errb.String())
+	}
+}
+
+func TestDispatchUpdateRejectsUnknownFlag(t *testing.T) {
+	// An unknown flag must fail at parse time (exit 2) before any download is
+	// attempted, so the test never touches the network.
+	if code := dispatch([]string{"update", "--bogus"}, io.Discard, io.Discard); code != 2 {
+		t.Fatalf("update with unknown flag exit = %d, want 2", code)
+	}
+}
+
 func TestDispatchSetupRequiresFlags(t *testing.T) {
 	var errb bytes.Buffer
 	// No flags → missing required --enrollment-token/--worker-base-url → exit 2,

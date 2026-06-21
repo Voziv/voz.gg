@@ -72,13 +72,14 @@ describe('handleEnroll', () => {
 });
 
 describe('handleConfig', () => {
-  it('returns config + hash for a resolved server', async () => {
+  it('returns config + hash + provisioning for a resolved server', async () => {
     const { dao } = fakeDao();
     const res = await handleConfig(dao, server.id);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       config: buildAgentConfig(server),
       configHash: await configHash(buildAgentConfig(server)),
+      provisioning: buildProvisioning(server),
     });
   });
 
