@@ -98,6 +98,44 @@ func (c *Client) write(p packet) error {
 	return err
 }
 
+// Execute runs cmd and returns the concatenated response. It handles Minecraft's
+// multi-packet responses by sending an empty follow-up command: the server
+// answers it only after every fragment of the real response, so its echo is a
+// reliable end-of-response sentinel.
+func (c *Client) Execute(cmd string) (string, error) {
+	cmdID := c.id()
+	if err := c.write(packet{id: cmdID, typ: typeExecCommand, body: cmd}); err != nil {
+		return "", err
+	}
+	termID := c.id()
+	if err := c.write(packet{id: termID, typ: typeExecCommand, body: ""}); err != nil {
+		return "", err
+	}
+	var out []byte
+	for {
+		p, err := c.read()
+		if err != nil {
+			return "", err
+		}
+		switch p.id {
+		case termID:
+			return string(out), nil
+		case cmdID:
+			out = append(out, p.body...)
+		}
+	}
+}
+
+// Run dials, authenticates, executes one command, and closes.
+func Run(addr, password, cmd string, timeout time.Duration) (string, error) {
+	c, err := Dial(addr, password, timeout)
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	return c.Execute(cmd)
+}
+
 func (c *Client) read() (packet, error) {
 	if err := c.conn.SetReadDeadline(time.Now().Add(c.timeout)); err != nil {
 		return packet{}, err

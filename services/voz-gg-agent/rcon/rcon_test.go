@@ -115,3 +115,53 @@ func TestDialAuthFailure(t *testing.T) {
 		t.Fatalf("err = %v, want ErrAuthFailed", err)
 	}
 }
+
+func TestExecuteSinglePacket(t *testing.T) {
+	fs := newFakeServer(t, "secret", func(cmd string) []string {
+		if cmd != "list" {
+			t.Errorf("got cmd %q", cmd)
+		}
+		return []string{"There are 0 players online"}
+	})
+	c, err := Dial(fs.addr(), "secret", 2*time.Second)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+	got, err := c.Execute("list")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if got != "There are 0 players online" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestExecuteMultiPacket(t *testing.T) {
+	fs := newFakeServer(t, "secret", func(string) []string {
+		return []string{"frag-one;", "frag-two;", "frag-three"}
+	})
+	c, err := Dial(fs.addr(), "secret", 2*time.Second)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+	got, err := c.Execute("anything")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if got != "frag-one;frag-two;frag-three" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestRun(t *testing.T) {
+	fs := newFakeServer(t, "secret", func(string) []string { return []string{"done"} })
+	got, err := Run(fs.addr(), "secret", "save-all", 2*time.Second)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got != "done" {
+		t.Fatalf("got %q", got)
+	}
+}
