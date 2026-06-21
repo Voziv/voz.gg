@@ -41,6 +41,16 @@ const serverSchema = z.object({
     .boolean()
     .optional()
     .transform((v) => v ?? null),
+  discordWebhookUrl: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null))
+    .refine(
+      (v) => v === null || /^https:\/\/(canary\.|ptb\.)?discord(app)?\.com\/api\/(v\d+\/)?webhooks\/\d+\/[\w-]+$/.test(v),
+      'Must be a Discord webhook URL.',
+    ),
 });
 
 export type ServerInput = z.infer<typeof serverSchema>;
