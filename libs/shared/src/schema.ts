@@ -108,6 +108,7 @@ export const servers = sqliteTable('servers', {
   logPath: text('log_path'),
   monitorEnabled: integer('monitor_enabled', { mode: 'boolean' }),
   logParserEnabled: integer('log_parser_enabled', { mode: 'boolean' }),
+  discordWebhookUrl: text('discord_webhook_url'),
   createdBy: text('created_by').notNull().references(() => user.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -211,7 +212,10 @@ export const presenceEvents = sqliteTable('presence_events', {
   reason: text('reason'),
   occurredAt: integer('occurred_at', { mode: 'timestamp' }).notNull(),
   dedupeKey: text('dedupe_key').notNull().unique(),
-}, (table) => [index('presence_events_server_id_idx').on(table.serverId)]);
+}, (table) => [
+  index('presence_events_server_id_idx').on(table.serverId),
+  index('presence_events_server_id_identity_key_idx').on(table.serverId, table.identityKey),
+]);
 
 // A unified person across game identities. displayName/notes/userId are
 // populated/edited in later sub-projects; auto-link sets userId here.
@@ -222,6 +226,7 @@ export const player = sqliteTable('player', {
   notes: text('notes'),
   status: text('status').notNull().$type<PlayerStatus>().default('new'),
   isBot: integer('is_bot', { mode: 'boolean' }).notNull().default(false),
+  muted: integer('muted', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (table) => [index('player_user_id_idx').on(table.userId)]);
@@ -269,4 +274,25 @@ export const playerGroupTag = sqliteTable(
       .references(() => groupTag.id, { onDelete: 'cascade' }),
   },
   (table) => [primaryKey({ columns: [table.playerId, table.groupTagId] })],
+);
+
+export const NOTIFICATION_TRIGGERS = [
+  'bot_escalation', 'blocked_return', 'first_sighting', 'new_player_rejection',
+] as const;
+export type NotificationTrigger = (typeof NOTIFICATION_TRIGGERS)[number];
+
+// Business-level dedup/cooldown + audit for Discord presence notifications.
+export const notificationLog = sqliteTable(
+  'notification_log',
+  {
+    id: text('id').primaryKey(),
+    serverId: text('server_id')
+      .notNull()
+      .references(() => servers.id, { onDelete: 'cascade' }),
+    identityKind: text('identity_kind').notNull().$type<PlayerIdentityKind>(),
+    identityKey: text('identity_key').notNull(),
+    trigger: text('trigger').notNull().$type<NotificationTrigger>(),
+    occurredAt: integer('occurred_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [index('notification_log_lookup_idx').on(table.serverId, table.identityKey, table.trigger)],
 );
