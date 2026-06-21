@@ -60,3 +60,35 @@ export function canTransferOwnership(ctx: GuardContext): GuardResult {
   if (ctx.targetRole === 'owner') return deny(409, 'There can only be one owner.');
   return ALLOW;
 }
+
+export type RowActionAvailability = {
+  ban: boolean;
+  unban: boolean;
+  revokeSessions: boolean;
+  makeAdmin: boolean;
+  demote: boolean;
+  transferOwnership: boolean;
+  delete: boolean;
+  /** true if at least one of the above is true */
+  any: boolean;
+};
+
+export function rowActionAvailability(ctx: GuardContext): RowActionAvailability {
+  const ban = canActOnTarget(ctx, 'ban').ok;
+  const unban = canActOnTarget(ctx, 'unban').ok;
+  const revokeSessions = canActOnTarget(ctx, 'revoke-sessions').ok;
+  const makeAdmin = ctx.targetRole === 'user' && canSetRole(ctx, 'admin').ok;
+  const demote = ctx.targetRole === 'admin' && canSetRole(ctx, 'user').ok;
+  const transferOwnership = canTransferOwnership(ctx).ok;
+  const del = canActOnTarget(ctx, 'delete').ok;
+  return {
+    ban,
+    unban,
+    revokeSessions,
+    makeAdmin,
+    demote,
+    transferOwnership,
+    delete: del,
+    any: ban || unban || revokeSessions || makeAdmin || demote || transferOwnership || del,
+  };
+}
