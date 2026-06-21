@@ -1,3 +1,4 @@
+export * from './chunk';
 export * from './schema';
 export * from './client';
 export * from './types';

@@ -1,4 +1,5 @@
 import {
+  chunk,
   createDb,
   serverIdForAgentToken,
   createPresenceDao,
@@ -9,6 +10,8 @@ import {
   type NotifyMessage,
   type DiscordPayload,
 } from '@voz/shared';
+
+const QUEUE_BATCH_LIMIT = 100;
 
 interface Env {
   DB: D1Database;
@@ -50,7 +53,13 @@ export default {
 
       const result = await handlePresenceBatch(createPresenceDao(db), serverId, parsed.events, new Date());
       if (result.notable.length > 0) {
-        await env.NOTIFY_QUEUE.sendBatch(result.notable.map((body) => ({ body })));
+        try {
+          for (const group of chunk(result.notable, QUEUE_BATCH_LIMIT)) {
+            await env.NOTIFY_QUEUE.sendBatch(group.map((body) => ({ body })));
+          }
+        } catch (err) {
+          console.error('failed to enqueue notifications; ingest unaffected', err);
+        }
       }
       return Response.json({ accepted: result.accepted, deduped: result.deduped, rejected: parsed.rejected });
     }
