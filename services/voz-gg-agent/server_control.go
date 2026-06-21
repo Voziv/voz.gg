@@ -268,7 +268,7 @@ func reconcileServerControl(sys systemOps, sc serverControlCapability, rconPassw
 		"broadcast-rcon-to-ops": "false",
 	})
 	if updated != existing {
-		if err := sys.writeFile(propsPath, []byte(updated), 0o644); err != nil {
+		if err := sys.writeFile(propsPath, []byte(updated), 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", propsPath, err)
 		}
 		_ = sys.chownRecursive(propsPath, sc.ServerUser, sc.ServerUser)

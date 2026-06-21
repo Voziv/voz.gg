@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -483,5 +484,49 @@ func TestSetupInteractiveTTYOpenFailureFails(t *testing.T) {
 	code := runSetupWith(opts, sys, fakeEnroll(logparseEnroll("/home/minecraft/logs"), nil), &bytes.Buffer{}, &errb)
 	if code != 1 || !strings.Contains(errb.String(), "non-interactive") {
 		t.Fatalf("expected tty-open failure to advise --non-interactive: code=%d err=%q", code, errb.String())
+	}
+}
+
+// TestSetupPreservesRconPasswordOnRerun is a regression test for the mint-once
+// violation: re-running setup over an existing install must not rotate the RCON
+// password, otherwise the already-running JVM can no longer auth RCON stop.
+func TestSetupPreservesRconPasswordOnRerun(t *testing.T) {
+	// Pre-write a monitor.json with a known RCON password (simulates existing install).
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "monitor.json")
+	if err := SaveConfig(configPath, Config{
+		WorkerBaseURL: "https://voz.gg",
+		AgentToken:    "old-AT",
+		RCON:          rconConfig{Password: "keep-this-password", Port: 25575},
+	}); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+
+	resp := sampleEnroll()
+	resp.Provisioning.Capabilities.ServerControl = serverControlCapability{
+		Enabled: true, Slug: "survival", ServerUser: "minecraft",
+		WorkingDir: "/home/minecraft/server", StartCommand: "./run.sh", RconPort: 25575,
+	}
+
+	sys := newFakeSystem()
+	opts := baseOpts()
+	opts.ConfigPath = configPath
+
+	var out, errb bytes.Buffer
+	code := runSetupWith(opts, sys, fakeEnroll(resp, nil), &out, &errb)
+	if code != 0 {
+		t.Fatalf("exit = %d (stderr=%q)", code, errb.String())
+	}
+
+	raw, ok := sys.files[configPath]
+	if !ok {
+		t.Fatal("config not written by setup")
+	}
+	var written Config
+	if err := json.Unmarshal(raw, &written); err != nil {
+		t.Fatalf("unmarshal written config: %v", err)
+	}
+	if written.RCON.Password != "keep-this-password" {
+		t.Fatalf("RCON password rotated on re-run: got %q, want %q", written.RCON.Password, "keep-this-password")
 	}
 }

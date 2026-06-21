@@ -100,6 +100,11 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 		ConfigHash:    resp.ConfigHash,
 		Server:        resp.Config,
 	}
+	// Seed RCON from the existing config so a re-run does not rotate the password.
+	// LoadConfig errors (file absent on a fresh install) are intentionally ignored.
+	if existing, err := LoadConfig(opts.ConfigPath); err == nil {
+		cfg.RCON = existing.RCON
+	}
 	sc := resp.Provisioning.Capabilities.ServerControl
 	if _, err := ensureRconPassword(&cfg, sc); err != nil {
 		fmt.Fprintf(stderr, "setup: %v\n", err)
