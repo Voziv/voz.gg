@@ -35,7 +35,8 @@ type provisioning struct {
 }
 
 type capabilities struct {
-	LogParser logParserCapability `json:"logParser"`
+	LogParser     logParserCapability     `json:"logParser"`
+	ServerControl serverControlCapability `json:"serverControl"`
 }
 
 // logParserCapability mirrors apps/web buildProvisioning's capabilities.logParser.
@@ -98,6 +99,16 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 		AgentToken:    resp.AgentToken,
 		ConfigHash:    resp.ConfigHash,
 		Server:        resp.Config,
+	}
+	// Seed RCON from the existing config so a re-run does not rotate the password.
+	// LoadConfig errors (file absent on a fresh install) are intentionally ignored.
+	if existing, err := LoadConfig(opts.ConfigPath); err == nil {
+		cfg.RCON = existing.RCON
+	}
+	sc := resp.Provisioning.Capabilities.ServerControl
+	if _, err := ensureRconPassword(&cfg, sc); err != nil {
+		fmt.Fprintf(stderr, "setup: %v\n", err)
+		return 1
 	}
 	raw, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -169,6 +180,11 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 	fmt.Fprintf(stdout, "voz-gg-agent monitor installed and started as %s:%s\n", runAsUser, runAsGroup)
 
 	if err := reconcileLogparse(sys, resp.Provisioning.Capabilities.LogParser, opts.ExecPath, opts.ConfigPath, runAsUser, runAsGroup, opts.NonInteractive, false, opts.OpenTTY, stdout); err != nil {
+		fmt.Fprintf(stderr, "setup: %v\n", err)
+		return 1
+	}
+
+	if err := reconcileServerControl(sys, sc, cfg.RCON.Password, cfg.RCON.Port, opts.ExecPath, opts.ConfigPath, stdout); err != nil {
 		fmt.Fprintf(stderr, "setup: %v\n", err)
 		return 1
 	}

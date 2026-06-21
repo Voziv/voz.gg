@@ -16,11 +16,17 @@ type ServerConfig struct {
 	PollIntervalSeconds int    `json:"pollIntervalSeconds"`
 }
 
+type rconConfig struct {
+	Password string `json:"password,omitempty"`
+	Port     int    `json:"port,omitempty"`
+}
+
 type Config struct {
 	WorkerBaseURL string       `json:"workerBaseUrl"`
 	AgentToken    string       `json:"agentToken"`
 	ConfigHash    string       `json:"configHash"`
 	Server        ServerConfig `json:"config"`
+	RCON          rconConfig   `json:"rcon,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {

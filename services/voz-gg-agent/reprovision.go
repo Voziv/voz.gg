@@ -38,6 +38,11 @@ func runReprovisionWith(opts reprovisionOptions, cfg Config, sys systemOps, fetc
 
 	cfg.Server = resp.Config
 	cfg.ConfigHash = resp.ConfigHash
+	sc := resp.Provisioning.Capabilities.ServerControl
+	if _, err := ensureRconPassword(&cfg, sc); err != nil {
+		fmt.Fprintf(stderr, "reprovision: %v\n", err)
+		return 1
+	}
 	if err := save(cfg); err != nil {
 		fmt.Fprintf(stderr, "reprovision: write config: %v\n", err)
 		return 1
@@ -69,6 +74,11 @@ func runReprovisionWith(opts reprovisionOptions, cfg Config, sys systemOps, fetc
 			fmt.Fprintf(stderr, "reprovision: restart logparse: %v\n", err)
 			return 1
 		}
+	}
+
+	if err := reconcileServerControl(sys, sc, cfg.RCON.Password, cfg.RCON.Port, opts.ExecPath, opts.ConfigPath, stdout); err != nil {
+		fmt.Fprintf(stderr, "reprovision: %v\n", err)
+		return 1
 	}
 
 	fmt.Fprintf(stdout, "voz-gg-agent reprovisioned as %s:%s\n", runAsUser, runAsGroup)

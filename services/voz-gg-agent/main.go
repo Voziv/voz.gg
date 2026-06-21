@@ -35,6 +35,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  reprovision   re-fetch config + capabilities with the existing token and reconcile units")
 	fmt.Fprintln(w, "  update        self-update to the latest release, then refresh config and restart units")
 	fmt.Fprintln(w, "  logparse      parse the game-server log and report player presence")
+	fmt.Fprintln(w, "  rcon          run an RCON command against the local server")
 	fmt.Fprintln(w, "  version       print the version")
 }
 
@@ -63,6 +64,8 @@ func dispatch(args []string, stdout, stderr io.Writer) int {
 		return runUpdate(args[1:], stdout, stderr)
 	case "logparse":
 		return runLogparse(args[1:], stderr)
+	case "rcon":
+		return runRcon(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		usage(stderr)

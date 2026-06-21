@@ -81,6 +81,17 @@ func TestDispatchUpdateRejectsUnknownFlag(t *testing.T) {
 	}
 }
 
+func TestDispatchRconMissingCredsIsError(t *testing.T) {
+	var errb bytes.Buffer
+	code := dispatch([]string{"rcon", "-config", "/nonexistent/monitor.json", "list"}, io.Discard, &errb)
+	if code == 0 {
+		t.Fatalf("rcon exit = %d, want non-zero", code)
+	}
+	if !strings.Contains(errb.String(), "rcon:") {
+		t.Fatalf("stderr = %q, want an rcon error", errb.String())
+	}
+}
+
 func TestDispatchSetupRequiresFlags(t *testing.T) {
 	var errb bytes.Buffer
 	// No flags → missing required --enrollment-token/--worker-base-url → exit 2,
