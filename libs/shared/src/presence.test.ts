@@ -48,7 +48,7 @@ describe('handlePresenceBatch', () => {
   it('inserts new events, ensures + links minecraft identities, and counts accepted', async () => {
     const { dao, calls } = fakeDao();
     const res = await handlePresenceBatch(dao, 'srv1', [join('u1', '2026-06-13T10:00:00Z')], now);
-    expect(res).toMatchObject({ accepted: 1, deduped: 0 });
+    expect(res).toEqual({ accepted: 1, deduped: 0, notable: [expect.objectContaining({ type: 'join', identityKey: 'u1' })] });
     expect(calls.ensured).toEqual([`minecraft:u1:Steve:${now.toISOString()}`]);
     expect(calls.linked).toEqual(['minecraft:u1']);
   });
@@ -56,8 +56,8 @@ describe('handlePresenceBatch', () => {
   it('dedupes a replayed batch — second pass inserts nothing', async () => {
     const seen = new Set<string>();
     const batch = [join('u1', '2026-06-13T10:00:00Z')];
-    expect(await handlePresenceBatch(fakeDao(seen).dao, 'srv1', batch, now)).toMatchObject({ accepted: 1, deduped: 0 });
-    expect(await handlePresenceBatch(fakeDao(seen).dao, 'srv1', batch, now)).toMatchObject({ accepted: 0, deduped: 1 });
+    expect(await handlePresenceBatch(fakeDao(seen).dao, 'srv1', batch, now)).toEqual({ accepted: 1, deduped: 0, notable: [expect.objectContaining({ type: 'join', identityKey: 'u1' })] });
+    expect(await handlePresenceBatch(fakeDao(seen).dao, 'srv1', batch, now)).toEqual({ accepted: 0, deduped: 1, notable: [] });
   });
 
   it('skips identity work for lifecycle events', async () => {
