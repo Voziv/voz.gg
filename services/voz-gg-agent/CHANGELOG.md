@@ -1,3 +1,13 @@
+## 0.7.1 (2026-06-21)
+
+### 🩹 Fixes
+
+- **voz-gg-agent:** reuse log dir on update without re-prompting ([ac9cdfa](https://github.com/Voziv/voz.gg/commit/ac9cdfa))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.7.0 (2026-06-21)
 
 ### 🚀 Features
