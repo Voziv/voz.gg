@@ -171,18 +171,25 @@ export async function handleNotificationMessage(
 
   const { status } = await post(server.discordWebhookUrl, payload);
   if (status >= 200 && status < 300) {
-    await dao.recordNotification({
-      serverId: msg.serverId,
-      identityKind: msg.identityKind,
-      identityKey: msg.identityKey,
-      trigger,
-      occurredAt: msg.occurredAt,
-    });
+    // The Discord send already happened; a failed audit write must not propagate,
+    // or the queue would retry and re-POST the same notification.
+    try {
+      await dao.recordNotification({
+        serverId: msg.serverId,
+        identityKind: msg.identityKind,
+        identityKey: msg.identityKey,
+        trigger,
+        occurredAt: msg.occurredAt,
+      });
+    } catch (err) {
+      console.warn(`Discord notification sent for ${msg.serverId} but recording the log failed:`, err);
+    }
     return;
   }
-  if (status >= 500) {
+  // 5xx and 429 (rate limited) are transient — throw so the queue retries.
+  if (status >= 500 || status === 429) {
     throw new Error(`Discord webhook returned ${status}`);
   }
-  // 4xx: bad/removed webhook — drop without retry.
+  // Other 4xx: bad/removed webhook — drop without retry.
   console.warn(`Discord webhook ${msg.serverId} returned ${status}; dropping notification.`);
 }

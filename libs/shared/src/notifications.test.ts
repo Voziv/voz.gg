@@ -135,6 +135,18 @@ describe('handleNotificationMessage', () => {
     const post: DiscordPost = async () => ({ status: 500 });
     await expect(handleNotificationMessage(dao, post, msg, 'https://voz.gg')).rejects.toThrow();
   });
+  it('throws on a 429 so the queue retries (rate limited, not dropped)', async () => {
+    const { dao } = fakeNotifyDao();
+    const post: DiscordPost = async () => ({ status: 429 });
+    await expect(handleNotificationMessage(dao, post, msg, 'https://voz.gg')).rejects.toThrow();
+  });
+  it('does not propagate a failed audit write (avoids re-sending on retry)', async () => {
+    const { dao } = fakeNotifyDao({
+      async recordNotification() { throw new Error('transient D1 failure'); },
+    });
+    const post: DiscordPost = async () => ({ status: 204 });
+    await expect(handleNotificationMessage(dao, post, msg, 'https://voz.gg')).resolves.toBeUndefined();
+  });
   it('does not post when the player is unknown', async () => {
     const { dao } = fakeNotifyDao({ async loadPlayer() { return null; } });
     let posted = false;
