@@ -41,6 +41,29 @@ const serverSchema = z.object({
     .boolean()
     .optional()
     .transform((v) => v ?? null),
+  serverControlEnabled: z
+    .boolean()
+    .optional()
+    .transform((v) => v ?? null),
+  serverWorkingDir: z
+    .string()
+    .trim()
+    .max(4096)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null))
+    .refine((v) => v === null || v.startsWith('/'), 'Working directory must be absolute.'),
+  startCommand: z
+    .string()
+    .trim()
+    .max(1024)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  restartSchedule: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null))
+    .refine((v) => v === null || /^([01]\d|2[0-3]):[0-5]\d$/.test(v), 'Restart time must be UTC HH:MM.'),
   discordWebhookUrl: z
     .string()
     .trim()
@@ -51,6 +74,22 @@ const serverSchema = z.object({
       (v) => v === null || /^https:\/\/(canary\.|ptb\.)?discord(app)?\.com\/api\/(v\d+\/)?webhooks\/\d+\/[\w-]+$/.test(v),
       'Must be a Discord webhook URL.',
     ),
+}).superRefine((data, ctx) => {
+  if (data.serverControlEnabled) {
+    for (const [field, value] of [
+      ['gameServerUser', data.gameServerUser],
+      ['serverWorkingDir', data.serverWorkingDir],
+      ['startCommand', data.startCommand],
+    ] as const) {
+      if (!value) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: 'Required when server management is enabled.',
+        });
+      }
+    }
+  }
 });
 
 export type ServerInput = z.infer<typeof serverSchema>;
