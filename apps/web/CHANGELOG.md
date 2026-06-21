@@ -1,3 +1,13 @@
+## 0.20.2 (2026-06-21)
+
+### 🚀 Features
+
+- **voz-gg-agent:** add reprovision and self-update commands ([21afc6d](https://github.com/Voziv/voz.gg/commit/21afc6d))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.20.1 (2026-06-21)
 
 ### 🩹 Fixes
