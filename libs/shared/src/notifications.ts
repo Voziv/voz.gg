@@ -1,4 +1,4 @@
-import type { PlayerStatus, NotificationTrigger } from './schema';
+import type { PlayerIdentityKind, PlayerStatus, NotificationTrigger } from './schema';
 
 export { NOTIFICATION_TRIGGERS } from './schema';
 export type { NotificationTrigger } from './schema';
@@ -103,4 +103,86 @@ export function formatNotification(args: FormatArgs): DiscordPayload {
       },
     ],
   };
+}
+
+export interface NotifyMessage {
+  serverId: string;
+  type: 'join' | 'connection_rejected';
+  identityKind: PlayerIdentityKind;
+  identityKey: string;
+  playerName: string | null;
+  reason: string | null;
+  occurredAt: number; // epoch seconds
+}
+
+export interface NotificationDao {
+  loadPlayer(kind: PlayerIdentityKind, key: string): Promise<{
+    id: string; displayName: string | null; status: PlayerStatus; isBot: boolean; muted: boolean;
+  } | null>;
+  loadServer(serverId: string): Promise<{ name: string; discordWebhookUrl: string | null } | null>;
+  lastSentByTrigger(serverId: string, identityKey: string): Promise<Partial<Record<NotificationTrigger, number>>>;
+  hasPriorJoin(serverId: string, identityKey: string, beforeEpochSeconds: number): Promise<boolean>;
+  recordNotification(row: {
+    serverId: string; identityKind: PlayerIdentityKind; identityKey: string;
+    trigger: NotificationTrigger; occurredAt: number;
+  }): Promise<void>;
+}
+
+export type DiscordPost = (url: string, payload: DiscordPayload) => Promise<{ status: number }>;
+
+// Processes one queue message. Throws on a retryable failure (5xx / network) so the
+// queue redelivers; returns normally (ack) on success, no-op, or a 4xx drop.
+export async function handleNotificationMessage(
+  dao: NotificationDao,
+  post: DiscordPost,
+  msg: NotifyMessage,
+  siteUrl: string,
+): Promise<void> {
+  const player = await dao.loadPlayer(msg.identityKind, msg.identityKey);
+  if (!player) return;
+
+  const server = await dao.loadServer(msg.serverId);
+  if (!server || !server.discordWebhookUrl) return;
+
+  const lastSentAt = await dao.lastSentByTrigger(msg.serverId, msg.identityKey);
+  const hasPriorJoin =
+    msg.type === 'join' ? await dao.hasPriorJoin(msg.serverId, msg.identityKey, msg.occurredAt) : true;
+
+  const pending = evaluateNotifications({
+    type: msg.type,
+    status: player.status,
+    isBot: player.isBot,
+    muted: player.muted,
+    hasPriorJoin,
+    occurredAt: msg.occurredAt,
+    lastSentAt,
+  });
+  if (pending.length === 0) return;
+
+  const { trigger } = pending[0];
+  const payload = formatNotification({
+    trigger,
+    serverName: server.name,
+    playerName: msg.playerName ?? player.displayName ?? msg.identityKey,
+    playerId: player.id,
+    siteUrl,
+    reason: msg.reason,
+  });
+
+  const { status } = await post(server.discordWebhookUrl, payload);
+  if (status >= 200 && status < 300) {
+    await dao.recordNotification({
+      serverId: msg.serverId,
+      identityKind: msg.identityKind,
+      identityKey: msg.identityKey,
+      trigger,
+      occurredAt: msg.occurredAt,
+    });
+    return;
+  }
+  if (status >= 500) {
+    throw new Error(`Discord webhook returned ${status}`);
+  }
+  // 4xx: bad/removed webhook — drop without retry.
+  console.warn(`Discord webhook ${msg.serverId} returned ${status}; dropping notification.`);
 }
