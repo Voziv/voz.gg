@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"sort"
+	"strings"
 )
 
 const defaultRconPort = 25575
@@ -53,4 +55,61 @@ func generatePassword() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// setProperties returns content with each key in updates set to its value:
+// existing keys are rewritten in place (order and unrelated lines preserved),
+// missing keys are appended in sorted order. When nothing changes the output is
+// byte-identical to the input.
+func setProperties(content string, updates map[string]string) string {
+	done := map[string]bool{}
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		eq := strings.IndexByte(line, '=')
+		if eq < 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:eq])
+		if v, ok := updates[key]; ok {
+			lines[i] = key + "=" + v
+			done[key] = true
+		}
+	}
+	var missing []string
+	for k := range updates {
+		if !done[k] {
+			missing = append(missing, k)
+		}
+	}
+	sort.Strings(missing)
+	out := strings.Join(lines, "\n")
+	for _, k := range missing {
+		if out != "" && !strings.HasSuffix(out, "\n") {
+			out += "\n"
+		}
+		out += k + "=" + updates[k] + "\n"
+	}
+	return out
+}
+
+// readProperty returns the value of key, or "" if absent.
+func readProperty(content, key string) string {
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		eq := strings.IndexByte(line, '=')
+		if eq < 0 {
+			continue
+		}
+		if strings.TrimSpace(line[:eq]) == key {
+			return strings.TrimSpace(line[eq+1:])
+		}
+	}
+	return ""
 }

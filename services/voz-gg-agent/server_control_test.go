@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestEnsureRconPasswordMintsOnce(t *testing.T) {
 	cfg := &Config{}
@@ -51,5 +54,47 @@ func TestEnsureRconPasswordDefaultsPort(t *testing.T) {
 	}
 	if cfg.RCON.Port != defaultRconPort {
 		t.Fatalf("port = %d, want %d", cfg.RCON.Port, defaultRconPort)
+	}
+}
+
+func TestSetPropertiesUpdatesAndPreserves(t *testing.T) {
+	in := "# header\nmotd=Hello World\nenable-rcon=false\nmax-players=20\n"
+	out := setProperties(in, map[string]string{
+		"enable-rcon":   "true",
+		"rcon.port":     "25575",
+		"rcon.password": "s3cret",
+	})
+	// Untouched keys stay byte-stable, in place.
+	if !strings.Contains(out, "# header\n") || !strings.Contains(out, "motd=Hello World\n") || !strings.Contains(out, "max-players=20\n") {
+		t.Fatalf("unrelated lines not preserved:\n%s", out)
+	}
+	// Existing key updated in place (not appended).
+	if !strings.Contains(out, "enable-rcon=true") || strings.Contains(out, "enable-rcon=false") {
+		t.Fatalf("enable-rcon not updated in place:\n%s", out)
+	}
+	// Missing keys appended.
+	if !strings.Contains(out, "rcon.port=25575\n") || !strings.Contains(out, "rcon.password=s3cret\n") {
+		t.Fatalf("missing keys not appended:\n%s", out)
+	}
+}
+
+func TestSetPropertiesNoChangeIsByteStable(t *testing.T) {
+	in := "enable-rcon=true\nrcon.port=25575\n"
+	out := setProperties(in, map[string]string{"enable-rcon": "true", "rcon.port": "25575"})
+	if out != in {
+		t.Fatalf("expected byte-stable output, got:\n%q", out)
+	}
+}
+
+func TestReadProperty(t *testing.T) {
+	in := "# c\nrcon.password=abc123\nrcon.port=12345\n"
+	if got := readProperty(in, "rcon.password"); got != "abc123" {
+		t.Fatalf("password = %q", got)
+	}
+	if got := readProperty(in, "rcon.port"); got != "12345" {
+		t.Fatalf("port = %q", got)
+	}
+	if got := readProperty(in, "absent"); got != "" {
+		t.Fatalf("absent = %q, want empty", got)
 	}
 }
