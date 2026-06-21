@@ -53,7 +53,7 @@ func runReprovisionWith(opts reprovisionOptions, cfg Config, sys systemOps, fetc
 	runAsUser := firstNonEmpty(opts.RunAsUser, resp.Provisioning.RunAsUser, defaultRunAs)
 	runAsGroup := firstNonEmpty(opts.RunAsGroup, resp.Provisioning.RunAsGroup, defaultRunAs)
 
-	if err := reconcileLogparse(sys, resp.Provisioning.Capabilities.LogParser, opts.ExecPath, opts.ConfigPath, runAsUser, runAsGroup, opts.NonInteractive, opts.OpenTTY, stdout); err != nil {
+	if err := reconcileLogparse(sys, resp.Provisioning.Capabilities.LogParser, opts.ExecPath, opts.ConfigPath, runAsUser, runAsGroup, opts.NonInteractive, true, opts.OpenTTY, stdout); err != nil {
 		fmt.Fprintf(stderr, "reprovision: %v\n", err)
 		return 1
 	}

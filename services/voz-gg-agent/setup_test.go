@@ -62,6 +62,13 @@ func (f *fakeSystem) writeFile(p string, d []byte, perm uint32) error {
 	f.filePerms[p] = perm
 	return nil
 }
+func (f *fakeSystem) readFile(p string) ([]byte, error) {
+	d, ok := f.files[p]
+	if !ok {
+		return nil, errors.New("readFile: missing " + p)
+	}
+	return d, nil
+}
 func (f *fakeSystem) chownRecursive(p, u, g string) error {
 	f.chowns = append(f.chowns, p+" "+u+":"+g)
 	return nil
