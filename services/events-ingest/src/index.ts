@@ -1,14 +1,32 @@
 import {
+  chunk,
   createDb,
   serverIdForAgentToken,
   createPresenceDao,
+  createNotificationDao,
   handlePresenceBatch,
+  handleNotificationMessage,
   parsePresenceBody,
+  type NotifyMessage,
+  type DiscordPayload,
 } from '@voz/shared';
+
+const QUEUE_BATCH_LIMIT = 100;
 
 interface Env {
   DB: D1Database;
+  NOTIFY_QUEUE: Queue<NotifyMessage>;
+  SITE_URL: string;
 }
+
+const postDiscord = async (url: string, payload: DiscordPayload): Promise<{ status: number }> => {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return { status: res.status };
+};
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -34,9 +52,31 @@ export default {
       if (!parsed.ok) return Response.json({ error: 'Invalid presence body.' }, { status: 400 });
 
       const result = await handlePresenceBatch(createPresenceDao(db), serverId, parsed.events, new Date());
-      return Response.json({ ...result, rejected: parsed.rejected });
+      if (result.notable.length > 0) {
+        try {
+          for (const group of chunk(result.notable, QUEUE_BATCH_LIMIT)) {
+            await env.NOTIFY_QUEUE.sendBatch(group.map((body) => ({ body })));
+          }
+        } catch (err) {
+          console.error('failed to enqueue notifications; ingest unaffected', err);
+        }
+      }
+      return Response.json({ accepted: result.accepted, deduped: result.deduped, rejected: parsed.rejected });
     }
 
     return Response.json({ error: 'not found' }, { status: 404 });
   },
-} satisfies ExportedHandler<Env>;
+
+  async queue(batch: MessageBatch<NotifyMessage>, env: Env): Promise<void> {
+    const dao = createNotificationDao(createDb(env.DB));
+    for (const message of batch.messages) {
+      try {
+        await handleNotificationMessage(dao, postDiscord, message.body, env.SITE_URL);
+        message.ack();
+      } catch (err) {
+        console.error('notification delivery failed; retrying', err);
+        message.retry();
+      }
+    }
+  },
+} satisfies ExportedHandler<Env, NotifyMessage>;

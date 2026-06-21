@@ -38,6 +38,7 @@ type ServerData = {
   gameServerUser: string | null;
   logPath: string | null;
   logParserEnabled: boolean | null;
+  discordWebhookUrl: string | null;
 };
 type Props = { server?: ServerData };
 
@@ -74,6 +75,7 @@ export default function ServerFormDialog({ server }: Props) {
       gameServerUser: form.get('gameServerUser'),
       logPath: form.get('logPath'),
       logParserEnabled: agentHost.logParserEnabled,
+      discordWebhookUrl: form.get('discordWebhookUrl'),
     };
     setPending(true);
     try {
@@ -219,6 +221,19 @@ export default function ServerFormDialog({ server }: Props) {
               />
             </div>
           </fieldset>
+
+          <div className="grid gap-2">
+            <Label htmlFor="discordWebhookUrl" className="text-muted-foreground">Discord webhook URL</Label>
+            <Input
+              id="discordWebhookUrl"
+              name="discordWebhookUrl"
+              type="url"
+              defaultValue={server?.discordWebhookUrl ?? ''}
+              maxLength={200}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            <p className="text-xs text-muted-foreground">Presence alerts post here. Leave blank to disable.</p>
+          </div>
 
           <DialogFooter showCloseButton>
             <Button type="submit" disabled={pending}>

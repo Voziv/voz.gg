@@ -25,6 +25,7 @@ describe('parseServerInput', () => {
         gameServerUser: null,
         logPath: null,
         logParserEnabled: null,
+        discordWebhookUrl: null,
       });
     }
   });
@@ -134,6 +135,25 @@ describe('logParserEnabled', () => {
 
   it('rejects a non-boolean', () => {
     const r = parseServerInput({ ...base, logParserEnabled: 'yes' });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe('parseServerInput discordWebhookUrl', () => {
+  const valid = { name: 'S', gameType: 'minecraft-java', host: 'example.com', port: 25565 };
+
+  it('accepts a discord webhook url', () => {
+    const r = parseServerInput({ ...valid, discordWebhookUrl: 'https://discord.com/api/webhooks/123/abcDEF-_' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.discordWebhookUrl).toBe('https://discord.com/api/webhooks/123/abcDEF-_');
+  });
+  it('coerces blank to null', () => {
+    const r = parseServerInput({ ...valid, discordWebhookUrl: '' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.discordWebhookUrl).toBeNull();
+  });
+  it('rejects a non-discord url', () => {
+    const r = parseServerInput({ ...valid, discordWebhookUrl: 'https://evil.example.com/hook' });
     expect(r.ok).toBe(false);
   });
 });

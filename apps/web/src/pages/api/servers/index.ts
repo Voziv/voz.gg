@@ -31,6 +31,7 @@ export const POST: APIRoute = async (ctx) => {
     gameServerUser: parsed.data.gameServerUser,
     logPath: parsed.data.logPath,
     logParserEnabled: parsed.data.logParserEnabled,
+    discordWebhookUrl: parsed.data.discordWebhookUrl,
     createdBy: user.id,
     createdAt: now,
     updatedAt: now,

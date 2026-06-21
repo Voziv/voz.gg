@@ -12,6 +12,7 @@ export interface PlayerCore {
   notes: string | null;
   status: PlayerStatus;
   isBot: boolean;
+  muted: boolean;
   userId: string | null;
 }
 
@@ -25,6 +26,7 @@ export type PlayerFieldsUpdate = {
   displayName?: string | null;
   status?: PlayerStatus;
   isBot?: boolean;
+  muted?: boolean;
   notes?: string | null;
 };
 
@@ -41,6 +43,7 @@ const playerFieldsSchema = z.object({
   displayName: z.string().max(120).nullable().optional(),
   status: z.enum(PLAYER_STATUSES).optional(),
   isBot: z.boolean().optional(),
+  muted: z.boolean().optional(),
   notes: z.string().max(10_000).nullable().optional(),
 });
 
@@ -53,6 +56,7 @@ export function parsePlayerFieldsInput(
   if ('displayName' in parsed.data) out.displayName = blankToNull(parsed.data.displayName);
   if ('status' in parsed.data) out.status = parsed.data.status;
   if ('isBot' in parsed.data) out.isBot = parsed.data.isBot;
+  if ('muted' in parsed.data) out.muted = parsed.data.muted;
   if ('notes' in parsed.data) out.notes = blankToNull(parsed.data.notes);
   if (Object.keys(out).length === 0) return { ok: false, error: 'No fields to update.' };
   return { ok: true, data: out };

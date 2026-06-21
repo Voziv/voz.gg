@@ -128,6 +128,17 @@ admin-gated routes `PATCH /api/players/<id>`, `POST|DELETE /api/players/<id>/gro
 Base UI `select`/`combobox` primitives. IP columns stay empty until the #25a PR-2
 log producer captures join IPs.
 
+### Presence notifications (#25c)
+
+`events-ingest` is both producer and consumer of the `voz-gg-notifications` queue.
+`handlePresenceBatch` returns `notable` events (newly-inserted join/connection_rejected
+with an identity); the `fetch` handler enqueues them and the `queue` handler runs the pure
+`evaluateNotifications` (`libs/shared/src/notifications.ts`), POSTs a per-server
+`discordWebhookUrl`, and writes a `notification_log` row for dedup/cooldown/audit. Four
+triggers (bot/muted escalation, blocked-return, first-sighting, new-player-rejection) with
+per-player `muted` silencing the routine three. One-time setup before deploy:
+`wrangler queues create voz-gg-notifications`.
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.
