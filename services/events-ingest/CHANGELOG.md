@@ -1,3 +1,21 @@
+## 0.3.0 (2026-06-21)
+
+### 🚀 Features
+
+- **events-ingest:** enqueue and consume notifications ([79ccf42](https://github.com/Voziv/voz.gg/commit/79ccf42))
+
+### 🩹 Fixes
+
+- **events-ingest:** chunk and guard notification enqueue ([673e8d4](https://github.com/Voziv/voz.gg/commit/673e8d4))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.9.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.2.3 (2026-06-15)
 
 ### 🧱 Updated Dependencies

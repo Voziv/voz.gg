@@ -1,3 +1,19 @@
+## 0.20.0 (2026-06-21)
+
+### 🚀 Features
+
+- **web:** add per-server discord webhook url ([aff6ed9](https://github.com/Voziv/voz.gg/commit/aff6ed9))
+- **web:** add per-player muted toggle ([a235b01](https://github.com/Voziv/voz.gg/commit/a235b01))
+- **shared:** add muted, webhook url, notification_log schema ([e7f6100](https://github.com/Voziv/voz.gg/commit/e7f6100))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.9.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.19.0 (2026-06-15)
 
 ### 🚀 Features

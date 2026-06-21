@@ -1,3 +1,24 @@
+## 0.9.0 (2026-06-21)
+
+### 🚀 Features
+
+- **web:** add per-player muted toggle ([a235b01](https://github.com/Voziv/voz.gg/commit/a235b01))
+- **shared:** add drizzle notification dao and exports ([0cf8544](https://github.com/Voziv/voz.gg/commit/0cf8544))
+- **shared:** add notification queue-message orchestrator ([e497281](https://github.com/Voziv/voz.gg/commit/e497281))
+- **shared:** return notable events from presence batch ([96340fd](https://github.com/Voziv/voz.gg/commit/96340fd))
+- **shared:** add pure notification decision logic ([c3be1bf](https://github.com/Voziv/voz.gg/commit/c3be1bf))
+- **shared:** add muted, webhook url, notification_log schema ([e7f6100](https://github.com/Voziv/voz.gg/commit/e7f6100))
+
+### 🩹 Fixes
+
+- **shared:** retry Discord 429 and guard audit-write failures ([01169c1](https://github.com/Voziv/voz.gg/commit/01169c1))
+- **events-ingest:** chunk and guard notification enqueue ([673e8d4](https://github.com/Voziv/voz.gg/commit/673e8d4))
+- **shared:** drop unused import, widen cooldown tests ([b5f611c](https://github.com/Voziv/voz.gg/commit/b5f611c))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.8.0 (2026-06-15)
 
 ### 🚀 Features
