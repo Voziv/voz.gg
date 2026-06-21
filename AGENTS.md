@@ -154,6 +154,41 @@ admin-gated routes `PATCH /api/players/<id>`, `POST|DELETE /api/players/<id>/gro
 Base UI `select`/`combobox` primitives. IP columns stay empty until the #25a PR-2
 log producer captures join IPs.
 
+### Server control + RCON
+
+When the Worker provisions a server with `capabilities.serverControl.enabled`, the
+agent mints a random RCON password locally via `ensureRconPassword` and stores it
+in `monitor.json` under `rcon.password`/`rcon.port`. The Worker **never sees this
+password** — it flows only between `monitor.json` and the game-server's
+`server.properties` (written by `reconcileServerControl`).
+
+`reconcileServerControl` manages two systemd units per server slug:
+
+- **`voz-gg-<slug>.service`** — runs the game server as `<serverUser>` (foreground
+  `exec java …`, no loop, so systemd controls restarts). Its `ExecStop` calls
+  `voz-gg-agent rcon --properties <props-path> stop` to send a graceful RCON `stop`
+  before systemd sends SIGTERM. The properties file is readable by `<serverUser>`,
+  so the ExecStop can authenticate without touching `monitor.json`.
+- **`voz-gg-<slug>-restart.timer` + `voz-gg-<slug>-restart.service`** — optional
+  scheduled restart. The restart service warns players via RCON (`say Server
+  restarting…`) before issuing a `stop`; it uses `-` prefixes so a failed warn
+  doesn't abort the stop.
+
+`reconcileServerControl` is called from both `setup` (first install) and
+`reprovision` (capability updates). It never restarts a running game server on
+reprovision — RCON-setting changes take effect on the server's next restart.
+
+`voz-gg-agent rcon [flags] [command…]` — RCON subcommand with two password sources:
+
+- **Default:** reads `rcon.password` / `rcon.port` from the agent's `monitor.json`
+  (requires the agent config to have server control enabled).
+- **`--properties <path>`:** reads `rcon.password` and `rcon.port` directly from a
+  `server.properties` file — used by the game-server unit's `ExecStop`, which runs
+  as the server user and may not have access to `monitor.json`.
+
+Without a positional command argument the subcommand starts an interactive REPL
+(reads stdin line-by-line). With a command it runs one shot and exits.
+
 ### Presence notifications (#25c)
 
 `events-ingest` is both producer and consumer of the `voz-gg-notifications` queue.
