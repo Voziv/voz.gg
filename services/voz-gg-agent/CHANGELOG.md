@@ -1,3 +1,23 @@
+## 0.8.0 (2026-06-21)
+
+### 🚀 Features
+
+- **voz-gg-agent:** add rcon subcommand and document server control ([373cf0d](https://github.com/Voziv/voz.gg/commit/373cf0d))
+- **voz-gg-agent:** reconcile game-server control units ([bdd3968](https://github.com/Voziv/voz.gg/commit/bdd3968))
+- **voz-gg-agent:** add slug/schedule validation and unit renderers ([0711160](https://github.com/Voziv/voz.gg/commit/0711160))
+- **voz-gg-agent:** add key-preserving server.properties editor ([94e1736](https://github.com/Voziv/voz.gg/commit/94e1736))
+- **voz-gg-agent:** add rcon config and mint-once password ([a598b34](https://github.com/Voziv/voz.gg/commit/a598b34))
+- **voz-gg-agent:** add RCON Execute with multi-packet handling ([dd1d6d2](https://github.com/Voziv/voz.gg/commit/dd1d6d2))
+- **voz-gg-agent:** add RCON client framing and auth ([430efef](https://github.com/Voziv/voz.gg/commit/430efef))
+
+### 🩹 Fixes
+
+- **voz-gg-agent:** preserve rcon password on setup re-run and tighten props perms ([69311ed](https://github.com/Voziv/voz.gg/commit/69311ed))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.7.1 (2026-06-21)
 
 ### 🩹 Fixes
