@@ -5,19 +5,22 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
+import { Switch } from '../ui/switch';
 
 type Props = {
   playerId: string;
   displayName: string | null;
   status: PlayerStatus;
   isBot: boolean;
+  muted: boolean;
   notes: string | null;
 };
 
-export default function PlayerFieldsEditor({ playerId, displayName, status, isBot, notes }: Props) {
+export default function PlayerFieldsEditor({ playerId, displayName, status, isBot, muted, notes }: Props) {
   const [name, setName] = useState(displayName ?? '');
   const [statusValue, setStatusValue] = useState<PlayerStatus>(status);
   const [bot, setBot] = useState(isBot);
+  const [mutedValue, setMutedValue] = useState(muted);
   const [notesValue, setNotesValue] = useState(notes ?? '');
   const [pending, setPending] = useState(false);
 
@@ -27,7 +30,7 @@ export default function PlayerFieldsEditor({ playerId, displayName, status, isBo
       const res = await fetch(`/api/players/${playerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: name, status: statusValue, isBot: bot, notes: notesValue }),
+        body: JSON.stringify({ displayName: name, status: statusValue, isBot: bot, muted: mutedValue, notes: notesValue }),
       });
       const r = (await res.json().catch(() => ({ ok: false }))) as { ok: boolean; error?: string };
       if (r.ok) {
@@ -68,6 +71,17 @@ export default function PlayerFieldsEditor({ playerId, displayName, status, isBo
         <input type="checkbox" checked={bot} onChange={(e) => setBot(e.target.checked)} />
         Marked as bot
       </label>
+      <div className="flex items-center justify-between gap-2">
+        <div className="grid gap-1">
+          <Label htmlFor="muted">Muted</Label>
+          <p className="text-xs text-muted-foreground">Silence routine alerts (escalation still fires).</p>
+        </div>
+        <Switch
+          id="muted"
+          checked={mutedValue}
+          onCheckedChange={(checked) => setMutedValue(checked)}
+        />
+      </div>
       <div className="grid gap-2">
         <Label htmlFor="player-notes">Notes</Label>
         <textarea

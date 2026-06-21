@@ -23,7 +23,7 @@ export interface DetailEvent {
 }
 
 export interface PlayerDetailInput {
-  player: { id: string; displayName: string | null; userId: string | null; notes: string | null; status: PlayerStatus; isBot: boolean };
+  player: { id: string; displayName: string | null; userId: string | null; notes: string | null; status: PlayerStatus; isBot: boolean; muted: boolean };
   identities: { identityKey: string; kind: PlayerIdentityKind; displayName: string | null }[];
   groups: string[];
   account: AccountSummary | null;
@@ -64,6 +64,7 @@ export interface PlayerDetail {
   notes: string | null;
   status: PlayerStatus;
   isBot: boolean;
+  muted: boolean;
   identities: { identityKey: string; kind: PlayerIdentityKind; displayName: string | null }[];
   minecraftName: string | null;
   groups: string[];
@@ -155,6 +156,7 @@ export function assemblePlayerDetail(
     notes: input.player.notes,
     status: input.player.status,
     isBot: input.player.isBot,
+    muted: input.player.muted,
     identities: input.identities,
     minecraftName,
     groups: input.groups,
@@ -180,6 +182,7 @@ export async function getPlayerDetail(
       notes: player.notes,
       status: player.status,
       isBot: player.isBot,
+      muted: player.muted,
     })
     .from(player)
     .where(eq(player.id, playerId))

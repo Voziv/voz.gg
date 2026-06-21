@@ -34,6 +34,7 @@ export const PUT: APIRoute = async (ctx) => {
       gameServerUser: parsed.data.gameServerUser,
       logPath: parsed.data.logPath,
       logParserEnabled: parsed.data.logParserEnabled,
+      discordWebhookUrl: parsed.data.discordWebhookUrl,
       updatedAt: new Date(),
     })
     .where(eq(servers.id, id));

@@ -5,7 +5,7 @@ const now = new Date('2026-06-13T12:00:00Z');
 const d = (s: string) => new Date(s);
 
 const input: PlayerDetailInput = {
-  player: { id: 'p1', displayName: 'Steve', userId: 'u-acct', notes: 'vip', status: 'allowed', isBot: false },
+  player: { id: 'p1', displayName: 'Steve', userId: 'u-acct', notes: 'vip', status: 'allowed', isBot: false, muted: false },
   identities: [{ identityKey: 'mc1', kind: 'minecraft', displayName: 'SteveMC' }],
   groups: ['WTK', '1LD'],
   account: { name: 'Steve R', displayName: 'Steve', image: null, minecraftName: 'SteveMC', steamPersona: null },
@@ -57,7 +57,7 @@ describe('assemblePlayerDetail', () => {
   it('orders sessions most-recent-first across servers', () => {
     const detail = assemblePlayerDetail(
       {
-        player: { id: 'p1', displayName: 'Steve', userId: null, notes: null, status: 'allowed', isBot: false },
+        player: { id: 'p1', displayName: 'Steve', userId: null, notes: null, status: 'allowed', isBot: false, muted: false },
         identities: [{ identityKey: 'mc1', kind: 'minecraft', displayName: 'SteveMC' }],
         groups: [],
         account: null,

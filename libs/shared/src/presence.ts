@@ -26,9 +26,20 @@ export interface PresenceDao {
   linkAccountIfMatch(kind: PlayerIdentityKind, key: string): Promise<void>;
 }
 
+export interface NotableEvent {
+  serverId: string;
+  type: 'join' | 'connection_rejected';
+  identityKind: PlayerIdentityKind;
+  identityKey: string;
+  playerName: string | null;
+  reason: string | null;
+  occurredAt: number; // epoch seconds
+}
+
 export interface BatchResult {
   accepted: number;
   deduped: number;
+  notable: NotableEvent[];
 }
 
 export function buildDedupeKey(
@@ -49,6 +60,7 @@ export async function handlePresenceBatch(
 ): Promise<BatchResult> {
   let accepted = 0;
   let deduped = 0;
+  const notable: NotableEvent[] = [];
   for (const e of events) {
     const dedupeKey = buildDedupeKey(serverId, e.type, e.identityKey, e.occurredAt);
     const inserted = await dao.insertEvent({ ...e, serverId, dedupeKey });
@@ -60,9 +72,20 @@ export async function handlePresenceBatch(
     if (e.identityKind && e.identityKey) {
       await dao.ensurePlayerIdentity(e.identityKind, e.identityKey, e.playerName, now);
       await dao.linkAccountIfMatch(e.identityKind, e.identityKey);
+      if (e.type === 'join' || e.type === 'connection_rejected') {
+        notable.push({
+          serverId,
+          type: e.type,
+          identityKind: e.identityKind,
+          identityKey: e.identityKey,
+          playerName: e.playerName,
+          reason: e.reason,
+          occurredAt: Math.floor(e.occurredAt.getTime() / 1000),
+        });
+      }
     }
   }
-  return { accepted, deduped };
+  return { accepted, deduped, notable };
 }
 
 const eventSchema = z

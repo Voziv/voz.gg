@@ -14,6 +14,7 @@ export function createPlayerMutationsDao(db: Db): PlayerMutationsDao {
           notes: player.notes,
           status: player.status,
           isBot: player.isBot,
+          muted: player.muted,
           userId: player.userId,
         })
         .from(player)

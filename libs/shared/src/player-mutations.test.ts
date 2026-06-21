@@ -20,6 +20,7 @@ const core = (over: Partial<PlayerCore> = {}): PlayerCore => ({
   notes: null,
   status: 'new',
   isBot: false,
+  muted: false,
   userId: null,
   ...over,
 });
@@ -47,6 +48,17 @@ describe('parsePlayerFieldsInput', () => {
 
   it('rejects an empty body (no fields)', () => {
     const r = parsePlayerFieldsInput({});
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe('parsePlayerFieldsInput muted', () => {
+  it('accepts a muted boolean', () => {
+    const r = parsePlayerFieldsInput({ muted: true });
+    expect(r).toEqual({ ok: true, data: { muted: true } });
+  });
+  it('rejects a non-boolean muted', () => {
+    const r = parsePlayerFieldsInput({ muted: 'yes' });
     expect(r.ok).toBe(false);
   });
 });
