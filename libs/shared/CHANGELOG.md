@@ -1,3 +1,13 @@
+## 0.10.0 (2026-06-22)
+
+### 🚀 Features
+
+- **shared:** add server-control columns to servers ([184097c](https://github.com/Voziv/voz.gg/commit/184097c))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.9.0 (2026-06-21)
 
 ### 🚀 Features

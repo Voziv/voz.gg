@@ -1,3 +1,21 @@
+## 0.21.0 (2026-06-22)
+
+### 🚀 Features
+
+- **web:** add server management section to the server form ([b4d0265](https://github.com/Voziv/voz.gg/commit/b4d0265))
+- **web:** emit serverControl capability in provisioning ([b846d28](https://github.com/Voziv/voz.gg/commit/b846d28))
+- **web:** validate server-control fields in server schema ([d5d3ea2](https://github.com/Voziv/voz.gg/commit/d5d3ea2))
+- **web:** add slug and local-UTC restart-time helpers ([6e09ed3](https://github.com/Voziv/voz.gg/commit/6e09ed3))
+- **shared:** add server-control columns to servers ([184097c](https://github.com/Voziv/voz.gg/commit/184097c))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.10.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.20.2 (2026-06-21)
 
 ### 🚀 Features
