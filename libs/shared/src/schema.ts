@@ -108,6 +108,14 @@ export const servers = sqliteTable('servers', {
   logPath: text('log_path'),
   monitorEnabled: integer('monitor_enabled', { mode: 'boolean' }),
   logParserEnabled: integer('log_parser_enabled', { mode: 'boolean' }),
+  // Server control (systemd lifecycle + RCON). slug is the immutable unit-name
+  // key (voz-gg-<slug>.service), set once at create from the name. restartSchedule
+  // is a UTC "HH:MM" or null. serverUser reuses gameServerUser above.
+  slug: text('slug'),
+  serverControlEnabled: integer('server_control_enabled', { mode: 'boolean' }),
+  serverWorkingDir: text('server_working_dir'),
+  startCommand: text('start_command'),
+  restartSchedule: text('restart_schedule'),
   discordWebhookUrl: text('discord_webhook_url'),
   createdBy: text('created_by').notNull().references(() => user.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

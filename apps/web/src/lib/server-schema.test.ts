@@ -25,6 +25,10 @@ describe('parseServerInput', () => {
         gameServerUser: null,
         logPath: null,
         logParserEnabled: null,
+        serverControlEnabled: null,
+        serverWorkingDir: null,
+        startCommand: null,
+        restartSchedule: null,
         discordWebhookUrl: null,
       });
     }
@@ -135,6 +139,56 @@ describe('logParserEnabled', () => {
 
   it('rejects a non-boolean', () => {
     const r = parseServerInput({ ...base, logParserEnabled: 'yes' });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe('serverControl', () => {
+  const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
+
+  it('accepts a fully specified enabled server-control block', () => {
+    const r = parseServerInput({
+      ...base,
+      gameServerUser: 'minecraft',
+      serverControlEnabled: true,
+      serverWorkingDir: '/home/minecraft/server',
+      startCommand: './run.sh nogui',
+      restartSchedule: '08:00',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.serverControlEnabled).toBe(true);
+      expect(r.data.serverWorkingDir).toBe('/home/minecraft/server');
+      expect(r.data.startCommand).toBe('./run.sh nogui');
+      expect(r.data.restartSchedule).toBe('08:00');
+    }
+  });
+
+  it('coerces blank optional fields to null and defaults enabled to null', () => {
+    const r = parseServerInput({ ...base, serverWorkingDir: '', startCommand: '', restartSchedule: '' });
+    expect(r.ok && r.data.serverControlEnabled).toBe(null);
+    expect(r.ok && r.data.serverWorkingDir).toBe(null);
+    expect(r.ok && r.data.restartSchedule).toBe(null);
+  });
+
+  it('rejects a non-absolute working dir', () => {
+    const r = parseServerInput({ ...base, serverWorkingDir: 'relative/path' });
+    expect(r.ok).toBe(false);
+  });
+
+  it('rejects an invalid restart schedule', () => {
+    expect(parseServerInput({ ...base, restartSchedule: '24:00' }).ok).toBe(false);
+    expect(parseServerInput({ ...base, restartSchedule: '8:00' }).ok).toBe(false);
+  });
+
+  it('requires user, working dir, and start command when enabled', () => {
+    const r = parseServerInput({
+      ...base,
+      serverControlEnabled: true,
+      gameServerUser: 'minecraft',
+      serverWorkingDir: '/srv/mc',
+      startCommand: null,
+    });
     expect(r.ok).toBe(false);
   });
 });
