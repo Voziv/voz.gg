@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 import { toast } from 'sonner';
 import { Pencil, Plus } from 'lucide-react';
 import {
@@ -46,12 +46,18 @@ type ServerData = {
   startCommand: string | null;
   restartSchedule: string | null;
 };
+function FieldError({ errors, field }: { errors: Record<string, string>; field: string }): JSX.Element | null {
+  if (!errors[field]) return null;
+  return <p className="text-destructive text-sm mt-1" role="alert">{errors[field]}</p>;
+}
+
 type Props = { server?: ServerData };
 
 export default function ServerFormDialog({ server }: Props) {
   const isEdit = !!server;
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [gameType, setGameType] = useState<GameType>(server?.gameType ?? 'minecraft-java');
   const [agentHost, setAgentHost] = useState(() =>
@@ -81,6 +87,7 @@ export default function ServerFormDialog({ server }: Props) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setFieldErrors({});
     const form = new FormData(e.currentTarget);
     const body = {
       name: form.get('name'),
@@ -110,6 +117,7 @@ export default function ServerFormDialog({ server }: Props) {
         ok: boolean;
         error?: string;
         enrollmentToken?: string;
+        fieldErrors?: Record<string, string>;
       };
       if (r.ok) {
         if (!isEdit && r.enrollmentToken) {
@@ -123,6 +131,7 @@ export default function ServerFormDialog({ server }: Props) {
         location.reload();
       } else {
         toast.error(r.error ?? 'Could not save server.');
+        setFieldErrors(r.fieldErrors ?? {});
       }
     } finally {
       setPending(false);
@@ -155,7 +164,8 @@ export default function ServerFormDialog({ server }: Props) {
           <div className="grid min-h-0 gap-4 overflow-y-auto px-1 -mx-1">
           <div className="grid gap-2">
             <Label htmlFor="name" className="text-muted-foreground">Name</Label>
-            <Input id="name" name="name" defaultValue={server?.name ?? ''} required maxLength={80} />
+            <Input id="name" name="name" defaultValue={server?.name ?? ''} required maxLength={80} aria-invalid={!!fieldErrors.name} />
+            <FieldError errors={fieldErrors} field="name" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -165,21 +175,25 @@ export default function ServerFormDialog({ server }: Props) {
                 name="gameType"
                 value={gameType}
                 onChange={(e) => handleGameTypeChange(e.target.value as GameType)}
+                aria-invalid={!!fieldErrors.gameType}
                 className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
               >
                 {GAME_TYPES.map((g) => (
                   <option key={g} value={g}>{GAME_LABELS[g] ?? g}</option>
                 ))}
               </select>
+              <FieldError errors={fieldErrors} field="gameType" />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="port" className="text-muted-foreground">Port</Label>
-              <Input id="port" name="port" type="number" min={1} max={65535} defaultValue={server?.port ?? 25565} required />
+              <Input id="port" name="port" type="number" min={1} max={65535} defaultValue={server?.port ?? 25565} required aria-invalid={!!fieldErrors.port} />
+              <FieldError errors={fieldErrors} field="port" />
             </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="host" className="text-muted-foreground">Host (IP or DNS name)</Label>
-            <Input id="host" name="host" defaultValue={server?.host ?? ''} required maxLength={253} placeholder="mc.example.com" />
+            <Input id="host" name="host" defaultValue={server?.host ?? ''} required maxLength={253} placeholder="mc.example.com" aria-invalid={!!fieldErrors.host} />
+            <FieldError errors={fieldErrors} field="host" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="description" className="text-muted-foreground">Description</Label>
@@ -189,8 +203,10 @@ export default function ServerFormDialog({ server }: Props) {
               defaultValue={server?.description ?? ''}
               maxLength={500}
               rows={3}
+              aria-invalid={!!fieldErrors.description}
               className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
             />
+            <FieldError errors={fieldErrors} field="description" />
           </div>
 
           <fieldset className="grid gap-4 rounded-md border border-border p-3">
@@ -201,11 +217,13 @@ export default function ServerFormDialog({ server }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="runAsUser" className="text-muted-foreground">Run-as user</Label>
-                <Input id="runAsUser" name="runAsUser" defaultValue={server?.runAsUser ?? 'voz-gg'} maxLength={32} />
+                <Input id="runAsUser" name="runAsUser" defaultValue={server?.runAsUser ?? 'voz-gg'} maxLength={32} aria-invalid={!!fieldErrors.runAsUser} />
+                <FieldError errors={fieldErrors} field="runAsUser" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="runAsGroup" className="text-muted-foreground">Run-as group</Label>
-                <Input id="runAsGroup" name="runAsGroup" defaultValue={server?.runAsGroup ?? 'voz-gg'} maxLength={32} />
+                <Input id="runAsGroup" name="runAsGroup" defaultValue={server?.runAsGroup ?? 'voz-gg'} maxLength={32} aria-invalid={!!fieldErrors.runAsGroup} />
+                <FieldError errors={fieldErrors} field="runAsGroup" />
               </div>
             </div>
             <div className="grid gap-2">
@@ -217,7 +235,9 @@ export default function ServerFormDialog({ server }: Props) {
                 onChange={(e) => setAgentHost((c) => ({ ...c, gameServerUser: e.target.value }))}
                 maxLength={32}
                 placeholder="(none)"
+                aria-invalid={!!fieldErrors.gameServerUser}
               />
+              <FieldError errors={fieldErrors} field="gameServerUser" />
               <p className="text-xs text-muted-foreground">The OS account the game server runs under. Used by future log parsing.</p>
             </div>
             <div className="grid gap-2">
@@ -229,7 +249,9 @@ export default function ServerFormDialog({ server }: Props) {
                 onChange={(e) => setAgentHost((c) => ({ ...c, logPath: e.target.value }))}
                 maxLength={4096}
                 placeholder="/home/minecraft/logs"
+                aria-invalid={!!fieldErrors.logPath}
               />
+              <FieldError errors={fieldErrors} field="logPath" />
               <p className="text-xs text-muted-foreground">Where the agent reads the server log when log parsing is enabled.</p>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -265,7 +287,9 @@ export default function ServerFormDialog({ server }: Props) {
               defaultValue={server?.discordWebhookUrl ?? ''}
               maxLength={200}
               placeholder="https://discord.com/api/webhooks/..."
+              aria-invalid={!!fieldErrors.discordWebhookUrl}
             />
+            <FieldError errors={fieldErrors} field="discordWebhookUrl" />
             <p className="text-xs text-muted-foreground">Presence alerts post here. Leave blank to disable.</p>
           </div>
 
@@ -286,7 +310,9 @@ export default function ServerFormDialog({ server }: Props) {
                 value={serverControl.serverWorkingDir}
                 onChange={(e) => setServerControl((c) => ({ ...c, serverWorkingDir: e.target.value }))}
                 placeholder="/home/minecraft/server"
+                aria-invalid={!!fieldErrors.serverWorkingDir}
               />
+              <FieldError errors={fieldErrors} field="serverWorkingDir" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="startCommand">Start command (foreground; no self-restart loop)</Label>
@@ -294,8 +320,10 @@ export default function ServerFormDialog({ server }: Props) {
                 id="startCommand"
                 value={serverControl.startCommand}
                 onChange={(e) => setServerControl((c) => ({ ...c, startCommand: e.target.value }))}
-                placeholder="./run.sh nogui"
+                placeholder="/home/minecraft/server/run.sh nogui"
+                aria-invalid={!!fieldErrors.startCommand}
               />
+              <FieldError errors={fieldErrors} field="startCommand" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="restartTime">Nightly restart time (your local time; blank = none)</Label>
@@ -304,7 +332,9 @@ export default function ServerFormDialog({ server }: Props) {
                 type="time"
                 value={serverControl.restartTime}
                 onChange={(e) => setServerControl((c) => ({ ...c, restartTime: e.target.value }))}
+                aria-invalid={!!fieldErrors.restartSchedule}
               />
+              <FieldError errors={fieldErrors} field="restartSchedule" />
             </div>
           </fieldset>
           </div>
