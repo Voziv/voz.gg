@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { initialAgentHostValues, nextAgentHostValues } from './server-form-defaults';
+import { initialAgentHostValues, nextAgentHostValues, initialServerControlValues } from './server-form-defaults';
 
 describe('initialAgentHostValues', () => {
   it('uses the game-type defaults when no stored values', () => {
@@ -50,6 +50,31 @@ describe('nextAgentHostValues', () => {
       gameServerUser: 'minecraft',
       logPath: '/home/minecraft/logs',
       logParserEnabled: false,
+    });
+  });
+});
+
+describe('initialServerControlValues', () => {
+  it('seeds from stored values', () => {
+    expect(initialServerControlValues({
+      serverControlEnabled: true,
+      serverWorkingDir: '/srv/mc',
+      startCommand: './run.sh',
+      restartScheduleLocal: '03:00',
+    })).toEqual({
+      serverControlEnabled: true,
+      serverWorkingDir: '/srv/mc',
+      startCommand: './run.sh',
+      restartTime: '03:00',
+    });
+  });
+
+  it('defaults to disabled with empty fields when nothing stored', () => {
+    expect(initialServerControlValues(undefined)).toEqual({
+      serverControlEnabled: false,
+      serverWorkingDir: '',
+      startCommand: '',
+      restartTime: '',
     });
   });
 });

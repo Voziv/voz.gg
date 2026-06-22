@@ -14,6 +14,12 @@ const server: ServerRow = {
   logPath: null,
   monitorEnabled: null,
   logParserEnabled: null,
+  name: 'Test Server',
+  slug: null,
+  serverControlEnabled: null,
+  serverWorkingDir: null,
+  startCommand: null,
+  restartSchedule: null,
 };
 
 function fakeDao(overrides: Partial<AgentDao> = {}) {

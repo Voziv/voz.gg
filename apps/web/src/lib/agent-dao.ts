@@ -12,6 +12,12 @@ export interface ServerRow {
   logPath: string | null;
   monitorEnabled: boolean | null;
   logParserEnabled: boolean | null;
+  name: string;
+  slug: string | null;
+  serverControlEnabled: boolean | null;
+  serverWorkingDir: string | null;
+  startCommand: string | null;
+  restartSchedule: string | null;
 }
 
 export interface StatusUpsert {
@@ -45,6 +51,12 @@ export function createAgentDao(db: Db): AgentDao {
         logPath: servers.logPath,
         monitorEnabled: servers.monitorEnabled,
         logParserEnabled: servers.logParserEnabled,
+        name: servers.name,
+        slug: servers.slug,
+        serverControlEnabled: servers.serverControlEnabled,
+        serverWorkingDir: servers.serverWorkingDir,
+        startCommand: servers.startCommand,
+        restartSchedule: servers.restartSchedule,
       })
       .from(servers)
       .where(eq(servers.id, serverId))

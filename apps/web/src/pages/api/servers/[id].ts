@@ -34,6 +34,10 @@ export const PUT: APIRoute = async (ctx) => {
       gameServerUser: parsed.data.gameServerUser,
       logPath: parsed.data.logPath,
       logParserEnabled: parsed.data.logParserEnabled,
+      serverControlEnabled: parsed.data.serverControlEnabled,
+      serverWorkingDir: parsed.data.serverWorkingDir,
+      startCommand: parsed.data.startCommand,
+      restartSchedule: parsed.data.restartSchedule,
       discordWebhookUrl: parsed.data.discordWebhookUrl,
       updatedAt: new Date(),
     })
