@@ -57,7 +57,8 @@ const serverSchema = z.object({
     .trim()
     .max(1024)
     .optional()
-    .transform((v) => (v && v.length > 0 ? v : null)),
+    .transform((v) => (v && v.length > 0 ? v : null))
+    .refine((v) => v === null || v.startsWith('/'), 'Start command must be an absolute path (e.g. /home/minecraft/server/run.sh nogui).'),
   restartSchedule: z
     .string()
     .trim()
@@ -96,12 +97,19 @@ export type ServerInput = z.infer<typeof serverSchema>;
 
 export type ParseResult =
   | { ok: true; data: ServerInput }
-  | { ok: false; error: string };
+  | { ok: false; error: string; fieldErrors: Record<string, string> };
 
 export function parseServerInput(raw: unknown): ParseResult {
   const parsed = serverSchema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' };
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (typeof key === 'string' && !(key in fieldErrors)) {
+        fieldErrors[key] = issue.message;
+      }
+    }
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.', fieldErrors };
   }
   return { ok: true, data: parsed.data };
 }

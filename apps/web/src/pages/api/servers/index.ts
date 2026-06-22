@@ -15,7 +15,7 @@ export const POST: APIRoute = async (ctx) => {
   if (!isAdmin(user)) return new Response('Forbidden', { status: 403 });
 
   const parsed = parseServerInput(await ctx.request.json().catch(() => ({})));
-  if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
+  if (!parsed.ok) return Response.json({ ok: false, error: parsed.error, fieldErrors: parsed.fieldErrors }, { status: 400 });
 
   const db = createDb(env.DB);
   const id = nanoid(12);

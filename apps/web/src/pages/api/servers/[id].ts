@@ -15,7 +15,7 @@ export const PUT: APIRoute = async (ctx) => {
   const id = ctx.params.id;
   if (!id) return new Response('Bad Request', { status: 400 });
   const parsed = parseServerInput(await ctx.request.json().catch(() => ({})));
-  if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
+  if (!parsed.ok) return Response.json({ ok: false, error: parsed.error, fieldErrors: parsed.fieldErrors }, { status: 400 });
 
   const db = createDb(env.DB);
   const existing = await db.select().from(servers).where(eq(servers.id, id)).get();

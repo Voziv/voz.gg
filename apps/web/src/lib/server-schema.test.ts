@@ -152,14 +152,14 @@ describe('serverControl', () => {
       gameServerUser: 'minecraft',
       serverControlEnabled: true,
       serverWorkingDir: '/home/minecraft/server',
-      startCommand: './run.sh nogui',
+      startCommand: '/home/minecraft/server/run.sh nogui',
       restartSchedule: '08:00',
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.data.serverControlEnabled).toBe(true);
       expect(r.data.serverWorkingDir).toBe('/home/minecraft/server');
-      expect(r.data.startCommand).toBe('./run.sh nogui');
+      expect(r.data.startCommand).toBe('/home/minecraft/server/run.sh nogui');
       expect(r.data.restartSchedule).toBe('08:00');
     }
   });
@@ -190,6 +190,48 @@ describe('serverControl', () => {
       startCommand: null,
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('startCommand absolute path', () => {
+  const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
+
+  it('rejects a relative start command', () => {
+    const r = parseServerInput({ ...base, startCommand: './run.sh nogui' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/absolute path/i);
+  });
+
+  it('accepts an absolute start command', () => {
+    const r = parseServerInput({ ...base, startCommand: '/srv/mc/run.sh nogui' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.startCommand).toBe('/srv/mc/run.sh nogui');
+  });
+});
+
+describe('fieldErrors', () => {
+  const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
+
+  it('populates fieldErrors keyed by field for multiple invalid fields', () => {
+    const r = parseServerInput({ ...base, host: '', startCommand: './run.sh' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(typeof r.fieldErrors.host).toBe('string');
+      expect(r.fieldErrors.host.length).toBeGreaterThan(0);
+      expect(typeof r.fieldErrors.startCommand).toBe('string');
+      expect(r.fieldErrors.startCommand.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('includes fieldErrors for required server-control fields when enabled without them', () => {
+    const r = parseServerInput({ ...base, serverControlEnabled: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(typeof r.fieldErrors.serverWorkingDir).toBe('string');
+      expect(r.fieldErrors.serverWorkingDir.length).toBeGreaterThan(0);
+      expect(typeof r.fieldErrors.startCommand).toBe('string');
+      expect(r.fieldErrors.startCommand.length).toBeGreaterThan(0);
+    }
   });
 });
 
