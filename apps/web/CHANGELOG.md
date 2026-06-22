@@ -1,3 +1,13 @@
+## 0.21.1 (2026-06-22)
+
+### 🩹 Fixes
+
+- **web:** require absolute start command and show field-level form errors ([87be65e](https://github.com/Voziv/voz.gg/commit/87be65e))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.21.0 (2026-06-22)
 
 ### 🚀 Features
