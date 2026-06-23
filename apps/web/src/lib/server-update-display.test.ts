@@ -12,12 +12,18 @@ describe('updateBadge', () => {
     expect(b.label).toContain('1.21.4');
   });
   it('is up to date when equal', () => {
-    expect(updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.4', availableVersion: '1.21.4', lastError: null }).kind).toBe('up_to_date');
+    const b = updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.4', availableVersion: '1.21.4', lastError: null });
+    expect(b.kind).toBe('up_to_date');
+    expect(b.label).toContain('1.21.4');
   });
   it('surfaces a needs-api-key error', () => {
-    expect(updateBadge({ updateSource: 'modpack', currentVersion: null, availableVersion: null, lastError: 'CurseForge API key not configured' }).kind).toBe('needs_api_key');
+    const b = updateBadge({ updateSource: 'modpack', currentVersion: null, availableVersion: null, lastError: 'CurseForge API key not configured' });
+    expect(b.kind).toBe('needs_api_key');
+    expect(b.label).toContain('API key');
   });
   it('is failed on other errors', () => {
-    expect(updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.1', availableVersion: '1.21.1', lastError: 'fetch failed: 503' }).kind).toBe('failed');
+    const b = updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.1', availableVersion: '1.21.1', lastError: 'fetch failed: 503' });
+    expect(b.kind).toBe('failed');
+    expect(b.label).toBe('Check failed');
   });
 });
