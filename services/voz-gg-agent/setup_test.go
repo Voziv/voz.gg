@@ -112,10 +112,11 @@ func fakeEnroll(resp enrollResponse, err error) enrollFn {
 
 func sampleEnroll() enrollResponse {
 	return enrollResponse{
-		AgentToken:   "AT",
-		ConfigHash:   "H1",
-		Config:       ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
-		Provisioning: provisioning{RunAsUser: "voz-gg", RunAsGroup: "voz-gg"},
+		AgentToken:    "AT",
+		IngestBaseURL: "https://ingest.voz.gg",
+		ConfigHash:    "H1",
+		Config:        ServerConfig{ServerID: "srv1", GameType: "minecraft-java", ProbeHost: "127.0.0.1", Port: 25565, PollIntervalSeconds: 30},
+		Provisioning:  provisioning{RunAsUser: "voz-gg", RunAsGroup: "voz-gg"},
 	}
 }
 
@@ -150,6 +151,9 @@ func TestSetupHappyPathCreatesUserConfigAndHardenedUnit(t *testing.T) {
 	}
 	if !strings.Contains(string(cfg), `"agentToken": "AT"`) {
 		t.Fatalf("config missing agent token: %s", cfg)
+	}
+	if !strings.Contains(string(cfg), `"ingestBaseUrl": "https://ingest.voz.gg"`) {
+		t.Fatalf("config missing ingest base URL: %s", cfg)
 	}
 	if got := sys.chowns; len(got) != 1 || got[0] != "/etc/voz-gg-agent voz-gg:voz-gg" {
 		t.Fatalf("chown = %v", got)

@@ -11,6 +11,6 @@ export const GET: APIRoute = async (ctx) => {
   const dao = createAgentDao(createDb(env.DB));
   const token = bearerToken(ctx.request.headers.get('authorization'));
   const serverId = token ? await serverIdForToken(dao, token) : null;
-  const result = await handleConfig(dao, serverId);
+  const result = await handleConfig(dao, serverId, env.INGEST_BASE_URL);
   return Response.json(result.body, { status: result.status });
 };

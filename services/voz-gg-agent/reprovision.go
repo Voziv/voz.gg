@@ -38,6 +38,11 @@ func runReprovisionWith(opts reprovisionOptions, cfg Config, sys systemOps, fetc
 
 	cfg.Server = resp.Config
 	cfg.ConfigHash = resp.ConfigHash
+	// Only overwrite when the worker returns a value, so an older worker that does
+	// not yet send ingestBaseUrl never blanks a previously-stored URL.
+	if resp.IngestBaseURL != "" {
+		cfg.IngestBaseURL = resp.IngestBaseURL
+	}
 	sc := resp.Provisioning.Capabilities.ServerControl
 	if _, err := ensureRconPassword(&cfg, sc); err != nil {
 		fmt.Fprintf(stderr, "reprovision: %v\n", err)

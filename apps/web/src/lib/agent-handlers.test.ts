@@ -4,6 +4,8 @@ import { buildAgentConfig, configHash } from './agent-config';
 import { buildProvisioning } from './agent-provisioning';
 import type { AgentDao, ServerRow, StatusUpsert } from './agent-dao';
 
+const INGEST_BASE_URL = 'https://ingest.voz.gg';
+
 const server: ServerRow = {
   id: 'srv1',
   gameType: 'minecraft-java',
@@ -47,17 +49,19 @@ function fakeDao(overrides: Partial<AgentDao> = {}) {
 }
 
 describe('handleEnroll', () => {
-  it('mints + hashes an agent token, completes enrollment, returns config, hash, and provisioning', async () => {
+  it('mints + hashes an agent token, completes enrollment, returns config, hash, ingest URL, and provisioning', async () => {
     const { dao, calls } = fakeDao({ findServerByEnrollmentTokenHash: async () => server });
-    const res = await handleEnroll(dao, { enrollmentToken: 'enroll-1' });
+    const res = await handleEnroll(dao, { enrollmentToken: 'enroll-1' }, INGEST_BASE_URL);
     expect(res.status).toBe(200);
     const body = res.body as {
       agentToken: string;
+      ingestBaseUrl: string;
       config: unknown;
       configHash: string;
       provisioning: unknown;
     };
     expect(body.agentToken.length).toBeGreaterThanOrEqual(32);
+    expect(body.ingestBaseUrl).toBe(INGEST_BASE_URL);
     expect(body.config).toEqual(buildAgentConfig(server));
     expect(body.configHash).toBe(await configHash(buildAgentConfig(server)));
     expect(body.provisioning).toEqual(buildProvisioning(server));
@@ -66,32 +70,33 @@ describe('handleEnroll', () => {
 
   it('rejects an unknown / already-used enrollment token with 401', async () => {
     const { dao } = fakeDao({ findServerByEnrollmentTokenHash: async () => null });
-    const res = await handleEnroll(dao, { enrollmentToken: 'used' });
+    const res = await handleEnroll(dao, { enrollmentToken: 'used' }, INGEST_BASE_URL);
     expect(res.status).toBe(401);
   });
 
   it('rejects a missing token with 400', async () => {
     const { dao } = fakeDao();
-    const res = await handleEnroll(dao, {});
+    const res = await handleEnroll(dao, {}, INGEST_BASE_URL);
     expect(res.status).toBe(400);
   });
 });
 
 describe('handleConfig', () => {
-  it('returns config + hash + provisioning for a resolved server', async () => {
+  it('returns config + hash + ingest URL + provisioning for a resolved server', async () => {
     const { dao } = fakeDao();
-    const res = await handleConfig(dao, server.id);
+    const res = await handleConfig(dao, server.id, INGEST_BASE_URL);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       config: buildAgentConfig(server),
       configHash: await configHash(buildAgentConfig(server)),
+      ingestBaseUrl: INGEST_BASE_URL,
       provisioning: buildProvisioning(server),
     });
   });
 
   it('returns 401 when the server cannot be resolved', async () => {
     const { dao } = fakeDao({ serverById: async () => null });
-    const res = await handleConfig(dao, 'missing');
+    const res = await handleConfig(dao, 'missing', INGEST_BASE_URL);
     expect(res.status).toBe(401);
   });
 });
