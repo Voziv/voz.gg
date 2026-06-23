@@ -78,7 +78,18 @@ npx wrangler d1 execute voz-gg --remote --command \
 ### Player presence (#25a)
 
 The `events-ingest` Worker accepts `POST /presence` (Bearer = the server's shared
-agent token, validated against `server_agent`). Bodies are batches of events typed
+agent token, validated against `server_agent`). It runs as its own Worker on a
+dedicated Custom Domain **`ingest.voz.gg`** (set via `routes` with
+`custom_domain = true` in its `wrangler.toml`). It needs a separate host because
+`voz.gg` is itself a Custom Domain on the web Worker, which captures the whole
+host and so cannot carve out a path route to another Worker. The web Worker hands
+the agent this host as **`ingestBaseUrl`** in the enroll/`/api/agents/config`
+response (sourced from the `INGEST_BASE_URL` var); the agent stores it in
+`monitor.json` and posts presence there, distinct from `workerBaseUrl` (the web
+Worker, used for monitor/config). The logparse producer falls back to
+`workerBaseUrl` when `ingestBaseUrl` is absent (pre-existing enrollments), and
+the Go `Reporter` does not follow redirects so a misroute surfaces as a loud
+error instead of a silent 200 from a login page. Bodies are batches of events typed
 `join | leave | connection_rejected | server_start | server_stop`; minecraft
 events carry a UUID (`identity_key`). Events are appended idempotently to
 `presence_events` (dedupe via a deterministic `dedupe_key`, since a NULL
@@ -89,7 +100,7 @@ time** (`libs/shared/src/sessions.ts`); the admin `/dashboard/players` list read
 them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer is
 implemented: it backfills rolled `*.log.gz` then tails `latest.log`, parses
 join/leave/connection_rejected/server_start/server_stop, and POSTs idempotent
-batches to `/presence` (Bearer = the agent token from the monitor config; log
+batches to `ingest.voz.gg/presence` (Bearer = the agent token from the monitor config; log
 directory via `-log-dir`, checkpoint advances only on ack). `voz-gg-agent setup`
 now decodes the enroll `provisioning.capabilities.logParser` block and, when log
 parsing is enabled, resolves the game-server log directory (interactively via

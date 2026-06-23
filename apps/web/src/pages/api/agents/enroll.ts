@@ -9,6 +9,6 @@ export const prerender = false;
 export const POST: APIRoute = async (ctx) => {
   const dao = createAgentDao(createDb(env.DB));
   const body = await ctx.request.json().catch(() => ({}));
-  const result = await handleEnroll(dao, body);
+  const result = await handleEnroll(dao, body, env.INGEST_BASE_URL);
   return Response.json(result.body, { status: result.status });
 };

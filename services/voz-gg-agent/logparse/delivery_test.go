@@ -29,7 +29,7 @@ func TestDeliverPostsBatchAndSucceeds(t *testing.T) {
 	if err := d.Deliver([]goshared.PresenceEvent{{Type: "join", OccurredAt: 1}}); err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/presence" || gotAuth != "Bearer tok" || len(body.Events) != 1 {
+	if gotPath != presencePath || gotAuth != "Bearer tok" || len(body.Events) != 1 {
 		t.Fatalf("path=%s auth=%s events=%d", gotPath, gotAuth, len(body.Events))
 	}
 }
@@ -82,7 +82,7 @@ func TestReporterErrorFormatIsStable(t *testing.T) {
 	}))
 	defer srv.Close()
 	rep := goshared.Reporter{Endpoint: srv.URL, Token: "t", Client: srv.Client()}
-	err := rep.Post("/presence", goshared.PresenceBatch{}, nil)
+	err := rep.Post(presencePath, goshared.PresenceBatch{}, nil)
 	if err == nil || !isPermanent(err) {
 		t.Fatalf("isPermanent must recognize a 4xx from the Reporter: %v", err)
 	}

@@ -23,6 +23,11 @@ type rconConfig struct {
 
 type Config struct {
 	WorkerBaseURL string       `json:"workerBaseUrl"`
+	// IngestBaseURL is the host for high-volume agent ingest (presence). It is a
+	// separate worker on its own domain (ingest.voz.gg), so it differs from
+	// WorkerBaseURL (the web Worker). The logparse producer falls back to
+	// WorkerBaseURL when this is empty (older enrollments).
+	IngestBaseURL string       `json:"ingestBaseUrl,omitempty"`
 	AgentToken    string       `json:"agentToken"`
 	ConfigHash    string       `json:"configHash"`
 	Server        ServerConfig `json:"config"`
@@ -51,8 +56,9 @@ func SaveConfig(path string, cfg Config) error {
 
 // enrollResponse is the POST /api/agents/enroll response shape, decoded by setup.
 type enrollResponse struct {
-	AgentToken   string       `json:"agentToken"`
-	Config       ServerConfig `json:"config"`
-	ConfigHash   string       `json:"configHash"`
-	Provisioning provisioning `json:"provisioning"`
+	AgentToken    string       `json:"agentToken"`
+	IngestBaseURL string       `json:"ingestBaseUrl"`
+	Config        ServerConfig `json:"config"`
+	ConfigHash    string       `json:"configHash"`
+	Provisioning  provisioning `json:"provisioning"`
 }

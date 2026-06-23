@@ -43,6 +43,11 @@ func (b Backoff) delay(attempt int) time.Duration {
 	return d
 }
 
+// presencePath is the events-ingest route, relative to the agent's configured
+// ingest base URL (ingest.voz.gg). That host is a dedicated worker, so the path
+// needs no extra namespacing.
+const presencePath = "/presence"
+
 // Deliverer POSTs presence batches with retry. Transport errors and 5xx are
 // retryable; 4xx is permanent (a 400 is malformed events, a 401 a bad token —
 // retrying fixes neither).
@@ -59,7 +64,7 @@ func NewDeliverer(rep goshared.Reporter, b Backoff) *Deliverer {
 func (d *Deliverer) Deliver(events []goshared.PresenceEvent) error {
 	var result goshared.PresenceResult
 	for attempt := 0; ; attempt++ {
-		err := d.rep.Post("/presence", goshared.PresenceBatch{Events: events}, &result)
+		err := d.rep.Post(presencePath, goshared.PresenceBatch{Events: events}, &result)
 		if err == nil {
 			return nil
 		}

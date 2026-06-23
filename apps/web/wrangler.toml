@@ -19,6 +19,11 @@ enabled = true
 BETTER_AUTH_URL = "https://voz.gg"
 STEAM_REALM = "https://voz.gg"
 STEAM_RETURN_URL = "https://voz.gg/api/auth/steam/callback"
+# Host the agent posts presence to. Served by the separate voz-gg-events-ingest
+# Worker on its own Custom Domain (voz.gg is a Custom Domain on this web Worker,
+# so ingest can't share the host via a path route). Returned to agents as
+# `ingestBaseUrl` at enroll/config time.
+INGEST_BASE_URL = "https://ingest.voz.gg"
 
 [[d1_databases]]
 binding = "DB"

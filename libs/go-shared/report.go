@@ -29,11 +29,20 @@ func (r Reporter) buildRequest(e Event) (*http.Request, error) {
 	return req, nil
 }
 
+// httpClient returns a client that never follows redirects. A voz.gg Worker
+// endpoint answers a presence/report POST directly; a 3xx means the request hit
+// the wrong place (e.g. the web app's auth middleware redirecting an unmatched
+// path to /sign-in). Following it would turn that misroute into a misleading 200
+// from a login page, so we surface the 3xx as a non-2xx error instead. The base
+// client is copied so the caller's client is left untouched.
 func (r Reporter) httpClient() *http.Client {
-	if r.Client != nil {
-		return r.Client
+	base := r.Client
+	if base == nil {
+		base = http.DefaultClient
 	}
-	return http.DefaultClient
+	client := *base
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &client
 }
 
 // Send posts a single Event to the configured Endpoint with the bearer token.
