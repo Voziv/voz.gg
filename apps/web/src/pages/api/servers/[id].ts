@@ -39,6 +39,13 @@ export const PUT: APIRoute = async (ctx) => {
       startCommand: parsed.data.startCommand,
       restartSchedule: parsed.data.restartSchedule,
       discordWebhookUrl: parsed.data.discordWebhookUrl,
+      updateSource: parsed.data.updateSource,
+      modpackProvider: parsed.data.modpackProvider,
+      modpackId: parsed.data.modpackId,
+      updateChannel: parsed.data.updateChannel,
+      pinnedVersion: parsed.data.pinnedVersion,
+      updatePolicy: parsed.data.updatePolicy,
+      currentVersion: parsed.data.currentVersion,
       updatedAt: new Date(),
     })
     .where(eq(servers.id, id));
