@@ -21,7 +21,7 @@ export interface DetectDeps {
 
 function keyOf(s: TrackedServer): string {
   const c = s.config;
-  return JSON.stringify([c.source, c.provider ?? null, c.id ?? null, c.channel ?? null]);
+  return JSON.stringify([s.host, c.source, c.provider ?? null, c.id ?? null, c.channel ?? null]);
 }
 
 export async function runDetection(servers: TrackedServer[], deps: DetectDeps): Promise<DetectResult[]> {
