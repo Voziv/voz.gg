@@ -30,6 +30,13 @@ describe('parseServerInput', () => {
         startCommand: null,
         restartSchedule: null,
         discordWebhookUrl: null,
+        updateSource: 'none',
+        modpackProvider: null,
+        modpackId: null,
+        updateChannel: null,
+        pinnedVersion: null,
+        updatePolicy: 'notify',
+        currentVersion: null,
       });
     }
   });
@@ -232,6 +239,27 @@ describe('fieldErrors', () => {
       expect(typeof r.fieldErrors.startCommand).toBe('string');
       expect(r.fieldErrors.startCommand.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('server-schema update fields', () => {
+  const valid = { name: 'S', gameType: 'minecraft-java', host: '1.1.1.1', port: 25565 };
+
+  it('accepts a vanilla update config', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'vanilla', updateChannel: 'release', updatePolicy: 'notify' });
+    expect(r.ok).toBe(true);
+  });
+  it('requires provider and id for a modpack', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'modpack' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.fieldErrors.modpackProvider).toBeDefined();
+      expect(r.fieldErrors.modpackId).toBeDefined();
+    }
+  });
+  it('accepts a fully specified modpack', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'modpack', modpackProvider: 'modrinth', modpackId: 'cobblemon', updateChannel: 'release' });
+    expect(r.ok).toBe(true);
   });
 });
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GAME_TYPES } from '@voz/shared';
+import { GAME_TYPES, UPDATE_SOURCES, MODPACK_PROVIDERS, UPDATE_POLICIES } from '@voz/shared';
 
 // A POSIX-ish account/group name, or null when blank. Empty input (the common
 // "leave default" case) becomes null so the Worker applies its own defaults.
@@ -75,6 +75,13 @@ const serverSchema = z.object({
       (v) => v === null || /^https:\/\/(canary\.|ptb\.)?discord(app)?\.com\/api\/(v\d+\/)?webhooks\/\d+\/[\w-]+$/.test(v),
       'Must be a Discord webhook URL.',
     ),
+  updateSource: z.enum(UPDATE_SOURCES).optional().default('none'),
+  modpackProvider: z.enum(MODPACK_PROVIDERS).nullish().transform((v) => v ?? null),
+  modpackId: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  updateChannel: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  pinnedVersion: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  updatePolicy: z.enum(UPDATE_POLICIES).optional().default('notify'),
+  currentVersion: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
 }).superRefine((data, ctx) => {
   if (data.serverControlEnabled) {
     for (const [field, value] of [
@@ -90,6 +97,10 @@ const serverSchema = z.object({
         });
       }
     }
+  }
+  if (data.updateSource === 'modpack') {
+    if (!data.modpackProvider) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['modpackProvider'], message: 'Choose a modpack provider.' });
+    if (!data.modpackId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['modpackId'], message: 'A modpack id or pack.toml URL is required.' });
   }
 });
 
