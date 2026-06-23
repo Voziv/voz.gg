@@ -78,6 +78,7 @@ const serverSchema = z.object({
   updateSource: z.enum(UPDATE_SOURCES).optional().default('none'),
   modpackProvider: z.enum(MODPACK_PROVIDERS).nullish().transform((v) => v ?? null),
   modpackId: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  updateVersionLine: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
   updateChannel: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
   pinnedVersion: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
   updatePolicy: z.enum(UPDATE_POLICIES).optional().default('notify'),
@@ -101,6 +102,9 @@ const serverSchema = z.object({
   if (data.updateSource === 'modpack') {
     if (!data.modpackProvider) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['modpackProvider'], message: 'Choose a modpack provider.' });
     if (!data.modpackId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['modpackId'], message: 'A modpack id or pack.toml URL is required.' });
+  }
+  if (data.updateSource === 'forge' || data.updateSource === 'neoforge') {
+    if (!data.updateVersionLine) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['updateVersionLine'], message: 'A version line is required for Forge/NeoForge (e.g. 1.21.1).' });
   }
 });
 

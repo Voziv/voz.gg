@@ -33,6 +33,7 @@ describe('parseServerInput', () => {
         updateSource: 'none',
         modpackProvider: null,
         modpackId: null,
+        updateVersionLine: null,
         updateChannel: null,
         pinnedVersion: null,
         updatePolicy: 'notify',
@@ -260,6 +261,16 @@ describe('server-schema update fields', () => {
   it('accepts a fully specified modpack', () => {
     const r = parseServerInput({ ...valid, updateSource: 'modpack', modpackProvider: 'modrinth', modpackId: 'cobblemon', updateChannel: 'release' });
     expect(r.ok).toBe(true);
+  });
+  it('requires updateVersionLine for forge', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'forge' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.fieldErrors.updateVersionLine).toBeDefined();
+  });
+  it('accepts forge with a version line', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'forge', updateVersionLine: '1.21.1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.updateVersionLine).toBe('1.21.1');
   });
 });
 

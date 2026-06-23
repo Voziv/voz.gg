@@ -41,6 +41,7 @@ export const POST: APIRoute = async (ctx) => {
     updateSource: parsed.data.updateSource,
     modpackProvider: parsed.data.modpackProvider,
     modpackId: parsed.data.modpackId,
+    updateVersionLine: parsed.data.updateVersionLine,
     updateChannel: parsed.data.updateChannel,
     pinnedVersion: parsed.data.pinnedVersion,
     updatePolicy: parsed.data.updatePolicy,

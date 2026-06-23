@@ -91,6 +91,7 @@ type ServerData = {
   updateSource: UpdateSource | null;
   modpackProvider: ModpackProvider | null;
   modpackId: string | null;
+  updateVersionLine: string | null;
   updateChannel: string | null;
   pinnedVersion: string | null;
   updatePolicy: UpdatePolicy | null;
@@ -134,6 +135,7 @@ export default function ServerFormDialog({ server }: Props) {
     updateSource: UpdateSource;
     modpackProvider: ModpackProvider;
     modpackId: string;
+    updateVersionLine: string;
     updateChannel: string;
     pinnedVersion: string;
     currentVersion: string;
@@ -142,6 +144,7 @@ export default function ServerFormDialog({ server }: Props) {
     updateSource: server?.updateSource ?? 'none',
     modpackProvider: server?.modpackProvider ?? 'modrinth',
     modpackId: server?.modpackId ?? '',
+    updateVersionLine: server?.updateVersionLine ?? '',
     updateChannel: server?.updateChannel ?? '',
     pinnedVersion: server?.pinnedVersion ?? '',
     currentVersion: server?.currentVersion ?? '',
@@ -176,6 +179,7 @@ export default function ServerFormDialog({ server }: Props) {
       updateSource: updates.updateSource,
       modpackProvider: updates.updateSource === 'modpack' ? updates.modpackProvider : null,
       modpackId: updates.updateSource === 'modpack' ? (updates.modpackId.trim() || null) : null,
+      updateVersionLine: (updates.updateSource === 'forge' || updates.updateSource === 'neoforge') ? (updates.updateVersionLine.trim() || null) : null,
       updateChannel: updates.updateChannel.trim() || null,
       pinnedVersion: updates.pinnedVersion.trim() || null,
       updatePolicy: updates.updatePolicy,
@@ -458,6 +462,26 @@ export default function ServerFormDialog({ server }: Props) {
                   <FieldError errors={fieldErrors} field="modpackId" />
                 </div>
               </>
+            )}
+            {(updates.updateSource === 'forge' || updates.updateSource === 'neoforge') && (
+              <div className="grid gap-2">
+                <Label htmlFor="updateVersionLine" className="text-muted-foreground">
+                  {updates.updateSource === 'forge' ? 'Minecraft version line' : 'NeoForge version line'}
+                </Label>
+                <Input
+                  id="updateVersionLine"
+                  value={updates.updateVersionLine}
+                  onChange={(e) => setUpdates((c) => ({ ...c, updateVersionLine: e.target.value }))}
+                  placeholder={updates.updateSource === 'forge' ? 'e.g. 1.21.1' : 'e.g. 21.1'}
+                  aria-invalid={!!fieldErrors.updateVersionLine}
+                />
+                <FieldError errors={fieldErrors} field="updateVersionLine" />
+                <p className="text-xs text-muted-foreground">
+                  {updates.updateSource === 'forge'
+                    ? 'Minecraft version line, e.g. 1.21.1'
+                    : 'NeoForge version line, e.g. 21.1'}
+                </p>
+              </div>
             )}
             <div className="grid gap-2">
               <Label htmlFor="updateChannel" className="text-muted-foreground">Update channel</Label>
