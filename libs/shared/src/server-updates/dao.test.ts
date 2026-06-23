@@ -14,7 +14,11 @@ describe('toTrackedServer', () => {
     expect(toTrackedServer({ id: 's1', updateSource: null } as never)).toBeNull();
   });
   it('maps a vanilla server to a tracked server', () => {
-    const t = toTrackedServer({ id: 's1', updateSource: 'vanilla', updateChannel: 'release', modpackProvider: null, modpackId: null } as never);
+    const t = toTrackedServer({ id: 's1', updateSource: 'vanilla', updateChannel: 'release', modpackProvider: null, modpackId: null, updateVersionLine: null } as never);
     expect(t).toEqual({ serverId: 's1', host: 'launchermeta.mojang.com', config: { source: 'vanilla', provider: null, id: null, channel: 'release' } });
+  });
+  it('maps a forge row with updateVersionLine to config.id', () => {
+    const t = toTrackedServer({ id: 's2', updateSource: 'forge', updateChannel: null, modpackProvider: null, modpackId: null, updateVersionLine: '1.21.1' } as never);
+    expect(t).toEqual({ serverId: 's2', host: 'files.minecraftforge.net', config: { source: 'forge', provider: null, id: '1.21.1', channel: null } });
   });
 });

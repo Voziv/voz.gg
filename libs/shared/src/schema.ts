@@ -129,6 +129,7 @@ export const servers = sqliteTable('servers', {
   updateSource: text('update_source').$type<UpdateSource>(),
   modpackProvider: text('modpack_provider').$type<ModpackProvider>(),
   modpackId: text('modpack_id'),
+  updateVersionLine: text('update_version_line'),
   updateChannel: text('update_channel'),
   pinnedVersion: text('pinned_version'),
   updatePolicy: text('update_policy').$type<UpdatePolicy>(),

@@ -31,10 +31,14 @@ export function toTrackedServer(row: ServerRow): TrackedServer | null {
   if (host === 'packwiz' && row.modpackId) {
     try { host = new URL(row.modpackId).host; } catch { host = 'packwiz'; }
   }
+  const id =
+    source === 'modpack' ? (row.modpackId ?? null)
+    : source === 'forge' || source === 'neoforge' ? (row.updateVersionLine ?? null)
+    : null;
   return {
     serverId: row.id,
     host,
-    config: { source, provider, id: row.modpackId ?? null, channel: row.updateChannel ?? null },
+    config: { source, provider, id, channel: row.updateChannel ?? null },
   };
 }
 

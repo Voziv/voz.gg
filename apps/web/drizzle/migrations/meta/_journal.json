@@ -120,6 +120,13 @@
       "when": 1782182894626,
       "tag": "0016_bouncy_the_hand",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1782231098097,
+      "tag": "0017_smooth_corsair",
+      "breakpoints": true
     }
   ]
 }

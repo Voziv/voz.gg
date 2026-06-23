@@ -1,0 +1,1 @@
+ALTER TABLE `servers` ADD `update_version_line` text;
