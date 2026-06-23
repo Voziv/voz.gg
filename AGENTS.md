@@ -101,7 +101,15 @@ them via `getPlayersOverview`. The Go `voz-gg-agent logparse` producer is
 implemented: it backfills rolled `*.log.gz` then tails `latest.log`, parses
 join/leave/connection_rejected/server_start/server_stop, and POSTs idempotent
 batches to `ingest.voz.gg/presence` (Bearer = the agent token from the monitor config; log
-directory via `-log-dir`, checkpoint advances only on ack). `voz-gg-agent setup`
+directory via `-log-dir`, checkpoint advances only on ack). It understands both
+the vanilla/Paper log prefix (`[HH:MM:SS]`, date from the file/anchor) and the
+Forge/NeoForge prefix (`[ddMMMyyyy HH:mm:ss.SSS] [thread] [logger]:`, date inline),
+and a **single correlator is shared across the whole run** so a player's UUID
+(announced on a `UUID of player` line) and online/offline state carry across log
+files. A `lost connection` line only becomes a `connection_rejected` when the
+name has a resolved UUID and is not currently online — so a normal quit (already
+covered by `left the game`) and anonymous pre-auth scans are both dropped.
+`voz-gg-agent setup`
 now decodes the enroll `provisioning.capabilities.logParser` block and, when log
 parsing is enabled, resolves the game-server log directory (interactively via
 `/dev/tty`, or from the provisioned `logPath` with `--non-interactive`) and
