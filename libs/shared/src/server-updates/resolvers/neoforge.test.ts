@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { neoforgeResolver } from './neoforge';
 import type { Fetcher } from '../types';
 

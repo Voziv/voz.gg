@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { resolverFor } from './registry';
 import { vanillaResolver } from './resolvers/vanilla';
 import { modrinthResolver } from './resolvers/modrinth';

@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { packwizResolver } from './packwiz';
 import type { Fetcher } from '../types';
 

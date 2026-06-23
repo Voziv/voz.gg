@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { formatUpdateDiscordMessage } from './format';
 
 describe('formatUpdateDiscordMessage', () => {

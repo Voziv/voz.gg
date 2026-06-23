@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { forgeResolver } from './forge';
 import type { Fetcher } from '../types';
 

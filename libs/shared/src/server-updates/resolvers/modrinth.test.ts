@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { modrinthResolver } from './modrinth';
 import type { Fetcher } from '../types';
 

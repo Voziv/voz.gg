@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { evaluateUpdateNotification } from './evaluate';
 
 const base = { available: '1.21.4', current: '1.21.1', pinned: null, notified: null };

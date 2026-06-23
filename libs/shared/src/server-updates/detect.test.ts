@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { runDetection, type TrackedServer } from './detect';
 
 const noSleep = async () => {};

@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { ftbResolver } from './ftb';
 import type { Fetcher } from '../types';
 

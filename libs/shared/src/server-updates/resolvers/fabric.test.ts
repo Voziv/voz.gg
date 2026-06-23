@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { fabricResolver } from './fabric';
 import type { Fetcher } from '../types';
 

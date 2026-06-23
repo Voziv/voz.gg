@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { curseforgeResolver, MissingApiKeyError } from './curseforge';
 import type { Fetcher } from '../types';
 

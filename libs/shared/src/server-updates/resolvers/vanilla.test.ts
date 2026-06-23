@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { vanillaResolver } from './vanilla';
 import type { Fetcher } from '../types';
 

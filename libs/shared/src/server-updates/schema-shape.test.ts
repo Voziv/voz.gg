@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { UPDATE_SOURCES, MODPACK_PROVIDERS, UPDATE_POLICIES, serverUpdateState, servers } from '../schema';
 
 describe('update schema shape', () => {
