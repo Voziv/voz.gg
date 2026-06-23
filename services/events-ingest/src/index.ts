@@ -7,6 +7,9 @@ import {
   handlePresenceBatch,
   handleNotificationMessage,
   parsePresenceBody,
+  createUpdateDetectionDao,
+  resolverFor,
+  detectAndNotify,
   type NotifyMessage,
   type DiscordPayload,
 } from '@voz/shared';
@@ -17,6 +20,7 @@ interface Env {
   DB: D1Database;
   NOTIFY_QUEUE: Queue<NotifyMessage>;
   SITE_URL: string;
+  CURSEFORGE_API_KEY?: string;
 }
 
 const postDiscord = async (url: string, payload: DiscordPayload): Promise<{ status: number }> => {
@@ -78,5 +82,20 @@ export default {
         message.retry();
       }
     }
+  },
+
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const dao = createUpdateDetectionDao(createDb(env.DB));
+    ctx.waitUntil(
+      detectAndNotify({
+        dao,
+        resolverFor,
+        postDiscord,
+        apiKey: env.CURSEFORGE_API_KEY ?? null,
+        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+        gapMs: 5000,
+        now: () => new Date(),
+      }),
+    );
   },
 } satisfies ExportedHandler<Env, NotifyMessage>;
