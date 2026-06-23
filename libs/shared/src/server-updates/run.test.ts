@@ -30,7 +30,7 @@ describe('detectAndNotify', () => {
       dao,
       resolverFor: () => ({ resolveLatest: async () => ({ version: '1.21.4', publishedAt: 1 }) }),
       postDiscord: async (url: string, payload: any) => { posts.push({ url, payload }); return { status: 204 }; },
-      apiKey: null, sleep: async () => {}, gapMs: 0, now: () => new Date(1000),
+      apiKey: null, sleep: () => Promise.resolve(), gapMs: 0, now: () => new Date(1000),
     });
     expect(writes[0]).toMatchObject({ serverId: 's1', version: '1.21.4', error: null });
     expect(posts[0].url).toBe('https://discord.test/hook');
@@ -44,7 +44,7 @@ describe('detectAndNotify', () => {
       dao,
       resolverFor: () => ({ resolveLatest: async () => ({ version: '1.21.4', publishedAt: 1 }) }),
       postDiscord: async () => { posts.push(1); return { status: 204 }; },
-      apiKey: null, sleep: async () => {}, gapMs: 0, now: () => new Date(1000),
+      apiKey: null, sleep: () => Promise.resolve(), gapMs: 0, now: () => new Date(1000),
     });
     expect(posts).toEqual([]);
     expect(notified).toEqual([]);
@@ -56,7 +56,7 @@ describe('detectAndNotify', () => {
       dao,
       resolverFor: () => ({ resolveLatest: async () => { throw new MissingApiKeyError(); } }),
       postDiscord: async () => ({ status: 204 }),
-      apiKey: null, sleep: async () => {}, gapMs: 0, now: () => new Date(1000),
+      apiKey: null, sleep: () => Promise.resolve(), gapMs: 0, now: () => new Date(1000),
     });
     expect(writes[0].error).toContain('API key');
   });

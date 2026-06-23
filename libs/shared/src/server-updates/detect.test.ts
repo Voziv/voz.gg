@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runDetection, type TrackedServer } from './detect';
 
-const noSleep = async () => {};
+const noSleep = () => Promise.resolve();
 
 function server(serverId: string, host: string, id: string): TrackedServer {
   return { serverId, host, config: { source: 'modpack', provider: 'modrinth', id, channel: 'release' } };
