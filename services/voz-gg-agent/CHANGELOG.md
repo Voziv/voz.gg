@@ -1,3 +1,13 @@
+## 0.8.2 (2026-06-24)
+
+### 🩹 Fixes
+
+- **voz-gg-agent:** parse Forge/NeoForge logs and correlate sessions across files ([6083b21](https://github.com/Voziv/voz.gg/commit/6083b21))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.8.1 (2026-06-23)
 
 ### 🩹 Fixes
