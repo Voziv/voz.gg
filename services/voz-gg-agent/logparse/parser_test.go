@@ -106,3 +106,61 @@ func TestSplitLineRejectsDateStampedLine(t *testing.T) {
 		t.Fatal("a date-stamped line must not be treated as an HH:MM:SS log line")
 	}
 }
+
+// Forge/NeoForge lines carry a full "[ddMMMyyyy HH:mm:ss.SSS]" timestamp and an
+// extra "[logger]" bracket before the body; SplitLine must strip both and keep
+// the body (including its own colons) intact.
+func TestSplitLineNeoForge(t *testing.T) {
+	ts, body, ok := SplitLine(`[15May2026 03:51:49.408] [Server thread/INFO] [net.minecraft.server.network.ServerLoginPacketListenerImpl/]: mori6 (/193.32.248.156:42080) lost connection: Disconnected`)
+	if !ok || ts != "15May2026 03:51:49.408" || body != "mori6 (/193.32.248.156:42080) lost connection: Disconnected" {
+		t.Fatalf("got ts=%q body=%q ok=%v", ts, body, ok)
+	}
+}
+
+func TestNeoForgeJoinCorrelatesUUID(t *testing.T) {
+	p := NewCorrelator()
+	if _, ok := p.Parse(`UUID of player tunestay is e4f45465-c071-4e5e-b844-e342804c8315`); ok {
+		t.Fatal("uuid binding should not emit an event")
+	}
+	join, ok := p.Parse(`tunestay joined the game`)
+	if !ok || join.Type != "join" || join.IdentityKey != "e4f45465c0714e5eb844e342804c8315" {
+		t.Fatalf("join: %+v ok=%v", join, ok)
+	}
+}
+
+// A modern rejection has no inline UUID; it is recovered from the preceding
+// "UUID of player" line and the whitelist reason is normalized.
+func TestNeoForgeWhitelistRejection(t *testing.T) {
+	p := NewCorrelator()
+	p.Parse(`UUID of player tunestay is e4f45465-c071-4e5e-b844-e342804c8315`)
+	ev, ok := p.Parse(`tunestay (/51.159.119.214:59980) lost connection: You are not white-listed on this server!`)
+	if !ok || ev.Type != "connection_rejected" || ev.PlayerName != "tunestay" ||
+		ev.IP != "51.159.119.214" || ev.Reason != "whitelist" ||
+		ev.IdentityKey != "e4f45465c0714e5eb844e342804c8315" {
+		t.Fatalf("rejected: %+v ok=%v", ev, ok)
+	}
+}
+
+// A joined player's "lost connection" is the tail of a normal session (its leave
+// comes from "left the game"), so it must not surface as a rejection.
+func TestOnlinePlayerDisconnectSuppressed(t *testing.T) {
+	p := NewCorrelator()
+	p.Parse(`UUID of player Steve is f498b235-9a85-4a5e-9f12-f47eb3a73e9b`)
+	p.Parse(`Steve joined the game`)
+	if ev, ok := p.Parse(`Steve (/10.0.0.5:5000) lost connection: Disconnected`); ok {
+		t.Fatalf("online player's disconnect must be suppressed, got %+v", ev)
+	}
+	leave, ok := p.Parse(`Steve left the game`)
+	if !ok || leave.Type != "leave" || leave.IdentityKey != "f498b2359a854a5e9f12f47eb3a73e9b" {
+		t.Fatalf("leave: %+v ok=%v", leave, ok)
+	}
+}
+
+// A disconnect with no preceding UUID line is an anonymous pre-auth scan; it
+// carries no identity and would only add noise, so it is dropped.
+func TestAnonymousScanDisconnectSuppressed(t *testing.T) {
+	p := NewCorrelator()
+	if ev, ok := p.Parse(`mori6 (/193.32.248.156:42080) lost connection: Disconnected`); ok {
+		t.Fatalf("anonymous disconnect must be suppressed, got %+v", ev)
+	}
+}

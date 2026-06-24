@@ -1,3 +1,17 @@
+## 0.8.1 (2026-06-23)
+
+### 🩹 Fixes
+
+- route agent presence to dedicated ingest.voz.gg worker ([064dbe4](https://github.com/Voziv/voz.gg/commit/064dbe4))
+
+### 🧱 Updated Dependencies
+
+- Updated go-shared to 0.3.1
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.8.0 (2026-06-21)
 
 ### 🚀 Features

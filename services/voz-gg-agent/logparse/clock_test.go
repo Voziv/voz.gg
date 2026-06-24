@@ -59,6 +59,20 @@ func TestResolverFirstLineDoesNotWrap(t *testing.T) {
 	}
 }
 
+// A Forge/NeoForge timestamp carries its own date, so it resolves absolutely and
+// ignores the anchor day entirely.
+func TestResolverParsesNeoForgeAbsoluteTimestamp(t *testing.T) {
+	loc := time.UTC
+	r := NewTimeResolver(time.Date(2026, 6, 14, 0, 0, 0, 0, loc), loc)
+	got, ok := r.Resolve("15May2026 03:51:49.408")
+	if !ok {
+		t.Fatal("expected NeoForge timestamp to parse")
+	}
+	if want := time.Date(2026, 5, 15, 3, 51, 49, 0, loc).Unix(); got != want {
+		t.Fatalf("got %d want %d (anchor day must be ignored)", got, want)
+	}
+}
+
 func TestDateFromRolledName(t *testing.T) {
 	loc := time.UTC
 	got := dateFromRolledName("2026-06-14-3.log.gz", loc)

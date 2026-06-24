@@ -45,8 +45,15 @@ func runLogparse(args []string, stderr io.Writer) int {
 		cp = filepath.Join(*logDir, ".voz-logparse-checkpoint.json")
 	}
 
+	// Presence goes to the ingest host (ingest.voz.gg), which is a separate worker
+	// from the web Worker. Fall back to the web base URL for older enrollments that
+	// predate ingestBaseUrl.
+	ingestBaseURL := cfg.IngestBaseURL
+	if ingestBaseURL == "" {
+		ingestBaseURL = cfg.WorkerBaseURL
+	}
 	rep := goshared.Reporter{
-		Endpoint: cfg.WorkerBaseURL,
+		Endpoint: ingestBaseURL,
 		Token:    cfg.AgentToken,
 		Client:   &http.Client{Timeout: 15 * time.Second},
 	}

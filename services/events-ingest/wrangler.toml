@@ -3,6 +3,15 @@ main = "src/index.ts"
 compatibility_date = "2026-05-28"
 compatibility_flags = ["nodejs_compat"]
 
+# Expose the ingest API on its own hostname. voz.gg is a Custom Domain on the web
+# Worker, which captures the whole host, so ingest cannot share it via a path
+# route — it gets a dedicated Custom Domain instead. Deploy provisions the cert
+# and proxied DNS automatically (same zone). Agents receive this host as
+# `ingestBaseUrl` in the enroll/config response and POST presence to it.
+routes = [
+  { pattern = "ingest.voz.gg", custom_domain = true },
+]
+
 [observability]
 enabled = true
 

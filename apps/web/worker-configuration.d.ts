@@ -12,6 +12,7 @@ interface __BaseEnv_Env {
 	STEAM_API_KEY: string;
 	STEAM_REALM: string;
 	STEAM_RETURN_URL: string;
+	INGEST_BASE_URL: string;
 	RESEND_API_KEY: string;
 	FROM_EMAIL: string;
 	TURNSTILE_SECRET_KEY: string;

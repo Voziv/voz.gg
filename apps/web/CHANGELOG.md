@@ -1,3 +1,13 @@
+## 0.21.2 (2026-06-23)
+
+### 🩹 Fixes
+
+- route agent presence to dedicated ingest.voz.gg worker ([064dbe4](https://github.com/Voziv/voz.gg/commit/064dbe4))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.21.1 (2026-06-22)
 
 ### 🩹 Fixes

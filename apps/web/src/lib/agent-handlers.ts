@@ -25,7 +25,14 @@ async function configResponse(server: ServerRow) {
   return { config, configHash: await configHash(config) };
 }
 
-export async function handleEnroll(dao: AgentDao, body: unknown): Promise<HandlerResult> {
+// ingestBaseUrl is the host agents POST presence to. It is a separate worker on
+// its own domain (ingest.voz.gg), distinct from this web Worker, so it is sent to
+// the agent at enroll/config time rather than derived from the install URL.
+export async function handleEnroll(
+  dao: AgentDao,
+  body: unknown,
+  ingestBaseUrl: string,
+): Promise<HandlerResult> {
   const parsed = z.object({ enrollmentToken: z.string().min(1) }).safeParse(body);
   if (!parsed.success) return { status: 400, body: { error: 'Missing enrollment token.' } };
 
@@ -39,17 +46,21 @@ export async function handleEnroll(dao: AgentDao, body: unknown): Promise<Handle
   const { config, configHash: hash } = await configResponse(server);
   return {
     status: 200,
-    body: { agentToken, config, configHash: hash, provisioning: buildProvisioning(server) },
+    body: { agentToken, ingestBaseUrl, config, configHash: hash, provisioning: buildProvisioning(server) },
   };
 }
 
-export async function handleConfig(dao: AgentDao, serverId: string | null): Promise<HandlerResult> {
+export async function handleConfig(
+  dao: AgentDao,
+  serverId: string | null,
+  ingestBaseUrl: string,
+): Promise<HandlerResult> {
   if (!serverId) return { status: 401, body: { error: 'Unauthorized.' } };
   const server = await dao.serverById(serverId);
   if (!server) return { status: 401, body: { error: 'Unauthorized.' } };
   return {
     status: 200,
-    body: { ...(await configResponse(server)), provisioning: buildProvisioning(server) },
+    body: { ...(await configResponse(server)), ingestBaseUrl, provisioning: buildProvisioning(server) },
   };
 }
 

@@ -96,6 +96,7 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 
 	cfg := Config{
 		WorkerBaseURL: opts.WorkerBaseURL,
+		IngestBaseURL: resp.IngestBaseURL,
 		AgentToken:    resp.AgentToken,
 		ConfigHash:    resp.ConfigHash,
 		Server:        resp.Config,

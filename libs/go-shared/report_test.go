@@ -57,3 +57,27 @@ func TestPostNonOKStatusIsError(t *testing.T) {
 		t.Fatal("expected error on 401, got nil")
 	}
 }
+
+// A 3xx must surface as an error rather than being followed. Following a redirect
+// (the default http.Client behavior) would let a misrouted POST land on the web
+// app's /sign-in page, return 200, and be mistaken for a successful delivery.
+func TestPostDoesNotFollowRedirects(t *testing.T) {
+	followed := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/sign-in" {
+			followed = true
+			_ = json.NewEncoder(w).Encode(map[string]string{"page": "sign-in"})
+			return
+		}
+		http.Redirect(w, r, "/sign-in", http.StatusFound)
+	}))
+	defer srv.Close()
+
+	r := Reporter{Endpoint: srv.URL, Token: "tok", Client: srv.Client()}
+	if err := r.Post("/presence", map[string]string{}, nil); err == nil {
+		t.Fatal("expected error on 302, got nil")
+	}
+	if followed {
+		t.Fatal("redirect was followed; the 3xx must surface as an error instead")
+	}
+}

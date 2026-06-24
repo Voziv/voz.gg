@@ -128,6 +128,83 @@ func TestBackfillParsesAndDelivers(t *testing.T) {
 	}
 }
 
+// The UUID is announced in a rolled log but the join arrives in latest.log. A
+// single correlator shared across files must still attribute the join's UUID.
+func TestBackfillCorrelatesUUIDAcrossFiles(t *testing.T) {
+	dir := t.TempDir()
+	writeGz(t, filepath.Join(dir, "2026-06-13-1.log.gz"),
+		"[09:00:00] [User Authenticator/INFO]: UUID of player Steve is f498b235-9a85-4a5e-9f12-f47eb3a73e9b\n")
+	if err := os.WriteFile(filepath.Join(dir, "latest.log"),
+		[]byte(`[10:00:00] [Server thread/INFO]: Steve joined the game`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var got []goshared.PresenceEvent
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b goshared.PresenceBatch
+		json.NewDecoder(r.Body).Decode(&b)
+		mu.Lock()
+		got = append(got, b.Events...)
+		mu.Unlock()
+		json.NewEncoder(w).Encode(goshared.PresenceResult{Accepted: len(b.Events)})
+	}))
+	defer srv.Close()
+
+	r := newRunner(dir, srv.URL, filepath.Join(dir, "cp.json"), 100)
+	if err := r.Backfill(); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 1 || got[0].Type != "join" {
+		t.Fatalf("expected one join, got %+v", got)
+	}
+	if got[0].IdentityKey == nil || *got[0].IdentityKey != "f498b2359a854a5e9f12f47eb3a73e9b" {
+		t.Fatalf("join must carry the UUID announced in the rolled log: %+v", got[0])
+	}
+}
+
+// A NeoForge-formatted latest.log (full inline dates, extra logger bracket) must
+// parse, and its events must be timed from the inline date — not the anchor day.
+func TestBackfillParsesNeoForgeFormat(t *testing.T) {
+	dir := t.TempDir()
+	log := `[15May2026 10:00:00.000] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Done (1.0s)! For help, type "help"
+[15May2026 10:00:05.100] [User Authenticator #1/INFO] [net.minecraft.server.network.ServerLoginPacketListenerImpl/]: UUID of player Steve is f498b235-9a85-4a5e-9f12-f47eb3a73e9b
+[15May2026 10:00:06.200] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Steve joined the game
+[15May2026 10:00:30.300] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Steve left the game
+`
+	if err := os.WriteFile(filepath.Join(dir, "latest.log"), []byte(log), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var got []goshared.PresenceEvent
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b goshared.PresenceBatch
+		json.NewDecoder(r.Body).Decode(&b)
+		mu.Lock()
+		got = append(got, b.Events...)
+		mu.Unlock()
+		json.NewEncoder(w).Encode(goshared.PresenceResult{Accepted: len(b.Events)})
+	}))
+	defer srv.Close()
+
+	r := newRunner(dir, srv.URL, filepath.Join(dir, "cp.json"), 100) // AnchorDate is 2026-06-14
+	if err := r.Backfill(); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 3 {
+		t.Fatalf("expected start, join, leave; got %d: %+v", len(got), got)
+	}
+	if got[1].Type != "join" || got[1].IdentityKey == nil || *got[1].IdentityKey != "f498b2359a854a5e9f12f47eb3a73e9b" {
+		t.Fatalf("join event wrong: %+v", got[1])
+	}
+	if want := time.Date(2026, 5, 15, 10, 0, 6, 0, time.UTC).Unix(); got[1].OccurredAt != want {
+		t.Fatalf("join must use the inline date, not the anchor day: got %d want %d", got[1].OccurredAt, want)
+	}
+}
+
 func TestBackfillResumesFromCheckpoint(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "latest.log"),

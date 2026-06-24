@@ -72,6 +72,9 @@ func TestReprovisionRefreshesConfigWithoutRotatingTokenAndRestartsMonitor(t *tes
 	if saved.ConfigHash != "H1" || saved.Server.ServerID != "srv1" {
 		t.Fatalf("config not refreshed: %+v", saved)
 	}
+	if saved.IngestBaseURL != "https://ingest.voz.gg" {
+		t.Fatalf("ingest base URL not refreshed: got %q", saved.IngestBaseURL)
+	}
 	if !hasRun(sys.runs, "systemctl", "restart", monitorUnitName) {
 		t.Fatalf("monitor not restarted: %v", sys.runs)
 	}
