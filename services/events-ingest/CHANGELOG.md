@@ -1,3 +1,17 @@
+## 0.4.0 (2026-06-24)
+
+### 🚀 Features
+
+- **events-ingest:** add hourly update detection cron ([d538b20](https://github.com/Voziv/voz.gg/commit/d538b20))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.11.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.3.2 (2026-06-23)
 
 ### 🩹 Fixes

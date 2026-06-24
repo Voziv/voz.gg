@@ -1,3 +1,33 @@
+## 0.11.0 (2026-06-24)
+
+### 🚀 Features
+
+- **shared:** add update detect-and-notify orchestrator ([e743634](https://github.com/Voziv/voz.gg/commit/e743634))
+- **shared:** add update detection dao and exports ([6f651da](https://github.com/Voziv/voz.gg/commit/6f651da))
+- **shared:** add update discord message formatter ([00e8c5f](https://github.com/Voziv/voz.gg/commit/00e8c5f))
+- **shared:** add update detection orchestration ([dc547cb](https://github.com/Voziv/voz.gg/commit/dc547cb))
+- **shared:** add update resolver registry ([ab363b6](https://github.com/Voziv/voz.gg/commit/ab363b6))
+- **shared:** add curseforge version resolver ([097b0bb](https://github.com/Voziv/voz.gg/commit/097b0bb))
+- **shared:** add packwiz version resolver ([9d38b95](https://github.com/Voziv/voz.gg/commit/9d38b95))
+- **shared:** add ftb version resolver ([6273c15](https://github.com/Voziv/voz.gg/commit/6273c15))
+- **shared:** add modrinth version resolver ([ca44790](https://github.com/Voziv/voz.gg/commit/ca44790))
+- **shared:** add fabric version resolver ([ff0213c](https://github.com/Voziv/voz.gg/commit/ff0213c))
+- **shared:** add neoforge version resolver ([1a9a2ec](https://github.com/Voziv/voz.gg/commit/1a9a2ec))
+- **shared:** add forge version resolver ([a5e71a8](https://github.com/Voziv/voz.gg/commit/a5e71a8))
+- **shared:** add vanilla version resolver ([3441667](https://github.com/Voziv/voz.gg/commit/3441667))
+- **shared:** add update notify decision logic ([b7eb948](https://github.com/Voziv/voz.gg/commit/b7eb948))
+- **shared:** add update-tracking schema and state table ([656366e](https://github.com/Voziv/voz.gg/commit/656366e))
+
+### 🩹 Fixes
+
+- **shared:** add loader version line so forge and neoforge resolve ([27da1c2](https://github.com/Voziv/voz.gg/commit/27da1c2))
+- **shared:** import vitest symbols in update test files for tsc build ([535a63f](https://github.com/Voziv/voz.gg/commit/535a63f))
+- **shared:** key update detection groups by host and cover intra-host isolation ([4af454e](https://github.com/Voziv/voz.gg/commit/4af454e))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.10.0 (2026-06-22)
 
 ### 🚀 Features

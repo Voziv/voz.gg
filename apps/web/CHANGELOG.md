@@ -1,3 +1,27 @@
+## 0.22.0 (2026-06-24)
+
+### 🚀 Features
+
+- **web:** show current and available version per server ([a470818](https://github.com/Voziv/voz.gg/commit/a470818))
+- **web:** add update settings to the server form ([92f49e2](https://github.com/Voziv/voz.gg/commit/92f49e2))
+- **web:** persist update settings on server create and edit ([5d3b4df](https://github.com/Voziv/voz.gg/commit/5d3b4df))
+- **web:** validate per-server update settings ([11583b5](https://github.com/Voziv/voz.gg/commit/11583b5))
+- **shared:** add update-tracking schema and state table ([656366e](https://github.com/Voziv/voz.gg/commit/656366e))
+
+### 🩹 Fixes
+
+- **web:** collect loader version line for forge and neoforge ([804d50c](https://github.com/Voziv/voz.gg/commit/804d50c))
+- **shared:** add loader version line so forge and neoforge resolve ([27da1c2](https://github.com/Voziv/voz.gg/commit/27da1c2))
+- **web:** render update badge server-side and assert badge labels ([9faa28f](https://github.com/Voziv/voz.gg/commit/9faa28f))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.11.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.21.2 (2026-06-23)
 
 ### 🩹 Fixes
