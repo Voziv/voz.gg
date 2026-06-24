@@ -22,6 +22,11 @@ type Runner struct {
 	BatchSize  int
 	Location   *time.Location
 	AnchorDate time.Time // anchor for latest.log's day; rolled logs use their filename date
+
+	// correlator carries name→UUID and online-player state across every file in a
+	// run so sessions are detected across log-file boundaries. Lazily created and
+	// reused for the Runner's lifetime; never reset between files or poll ticks.
+	correlator *Correlator
 }
 
 func ptr(s string) *string {
@@ -141,7 +146,9 @@ func (r *Runner) processFile(path string, checkpoint Checkpoint) error {
 	if batchSize > maxBatchSize {
 		batchSize = maxBatchSize
 	}
-	correlator := NewCorrelator()
+	if r.correlator == nil {
+		r.correlator = NewCorrelator()
+	}
 	resolver := NewTimeResolver(anchor, r.Location)
 
 	var batch []goshared.PresenceEvent
@@ -165,7 +172,7 @@ func (r *Runner) processFile(path string, checkpoint Checkpoint) error {
 		if !ok {
 			return
 		}
-		event, ok := correlator.Parse(body)
+		event, ok := r.correlator.Parse(body)
 		if !ok {
 			return
 		}
