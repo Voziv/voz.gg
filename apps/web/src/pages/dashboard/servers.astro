@@ -2,12 +2,13 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import { eq } from 'drizzle-orm';
-import { createDb, servers, serverStatus, type GameType } from '@voz/shared';
+import { createDb, servers, serverStatus, serverUpdateState, type GameType } from '@voz/shared';
 import { displayStatus } from '../../lib/status-display';
 import { isAdmin } from '../../lib/admin';
 import Dashboard from '../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../components/ui/card.tsx';
 import StatusBadge from '../../components/dashboard/StatusBadge.tsx';
+import UpdateBadge from '../../components/dashboard/UpdateBadge.tsx';
 import ServerFormDialog from '../../components/dashboard/ServerFormDialog.tsx';
 import DeleteServerButton from '../../components/dashboard/DeleteServerButton.tsx';
 import AgentInstallDialog from '../../components/dashboard/AgentInstallDialog.tsx';
@@ -15,9 +16,10 @@ import AgentInstallDialog from '../../components/dashboard/AgentInstallDialog.ts
 const POLL_INTERVAL_SECONDS = 30;
 const db = createDb(env.DB);
 const rows = await db
-  .select({ server: servers, status: serverStatus })
+  .select({ server: servers, status: serverStatus, updateState: serverUpdateState })
   .from(servers)
   .leftJoin(serverStatus, eq(serverStatus.serverId, servers.id))
+  .leftJoin(serverUpdateState, eq(serverUpdateState.serverId, servers.id))
   .all();
 const admin = isAdmin(Astro.locals.user);
 const now = new Date();
@@ -59,7 +61,7 @@ const GAME_LABELS: Record<GameType, string> = {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ server: s, status }) => {
+            {rows.map(({ server: s, status, updateState }) => {
               const display = displayStatus(status, POLL_INTERVAL_SECONDS, now);
               return (
               <tr class="border-t border-border">
@@ -70,7 +72,10 @@ const GAME_LABELS: Record<GameType, string> = {
                 <td class="px-4 py-3 text-muted-foreground">{GAME_LABELS[s.gameType] ?? s.gameType}</td>
                 <td class="px-4 py-3 font-mono text-muted-foreground">{s.host}:{s.port}</td>
                 <td class="px-4 py-3">
-                  <StatusBadge status={display.status} players={display.players} maxPlayers={display.maxPlayers} />
+                  <div class="flex flex-wrap gap-1">
+                    <StatusBadge status={display.status} players={display.players} maxPlayers={display.maxPlayers} />
+                    <UpdateBadge updateSource={s.updateSource ?? null} currentVersion={s.currentVersion ?? null} availableVersion={updateState?.availableVersion ?? null} lastError={updateState?.lastError ?? null} />
+                  </div>
                 </td>
                 {admin && (
                   <td class="px-4 py-3">
@@ -78,7 +83,7 @@ const GAME_LABELS: Record<GameType, string> = {
                       <AgentInstallDialog client:load serverId={s.id} serverName={s.name} />
                       <ServerFormDialog
                         client:load
-                        server={{ id: s.id, name: s.name, gameType: s.gameType, host: s.host, port: s.port, description: s.description, runAsUser: s.runAsUser, runAsGroup: s.runAsGroup, gameServerUser: s.gameServerUser, logPath: s.logPath, logParserEnabled: s.logParserEnabled, discordWebhookUrl: s.discordWebhookUrl, slug: s.slug, serverControlEnabled: s.serverControlEnabled, serverWorkingDir: s.serverWorkingDir, startCommand: s.startCommand, restartSchedule: s.restartSchedule }}
+                        server={{ id: s.id, name: s.name, gameType: s.gameType, host: s.host, port: s.port, description: s.description, runAsUser: s.runAsUser, runAsGroup: s.runAsGroup, gameServerUser: s.gameServerUser, logPath: s.logPath, logParserEnabled: s.logParserEnabled, discordWebhookUrl: s.discordWebhookUrl, slug: s.slug, serverControlEnabled: s.serverControlEnabled, serverWorkingDir: s.serverWorkingDir, startCommand: s.startCommand, restartSchedule: s.restartSchedule, updateSource: s.updateSource, modpackProvider: s.modpackProvider, modpackId: s.modpackId, updateChannel: s.updateChannel, pinnedVersion: s.pinnedVersion, updatePolicy: s.updatePolicy, currentVersion: s.currentVersion }}
                       />
                       <DeleteServerButton client:load id={s.id} name={s.name} />
                     </div>

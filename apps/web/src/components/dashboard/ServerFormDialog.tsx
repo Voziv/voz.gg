@@ -15,7 +15,12 @@ import { Label } from '../ui/label';
 import { Button, buttonVariants } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { cn } from '../../lib/utils';
-import { GAME_TYPES, type GameType } from '@voz/shared';
+import {
+  GAME_TYPES, type GameType,
+  UPDATE_SOURCES, type UpdateSource,
+  MODPACK_PROVIDERS, type ModpackProvider,
+  UPDATE_POLICIES, type UpdatePolicy,
+} from '@voz/shared';
 import { initialAgentHostValues, nextAgentHostValues, initialServerControlValues } from './server-form-defaults';
 import { localTimeToUtc, utcTimeToLocal } from '../../lib/restart-time';
 
@@ -26,6 +31,44 @@ const GAME_LABELS: Record<GameType, string> = {
   'generic-tcp': 'Generic TCP',
   unknown: 'Unknown / Other',
 };
+
+const UPDATE_SOURCE_LABELS: Record<UpdateSource, string> = {
+  none: 'None',
+  vanilla: 'Vanilla',
+  forge: 'Forge',
+  neoforge: 'NeoForge',
+  fabric: 'Fabric',
+  modpack: 'Modpack',
+};
+
+const MODPACK_PROVIDER_LABELS: Record<ModpackProvider, string> = {
+  modrinth: 'Modrinth',
+  curseforge: 'CurseForge',
+  ftb: 'FTB',
+  packwiz: 'packwiz',
+};
+
+const UPDATE_POLICY_LABELS: Record<UpdatePolicy, string> = {
+  notify: 'Notify only',
+  approve: 'Approve before update',
+  auto: 'Auto-update',
+};
+
+function modpackIdLabel(provider: ModpackProvider): string {
+  switch (provider) {
+    case 'modrinth': return 'Modrinth project ID';
+    case 'curseforge': return 'CurseForge mod ID';
+    case 'ftb': return 'FTB pack ID';
+    case 'packwiz': return 'pack.toml URL';
+  }
+}
+
+function updateChannelPlaceholder(source: UpdateSource): string {
+  if (source === 'vanilla') return 'release / snapshot';
+  if (source === 'forge' || source === 'neoforge') return 'latest / recommended';
+  if (source === 'fabric' || source === 'modpack') return 'stable / beta / alpha';
+  return '';
+}
 
 type ServerData = {
   id: string;
@@ -45,6 +88,14 @@ type ServerData = {
   serverWorkingDir: string | null;
   startCommand: string | null;
   restartSchedule: string | null;
+  updateSource: UpdateSource | null;
+  modpackProvider: ModpackProvider | null;
+  modpackId: string | null;
+  updateVersionLine: string | null;
+  updateChannel: string | null;
+  pinnedVersion: string | null;
+  updatePolicy: UpdatePolicy | null;
+  currentVersion: string | null;
 };
 function FieldError({ errors, field }: { errors: Record<string, string>; field: string }): JSX.Element | null {
   if (!errors[field]) return null;
@@ -80,6 +131,26 @@ export default function ServerFormDialog({ server }: Props) {
     ),
   );
 
+  const [updates, setUpdates] = useState<{
+    updateSource: UpdateSource;
+    modpackProvider: ModpackProvider;
+    modpackId: string;
+    updateVersionLine: string;
+    updateChannel: string;
+    pinnedVersion: string;
+    currentVersion: string;
+    updatePolicy: UpdatePolicy;
+  }>({
+    updateSource: server?.updateSource ?? 'none',
+    modpackProvider: server?.modpackProvider ?? 'modrinth',
+    modpackId: server?.modpackId ?? '',
+    updateVersionLine: server?.updateVersionLine ?? '',
+    updateChannel: server?.updateChannel ?? '',
+    pinnedVersion: server?.pinnedVersion ?? '',
+    currentVersion: server?.currentVersion ?? '',
+    updatePolicy: server?.updatePolicy ?? 'notify',
+  });
+
   function handleGameTypeChange(next: GameType) {
     setAgentHost((current) => nextAgentHostValues(gameType, next, current));
     setGameType(next);
@@ -105,6 +176,14 @@ export default function ServerFormDialog({ server }: Props) {
       startCommand: serverControl.startCommand.trim() || null,
       restartSchedule: serverControl.restartTime ? localTimeToUtc(serverControl.restartTime) : null,
       discordWebhookUrl: form.get('discordWebhookUrl'),
+      updateSource: updates.updateSource,
+      modpackProvider: updates.updateSource === 'modpack' ? updates.modpackProvider : null,
+      modpackId: updates.updateSource === 'modpack' ? (updates.modpackId.trim() || null) : null,
+      updateVersionLine: (updates.updateSource === 'forge' || updates.updateSource === 'neoforge') ? (updates.updateVersionLine.trim() || null) : null,
+      updateChannel: updates.updateChannel.trim() || null,
+      pinnedVersion: updates.pinnedVersion.trim() || null,
+      updatePolicy: updates.updatePolicy,
+      currentVersion: updates.currentVersion.trim() || null,
     };
     setPending(true);
     try {
@@ -335,6 +414,121 @@ export default function ServerFormDialog({ server }: Props) {
                 aria-invalid={!!fieldErrors.restartSchedule}
               />
               <FieldError errors={fieldErrors} field="restartSchedule" />
+            </div>
+          </fieldset>
+
+          <fieldset className="grid gap-4 rounded-md border border-border p-3">
+            <legend className="px-1 text-xs uppercase tracking-wide text-muted-foreground">Updates</legend>
+            <div className="grid gap-2">
+              <Label htmlFor="updateSource" className="text-muted-foreground">Update source</Label>
+              <select
+                id="updateSource"
+                value={updates.updateSource}
+                onChange={(e) => setUpdates((c) => ({ ...c, updateSource: e.target.value as UpdateSource }))}
+                aria-invalid={!!fieldErrors.updateSource}
+                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                {UPDATE_SOURCES.map((s) => (
+                  <option key={s} value={s}>{UPDATE_SOURCE_LABELS[s]}</option>
+                ))}
+              </select>
+              <FieldError errors={fieldErrors} field="updateSource" />
+            </div>
+            {updates.updateSource === 'modpack' && (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="modpackProvider" className="text-muted-foreground">Modpack provider</Label>
+                  <select
+                    id="modpackProvider"
+                    value={updates.modpackProvider}
+                    onChange={(e) => setUpdates((c) => ({ ...c, modpackProvider: e.target.value as ModpackProvider }))}
+                    aria-invalid={!!fieldErrors.modpackProvider}
+                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+                  >
+                    {MODPACK_PROVIDERS.map((p) => (
+                      <option key={p} value={p}>{MODPACK_PROVIDER_LABELS[p]}</option>
+                    ))}
+                  </select>
+                  <FieldError errors={fieldErrors} field="modpackProvider" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="modpackId" className="text-muted-foreground">{modpackIdLabel(updates.modpackProvider)}</Label>
+                  <Input
+                    id="modpackId"
+                    value={updates.modpackId}
+                    onChange={(e) => setUpdates((c) => ({ ...c, modpackId: e.target.value }))}
+                    aria-invalid={!!fieldErrors.modpackId}
+                  />
+                  <FieldError errors={fieldErrors} field="modpackId" />
+                </div>
+              </>
+            )}
+            {(updates.updateSource === 'forge' || updates.updateSource === 'neoforge') && (
+              <div className="grid gap-2">
+                <Label htmlFor="updateVersionLine" className="text-muted-foreground">
+                  {updates.updateSource === 'forge' ? 'Minecraft version line' : 'NeoForge version line'}
+                </Label>
+                <Input
+                  id="updateVersionLine"
+                  value={updates.updateVersionLine}
+                  onChange={(e) => setUpdates((c) => ({ ...c, updateVersionLine: e.target.value }))}
+                  placeholder={updates.updateSource === 'forge' ? 'e.g. 1.21.1' : 'e.g. 21.1'}
+                  aria-invalid={!!fieldErrors.updateVersionLine}
+                />
+                <FieldError errors={fieldErrors} field="updateVersionLine" />
+                <p className="text-xs text-muted-foreground">
+                  {updates.updateSource === 'forge'
+                    ? 'Minecraft version line, e.g. 1.21.1'
+                    : 'NeoForge version line, e.g. 21.1'}
+                </p>
+              </div>
+            )}
+            <div className="grid gap-2">
+              <Label htmlFor="updateChannel" className="text-muted-foreground">Update channel</Label>
+              <Input
+                id="updateChannel"
+                value={updates.updateChannel}
+                onChange={(e) => setUpdates((c) => ({ ...c, updateChannel: e.target.value }))}
+                placeholder={updateChannelPlaceholder(updates.updateSource)}
+                aria-invalid={!!fieldErrors.updateChannel}
+              />
+              <FieldError errors={fieldErrors} field="updateChannel" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="currentVersion" className="text-muted-foreground">Current version</Label>
+              <Input
+                id="currentVersion"
+                value={updates.currentVersion}
+                onChange={(e) => setUpdates((c) => ({ ...c, currentVersion: e.target.value }))}
+                aria-invalid={!!fieldErrors.currentVersion}
+              />
+              <FieldError errors={fieldErrors} field="currentVersion" />
+              <p className="text-xs text-muted-foreground">What this server runs now. Becomes automatic once the agent reports it.</p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="pinnedVersion" className="text-muted-foreground">Pinned version (optional)</Label>
+              <Input
+                id="pinnedVersion"
+                value={updates.pinnedVersion}
+                onChange={(e) => setUpdates((c) => ({ ...c, pinnedVersion: e.target.value }))}
+                aria-invalid={!!fieldErrors.pinnedVersion}
+              />
+              <FieldError errors={fieldErrors} field="pinnedVersion" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="updatePolicy" className="text-muted-foreground">Update policy</Label>
+              <select
+                id="updatePolicy"
+                value={updates.updatePolicy}
+                onChange={(e) => setUpdates((c) => ({ ...c, updatePolicy: e.target.value as UpdatePolicy }))}
+                aria-invalid={!!fieldErrors.updatePolicy}
+                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                {UPDATE_POLICIES.map((p) => (
+                  <option key={p} value={p}>{UPDATE_POLICY_LABELS[p]}</option>
+                ))}
+              </select>
+              <FieldError errors={fieldErrors} field="updatePolicy" />
             </div>
           </fieldset>
           </div>

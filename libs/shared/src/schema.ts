@@ -70,6 +70,15 @@ export const verification = sqliteTable('verification', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
 
+export const UPDATE_SOURCES = ['none', 'vanilla', 'forge', 'neoforge', 'fabric', 'modpack'] as const;
+export type UpdateSource = (typeof UPDATE_SOURCES)[number];
+
+export const MODPACK_PROVIDERS = ['modrinth', 'curseforge', 'ftb', 'packwiz'] as const;
+export type ModpackProvider = (typeof MODPACK_PROVIDERS)[number];
+
+export const UPDATE_POLICIES = ['notify', 'approve', 'auto'] as const;
+export type UpdatePolicy = (typeof UPDATE_POLICIES)[number];
+
 export const GAME_TYPES = [
   'minecraft-java',
   'minecraft-bedrock',
@@ -117,6 +126,14 @@ export const servers = sqliteTable('servers', {
   startCommand: text('start_command'),
   restartSchedule: text('restart_schedule'),
   discordWebhookUrl: text('discord_webhook_url'),
+  updateSource: text('update_source').$type<UpdateSource>(),
+  modpackProvider: text('modpack_provider').$type<ModpackProvider>(),
+  modpackId: text('modpack_id'),
+  updateVersionLine: text('update_version_line'),
+  updateChannel: text('update_channel'),
+  pinnedVersion: text('pinned_version'),
+  updatePolicy: text('update_policy').$type<UpdatePolicy>(),
+  currentVersion: text('current_version'),
   createdBy: text('created_by').notNull().references(() => user.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -132,6 +149,17 @@ export const serverStatus = sqliteTable('server_status', {
   version: text('version'),
   latencyMs: integer('latency_ms'),
   checkedAt: integer('checked_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const serverUpdateState = sqliteTable('server_update_state', {
+  serverId: text('server_id')
+    .primaryKey()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  availableVersion: text('available_version'),
+  availablePublishedAt: integer('available_published_at', { mode: 'timestamp' }),
+  checkedAt: integer('checked_at', { mode: 'timestamp' }),
+  lastError: text('last_error'),
+  notifiedVersion: text('notified_version'),
 });
 
 export const serverAgent = sqliteTable('server_agent', {
