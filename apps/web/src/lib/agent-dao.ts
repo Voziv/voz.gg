@@ -1,5 +1,6 @@
-import { eq } from 'drizzle-orm';
-import { serverAgent, serverStatus, servers, type Db } from '@voz/shared';
+import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { serverAgent, serverStatus, serverUpdateState, serverSnapshot, serverUpdateEvent, servers, type Db } from '@voz/shared';
 import type { TokenResolver } from './agent-auth';
 
 export interface ServerRow {
@@ -18,6 +19,15 @@ export interface ServerRow {
   serverWorkingDir: string | null;
   startCommand: string | null;
   restartSchedule: string | null;
+  updateSource: import('@voz/shared').UpdateSource | null;
+  updatePolicy: import('@voz/shared').UpdatePolicy | null;
+  desiredId: string | null;
+  desiredKind: import('@voz/shared').DesiredKind | null;
+  desiredVersion: string | null;
+  desiredArtifactUrl: string | null;
+  desiredArtifactHashAlgo: import('@voz/shared').HashAlgo | null;
+  desiredArtifactHash: string | null;
+  desiredArtifactSize: number | null;
 }
 
 export interface StatusUpsert {
@@ -57,8 +67,18 @@ export function createAgentDao(db: Db): AgentDao {
         serverWorkingDir: servers.serverWorkingDir,
         startCommand: servers.startCommand,
         restartSchedule: servers.restartSchedule,
+        updateSource: servers.updateSource,
+        updatePolicy: servers.updatePolicy,
+        desiredId: serverUpdateState.desiredId,
+        desiredKind: serverUpdateState.desiredKind,
+        desiredVersion: serverUpdateState.desiredVersion,
+        desiredArtifactUrl: serverUpdateState.desiredArtifactUrl,
+        desiredArtifactHashAlgo: serverUpdateState.desiredArtifactHashAlgo,
+        desiredArtifactHash: serverUpdateState.desiredArtifactHash,
+        desiredArtifactSize: serverUpdateState.desiredArtifactSize,
       })
       .from(servers)
+      .leftJoin(serverUpdateState, eq(serverUpdateState.serverId, servers.id))
       .where(eq(servers.id, serverId))
       .get();
 
