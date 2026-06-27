@@ -82,6 +82,51 @@ export function createUpdateDetectionDao(db: Db) {
     async markNotified(serverId: string, version: string) {
       await db.update(serverUpdateState).set({ notifiedVersion: version }).where(eq(serverUpdateState.serverId, serverId)).run();
     },
+
+    async loadDesiredInputs() {
+      const rows = await db.select().from(servers).all();
+      const states = await db.select().from(serverUpdateState).all();
+      const stateById = new Map(states.map((s) => [s.serverId, s]));
+      const out = [];
+      for (const row of rows) {
+        if (!row.updateSource || row.updateSource === 'none') continue;
+        const state = stateById.get(row.id);
+        out.push({
+          serverId: row.id,
+          policy: row.updatePolicy ?? 'notify',
+          source: row.updateSource,
+          available: state?.availableVersion ?? null,
+          installed: row.currentVersion ?? null,
+          pinned: row.pinnedVersion ?? null,
+          currentDesiredVersion: state?.desiredVersion ?? null,
+        });
+      }
+      return out;
+    },
+
+    async writeDesired(serverId: string, d: { id: string; kind: 'apply' | 'rollback'; version: string | null; artifact: { url: string; hashAlgo: string; hash: string; size: number } | null }) {
+      const set = {
+        desiredId: d.id,
+        desiredKind: d.kind,
+        desiredVersion: d.version,
+        desiredArtifactUrl: d.artifact?.url ?? null,
+        desiredArtifactHashAlgo: (d.artifact?.hashAlgo ?? null) as 'sha1' | 'sha256' | null,
+        desiredArtifactHash: d.artifact?.hash ?? null,
+        desiredArtifactSize: d.artifact?.size ?? null,
+      };
+      await db
+        .insert(serverUpdateState)
+        .values({ serverId, ...set })
+        .onConflictDoUpdate({ target: serverUpdateState.serverId, set })
+        .run();
+    },
+
+    async clearDesired(serverId: string) {
+      await db.update(serverUpdateState).set({
+        desiredId: null, desiredKind: null, desiredVersion: null,
+        desiredArtifactUrl: null, desiredArtifactHashAlgo: null, desiredArtifactHash: null, desiredArtifactSize: null,
+      }).where(eq(serverUpdateState.serverId, serverId)).run();
+    },
   };
 }
 

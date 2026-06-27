@@ -22,3 +22,4 @@ export * from './server-updates/resolvers/curseforge';
 export * from './server-updates/run';
 export * from './server-updates/artifact';
 export * from './server-updates/desired';
+export * from './server-updates/desired-run';

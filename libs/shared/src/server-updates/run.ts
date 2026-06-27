@@ -9,7 +9,9 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export interface DetectAndNotifyDeps {
-  dao: UpdateDetectionDao;
+  // Only the detection methods are required here; the desired-apply methods on
+  // UpdateDetectionDao are used by applyAutoDesired, not by detectAndNotify.
+  dao: Pick<UpdateDetectionDao, 'loadTrackedServers' | 'writeState' | 'markNotified'>;
   resolverFor: (source: ResolverConfig['source'], provider?: ResolverConfig['provider']) => VersionResolver | null;
   postDiscord: (url: string, payload: { content: string }) => Promise<{ status: number }>;
   apiKey: string | null;
