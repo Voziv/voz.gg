@@ -23,3 +23,4 @@ export * from './server-updates/run';
 export * from './server-updates/artifact';
 export * from './server-updates/desired';
 export * from './server-updates/desired-run';
+export * from './server-updates/updates-report';
