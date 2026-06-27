@@ -219,6 +219,42 @@ triggers (bot/muted escalation, blocked-return, first-sighting, new-player-rejec
 per-player `muted` silencing the routine three. One-time setup before deploy:
 `wrangler queues create voz-gg-notifications`.
 
+### Update apply (sub-project 2)
+
+Building on the detect+notify slice, the agent now **applies** updates on a
+canonical install layout, proven on **vanilla only** (loaders/modpacks are later
+sub-projects). The layout's root is the server working dir: `current` →
+`releases/<version>/server.jar`, with full working-dir `snapshots/<id>/`
+(hardlink-based, retention N=3). The Worker resolves a *desired release* — version
++ artifact `{url, hashAlgo:'sha1', hash, size}` from Mojang — and ships it in a new
+`capabilities.updates` block (`{enabled, policy, desired}`) of the
+`/api/agents/config` provisioning response; operational fields come from
+`serverControl`, which `updates` requires. `policy=auto` desireds are computed by
+the `events-ingest` cron (`applyAutoDesired`, after `detectAndNotify`); `approve`
+and rollback desireds are written by admin routes `POST
+/api/servers/<id>/update/{approve,rollback}`. **Validation gates apply policies,
+not detection:** `notify` stays Worker-only and needs no server control; only
+`approve`/`auto` require `serverControlEnabled`, and `auto` additionally requires a
+`restartSchedule`.
+
+On-host, a privileged `voz-gg-agent-updates.timer` (one-shot
+`voz-gg-agent updates --reconcile-once` every ~5 min, installed only when the
+capability is on, scoped `ReadWritePaths` to the server dir + state dir) converges
+installed→desired: guided adoption of a flat server (identify version from the
+jar's `version.json`, move to `releases/<v>/`, create `current`) → trigger gate
+(empty via RCON `list`, or within the `restartSchedule`+15min window) → snapshot →
+download+verify (hash mismatch aborts before any swap) → repoint `current` →
+restart → RCON health-check, **auto-reverting to the snapshot on a failed boot**.
+It then POSTs full updater state to `POST /api/agents/updates`, which makes
+`servers.currentVersion` truthful, mirrors the snapshot inventory into
+`server_snapshot`, appends a `server_update_event` audit row, and posts a per-server
+Discord alert (the #25c webhook, called directly — no queue) on a failed/auto_revert
+event. The dashboard surfaces apply status on the update badge and gives admins
+approve / rollback (snapshot picker) / history controls. Pure cores
+(`libs/shared/src/server-updates/{artifact,desired,desired-run,updates-report}.ts`,
+the agent's trigger gate / reconcile / snapshot / executor) are fake-tested; migration
+0016/0017 plus 0018 (desired columns, `server_snapshot`, `server_update_event`) back it.
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.

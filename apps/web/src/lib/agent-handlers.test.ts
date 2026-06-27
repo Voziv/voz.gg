@@ -52,11 +52,11 @@ function fakeDao(overrides: Partial<AgentDao> = {}) {
     touchLastSeen: async (id) => {
       calls.lastSeen.push(id);
     },
-    setCurrentVersion: async () => {},
-    setApplyState: async () => {},
-    replaceSnapshots: async () => {},
+    setCurrentVersion: async () => { /* noop */ },
+    setApplyState: async () => { /* noop */ },
+    replaceSnapshots: async () => { /* noop */ },
     eventExists: async () => false,
-    appendEvent: async () => {},
+    appendEvent: async () => { /* noop */ },
     notifyTargetFor: async () => ({ name: server.name, webhookUrl: null }),
     ...overrides,
   };

@@ -48,7 +48,7 @@ describe('applyAutoDesired', () => {
       artifactResolverFor: () => ({
         resolveArtifact: async () => { throw new Error('boom'); },
       }),
-      onError: () => {},
+      onError: () => { /* swallow */ },
     });
     // Both fail to resolve, but neither throws out of the orchestrator.
     expect(dao.writes).toEqual([]);
