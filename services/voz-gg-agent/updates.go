@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -233,4 +234,70 @@ func pruneSnapshots(sys systemOps, workDir string) {
 	for _, name := range snapshotsToPrune(names, snapshotRetention) {
 		_ = sys.removeAll(filepath.Join(snapshotsRoot(workDir), name))
 	}
+}
+
+func rollbackUpdate(d applyDeps) (updateOutcome, error) {
+	snap := d.desired.SnapshotID
+	snapPath := filepath.Join(snapshotsRoot(d.workDir), snap)
+	if !d.sys.pathExists(snapPath) {
+		return updateOutcome{Kind: "rollback", Status: "failed", SnapshotID: snap, Error: "snapshot not found"}, fmt.Errorf("snapshot %s not found", snap)
+	}
+	d.rconWarn("Server rolling back; restarting shortly")
+	_ = d.sys.run("systemctl", "stop", gameUnit(d.slug))
+	// The snapshot is a full working-dir copy; repoint current to the release the
+	// snapshot recorded, which is sufficient for a vanilla rollback since persistent
+	// state was captured alongside it.
+	target, err := d.sys.readlink(filepath.Join(snapPath, "current"))
+	if err == nil && target != "" {
+		_ = d.sys.symlink(target, currentLink(d.workDir))
+	}
+	_ = d.sys.run("systemctl", "start", gameUnit(d.slug))
+	if err := d.healthCheck(); err != nil {
+		return updateOutcome{Kind: "rollback", Status: "failed", SnapshotID: snap, Error: err.Error()}, nil
+	}
+	return updateOutcome{Kind: "rollback", To: snap, SnapshotID: snap, Status: "success"}, nil
+}
+
+type adoptDeps struct {
+	sys        systemOps
+	now        func() time.Time
+	workDir    string
+	slug       string
+	serverUser string
+	openJar    func(path string) (io.ReaderAt, int64, error)
+}
+
+// adoptLayout performs one-time guided adoption of an existing flat server into
+// the canonical layout: identify the installed version from the jar, snapshot,
+// move the jar under releases/<version>/, and create the current symlink. Refuses
+// (error) when the version cannot be identified, leaving the server untouched.
+func adoptLayout(a adoptDeps) (updateOutcome, error) {
+	flatJar := filepath.Join(a.workDir, "server.jar")
+	if !a.sys.pathExists(flatJar) {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: "no server.jar to adopt"}, fmt.Errorf("no server.jar")
+	}
+	r, size, err := a.openJar(flatJar)
+	if err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+	version, err := jarVersion(r, size)
+	if err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: "could not identify version: " + err.Error()}, err
+	}
+	snapID := snapshotID(a.now(), version)
+	if err := a.sys.mkdirAll(snapshotsRoot(a.workDir), 0o750); err == nil {
+		_ = a.sys.copyTreeHardlink(a.workDir, filepath.Join(snapshotsRoot(a.workDir), snapID))
+	}
+	rel := releaseDir(a.workDir, version)
+	if err := a.sys.mkdirAll(rel, 0o755); err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+	if err := a.sys.rename(flatJar, filepath.Join(rel, "server.jar")); err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+	_ = a.sys.chownRecursive(rel, a.serverUser, a.serverUser)
+	if err := a.sys.symlink(rel, currentLink(a.workDir)); err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+	return updateOutcome{Kind: "adopt", To: version, SnapshotID: snapID, Status: "success"}, nil
 }

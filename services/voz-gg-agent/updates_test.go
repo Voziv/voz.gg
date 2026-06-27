@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -254,5 +256,63 @@ func TestApplyUpdateFailedBootReverts(t *testing.T) {
 	}
 	if sys.links["/srv/s/current"] != "/srv/s/releases/1.21.1" {
 		t.Fatalf("auto-revert must restore the old current symlink")
+	}
+}
+
+func TestRollbackRestoresSnapshot(t *testing.T) {
+	sys := newFakeUpdSys()
+	snap := "2026-06-20T040000Z-pre-1.21.1"
+	sys.dirs["/srv/s/snapshots/"+snap] = true
+	sys.links["/srv/s/snapshots/"+snap+"/current"] = "/srv/s/releases/1.21.1"
+	sys.links["/srv/s/current"] = "/srv/s/releases/1.21.4"
+	out, err := rollbackUpdate(applyDeps{
+		sys: sys, now: func() time.Time { return time.Now().UTC() },
+		workDir: "/srv/s", slug: "s", serverUser: "mc",
+		desired:     &desiredRelease{ID: "rollback:" + snap, Kind: "rollback", SnapshotID: snap},
+		installed:   "1.21.4",
+		healthCheck: func() error { return nil }, rconWarn: func(string) {},
+	})
+	if err != nil || out.Kind != "rollback" || out.Status != "success" {
+		t.Fatalf("rollback outcome %+v err %v", out, err)
+	}
+	if sys.links["/srv/s/current"] != "/srv/s/releases/1.21.1" {
+		t.Fatalf("current not restored to the snapshot's release: %v", sys.links)
+	}
+}
+
+func TestRollbackMissingSnapshotFails(t *testing.T) {
+	sys := newFakeUpdSys()
+	out, err := rollbackUpdate(applyDeps{
+		sys: sys, now: func() time.Time { return time.Now().UTC() },
+		workDir: "/srv/s", slug: "s", serverUser: "mc",
+		desired:     &desiredRelease{ID: "rollback:nope", Kind: "rollback", SnapshotID: "nope"},
+		installed:   "1.21.4",
+		healthCheck: func() error { return nil }, rconWarn: func(string) {},
+	})
+	if err == nil || out.Status != "failed" {
+		t.Fatalf("expected failure for missing snapshot, got %+v / %v", out, err)
+	}
+}
+
+func TestAdoptIdentifiesAndMovesJar(t *testing.T) {
+	sys := newFakeUpdSys()
+	jar := buildJar(t, `{"id":"1.21.1"}`)
+	sys.files["/srv/s/server.jar"] = jar
+	out, err := adoptLayout(adoptDeps{
+		sys: sys, now: func() time.Time { return time.Date(2026, 6, 27, 4, 0, 0, 0, time.UTC) },
+		workDir: "/srv/s", slug: "s", serverUser: "mc",
+		openJar: func(p string) (io.ReaderAt, int64, error) {
+			d := sys.files[p]
+			return bytes.NewReader(d), int64(len(d)), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("adopt err: %v", err)
+	}
+	if out.To != "1.21.1" {
+		t.Fatalf("adopted version = %q", out.To)
+	}
+	if sys.links["/srv/s/current"] != "/srv/s/releases/1.21.1" {
+		t.Fatalf("current not created: %v", sys.links)
 	}
 }
