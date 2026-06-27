@@ -23,6 +23,7 @@ import {
 } from '@voz/shared';
 import { initialAgentHostValues, nextAgentHostValues, initialServerControlValues } from './server-form-defaults';
 import { localTimeToUtc, utcTimeToLocal } from '../../lib/restart-time';
+import type { ServerFormData } from '../../lib/server-form-data';
 
 const GAME_LABELS: Record<GameType, string> = {
   'minecraft-java': 'Minecraft (Java)',
@@ -70,39 +71,12 @@ function updateChannelPlaceholder(source: UpdateSource): string {
   return '';
 }
 
-type ServerData = {
-  id: string;
-  name: string;
-  gameType: GameType;
-  host: string;
-  port: number;
-  description: string | null;
-  runAsUser: string | null;
-  runAsGroup: string | null;
-  gameServerUser: string | null;
-  logPath: string | null;
-  logParserEnabled: boolean | null;
-  discordWebhookUrl: string | null;
-  slug: string | null;
-  serverControlEnabled: boolean | null;
-  serverWorkingDir: string | null;
-  startCommand: string | null;
-  restartSchedule: string | null;
-  updateSource: UpdateSource | null;
-  modpackProvider: ModpackProvider | null;
-  modpackId: string | null;
-  updateVersionLine: string | null;
-  updateChannel: string | null;
-  pinnedVersion: string | null;
-  updatePolicy: UpdatePolicy | null;
-  currentVersion: string | null;
-};
 function FieldError({ errors, field }: { errors: Record<string, string>; field: string }): JSX.Element | null {
   if (!errors[field]) return null;
   return <p className="text-destructive text-sm mt-1" role="alert">{errors[field]}</p>;
 }
 
-type Props = { server?: ServerData };
+type Props = { server?: ServerFormData };
 
 export default function ServerFormDialog({ server }: Props) {
   const isEdit = !!server;
