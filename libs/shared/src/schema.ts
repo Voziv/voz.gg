@@ -139,6 +139,8 @@ export const servers = sqliteTable('servers', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
 
+export type Server = typeof servers.$inferSelect;
+
 export const serverStatus = sqliteTable('server_status', {
   serverId: text('server_id')
     .primaryKey()
