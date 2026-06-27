@@ -526,7 +526,7 @@ func (realSystem) mkdirAll(p string, perm uint32) error { return os.MkdirAll(p, 
 func (realSystem) writeFile(p string, d []byte, perm uint32) error {
 	return os.WriteFile(p, d, os.FileMode(perm))
 }
-func (realSystem) readFile(p string) ([]byte, error) { return os.ReadFile(p) }
+func (realSystem) readFile(p string) ([]byte, error)     { return os.ReadFile(p) }
 func (realSystem) chownRecursive(p, u, g string) error   { return runLogged("chown", "-R", u+":"+g, p) }
 func (realSystem) run(name string, args ...string) error { return runLogged(name, args...) }
 func (realSystem) unitInstalled(n string) bool {

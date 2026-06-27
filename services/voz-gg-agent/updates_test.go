@@ -12,11 +12,11 @@ import (
 )
 
 type fakeUpdSys struct {
-	files     map[string][]byte
-	dirs      map[string]bool
-	links     map[string]string
-	ran       []string
-	downloads map[string]int64 // url -> size written
+	files      map[string][]byte
+	dirs       map[string]bool
+	links      map[string]string
+	ran        []string
+	downloads  map[string]int64 // url -> size written
 	hashByPath map[string]string
 }
 
@@ -66,15 +66,15 @@ func (f *fakeUpdSys) run(name string, args ...string) error {
 	f.ran = append(f.ran, name+" "+strings.Join(args, " "))
 	return nil
 }
-func (f *fakeUpdSys) groupExists(string) bool             { return true }
-func (f *fakeUpdSys) userExists(string) bool              { return true }
-func (f *fakeUpdSys) createSystemGroup(string) error      { return nil }
+func (f *fakeUpdSys) groupExists(string) bool               { return true }
+func (f *fakeUpdSys) userExists(string) bool                { return true }
+func (f *fakeUpdSys) createSystemGroup(string) error        { return nil }
 func (f *fakeUpdSys) createSystemUser(string, string) error { return nil }
-func (f *fakeUpdSys) unitInstalled(string) bool           { return true }
-func (f *fakeUpdSys) remove(string) error                 { return nil }
-func (f *fakeUpdSys) rename(string, string) error         { return nil }
-func (f *fakeUpdSys) binaryVersion(string) (string, error) { return "", nil }
-func (f *fakeUpdSys) reExec(string, []string) error       { return nil }
+func (f *fakeUpdSys) unitInstalled(string) bool             { return true }
+func (f *fakeUpdSys) remove(string) error                   { return nil }
+func (f *fakeUpdSys) rename(string, string) error           { return nil }
+func (f *fakeUpdSys) binaryVersion(string) (string, error)  { return "", nil }
+func (f *fakeUpdSys) reExec(string, []string) error         { return nil }
 
 func TestUpdatesCapabilityDecode(t *testing.T) {
 	raw := `{"enabled":true,"policy":"auto","desired":{"id":"apply:1.21.4","kind":"apply","version":"1.21.4","artifact":{"url":"https://x/server.jar","hashAlgo":"sha1","hash":"abc","size":54321},"snapshotId":""}}`

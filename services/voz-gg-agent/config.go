@@ -26,7 +26,7 @@ type updatesState struct {
 }
 
 type Config struct {
-	WorkerBaseURL string       `json:"workerBaseUrl"`
+	WorkerBaseURL string `json:"workerBaseUrl"`
 	// IngestBaseURL is the host for high-volume agent ingest (presence). It is a
 	// separate worker on its own domain (ingest.voz.gg), so it differs from
 	// WorkerBaseURL (the web Worker). The logparse producer falls back to
