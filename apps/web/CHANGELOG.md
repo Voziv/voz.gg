@@ -1,3 +1,13 @@
+## 0.22.1 (2026-06-27)
+
+### 🩹 Fixes
+
+- **web:** prefill loader version line when editing a server ([cd25a88](https://github.com/Voziv/voz.gg/commit/cd25a88))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.22.0 (2026-06-24)
 
 ### 🚀 Features
