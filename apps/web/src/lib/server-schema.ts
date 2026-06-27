@@ -106,6 +106,17 @@ const serverSchema = z.object({
   if (data.updateSource === 'forge' || data.updateSource === 'neoforge') {
     if (!data.updateVersionLine) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['updateVersionLine'], message: 'A version line is required for Forge/NeoForge (e.g. 1.21.1).' });
   }
+  // The apply policies (approve/auto) need the agent to manage the unit + RCON, so
+  // they require server control. `notify` is Worker-only (sub-project 1) and needs
+  // neither. `auto` additionally needs a restart window as its guaranteed fallback.
+  if (data.updateSource && data.updateSource !== 'none' && (data.updatePolicy === 'approve' || data.updatePolicy === 'auto')) {
+    if (!data.serverControlEnabled) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['updateSource'], message: 'Enable server management to use automatic updates.' });
+    }
+    if (data.updatePolicy === 'auto' && !data.restartSchedule) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['restartSchedule'], message: 'A restart time is required for the auto update policy.' });
+    }
+  }
 });
 
 export type ServerInput = z.infer<typeof serverSchema>;

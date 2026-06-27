@@ -10,6 +10,8 @@ import {
   createUpdateDetectionDao,
   resolverFor,
   detectAndNotify,
+  applyAutoDesired,
+  artifactResolverFor,
   type NotifyMessage,
   type DiscordPayload,
 } from '@voz/shared';
@@ -87,15 +89,22 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const dao = createUpdateDetectionDao(createDb(env.DB));
     ctx.waitUntil(
-      detectAndNotify({
-        dao,
-        resolverFor,
-        postDiscord,
-        apiKey: env.CURSEFORGE_API_KEY ?? null,
-        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-        gapMs: 5000,
-        now: () => new Date(),
-      }),
+      (async () => {
+        await detectAndNotify({
+          dao,
+          resolverFor,
+          postDiscord,
+          apiKey: env.CURSEFORGE_API_KEY ?? null,
+          sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+          gapMs: 5000,
+          now: () => new Date(),
+        });
+        await applyAutoDesired({
+          dao,
+          artifactResolverFor,
+          onError: (id, err) => console.error(`auto-desired failed for ${id}`, err),
+        });
+      })(),
     );
   },
 } satisfies ExportedHandler<Env, NotifyMessage>;
