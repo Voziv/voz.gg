@@ -86,3 +86,32 @@ func TestPlanReconcile(t *testing.T) {
 		t.Fatalf("nil desired is none")
 	}
 }
+
+func TestSnapshotIDAndPaths(t *testing.T) {
+	id := snapshotID(time.Date(2026, 6, 27, 4, 0, 0, 0, time.UTC), "1.21.1")
+	if id != "2026-06-27T040000Z-pre-1.21.1" {
+		t.Fatalf("id = %q", id)
+	}
+	if releaseDir("/srv/s", "1.21.4") != "/srv/s/releases/1.21.4" {
+		t.Fatalf("releaseDir wrong")
+	}
+	if currentLink("/srv/s") != "/srv/s/current" {
+		t.Fatalf("currentLink wrong")
+	}
+}
+
+func TestSnapshotsToPrune(t *testing.T) {
+	existing := []string{
+		"2026-06-20T040000Z-pre-1.20",
+		"2026-06-21T040000Z-pre-1.21",
+		"2026-06-22T040000Z-pre-1.21.1",
+		"2026-06-23T040000Z-pre-1.21.2",
+	}
+	prune := snapshotsToPrune(existing, 3)
+	if len(prune) != 1 || prune[0] != "2026-06-20T040000Z-pre-1.20" {
+		t.Fatalf("prune = %v", prune)
+	}
+	if len(snapshotsToPrune(existing, 4)) != 0 {
+		t.Fatalf("nothing to prune when keep>=len")
+	}
+}

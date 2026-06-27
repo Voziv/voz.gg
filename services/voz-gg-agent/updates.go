@@ -1,7 +1,9 @@
 package main
 
 import (
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -101,4 +103,28 @@ func planReconcile(installed string, d *desiredRelease, handledID string) reconc
 		return reconcileAction{Kind: "rollback"}
 	}
 	return reconcileAction{Kind: "none"}
+}
+
+func snapshotsRoot(workingDir string) string { return filepath.Join(workingDir, "snapshots") }
+func releasesRoot(workingDir string) string  { return filepath.Join(workingDir, "releases") }
+func releaseDir(workingDir, version string) string {
+	return filepath.Join(releasesRoot(workingDir), version)
+}
+func currentLink(workingDir string) string { return filepath.Join(workingDir, "current") }
+
+func snapshotID(now time.Time, preVersion string) string {
+	ts := now.UTC().Format("2006-01-02T150405Z")
+	return ts + "-pre-" + preVersion
+}
+
+// snapshotsToPrune returns the oldest snapshot names to remove so that at most
+// `keep` remain. Inputs are expected to sort chronologically by name (the
+// timestamp prefix guarantees it); we sort defensively.
+func snapshotsToPrune(existing []string, keep int) []string {
+	sorted := append([]string(nil), existing...)
+	sort.Strings(sorted)
+	if len(sorted) <= keep {
+		return nil
+	}
+	return sorted[:len(sorted)-keep]
 }
