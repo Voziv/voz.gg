@@ -1,8 +1,8 @@
 ---
 export const prerender = false;
 import { env } from 'cloudflare:workers';
-import { eq } from 'drizzle-orm';
-import { createDb, servers, serverStatus, serverUpdateState, type GameType } from '@voz/shared';
+import { eq, desc } from 'drizzle-orm';
+import { createDb, servers, serverStatus, serverUpdateState, serverSnapshot, serverUpdateEvent, type GameType } from '@voz/shared';
 import { displayStatus } from '../../lib/status-display';
 import { toServerFormData } from '../../lib/server-form-data';
 import { isAdmin } from '../../lib/admin';
@@ -10,6 +10,7 @@ import Dashboard from '../../layouts/Dashboard.astro';
 import { Card, CardContent } from '../../components/ui/card.tsx';
 import StatusBadge from '../../components/dashboard/StatusBadge.tsx';
 import UpdateBadge from '../../components/dashboard/UpdateBadge.tsx';
+import UpdateActions from '../../components/dashboard/UpdateActions.tsx';
 import ServerFormDialog from '../../components/dashboard/ServerFormDialog.tsx';
 import DeleteServerButton from '../../components/dashboard/DeleteServerButton.tsx';
 import AgentInstallDialog from '../../components/dashboard/AgentInstallDialog.tsx';
@@ -24,6 +25,25 @@ const rows = await db
   .all();
 const admin = isAdmin(Astro.locals.user);
 const now = new Date();
+
+// Snapshot inventory + recent audit events power the per-server update controls
+// (admin only). Loaded once and grouped by server id.
+const snapshotsByServer = new Map<string, { snapshotId: string; version: string | null; createdAt: string }[]>();
+const eventsByServer = new Map<string, { at: string; kind: string; fromVersion: string | null; toVersion: string | null; status: string; error: string | null }[]>();
+if (admin) {
+  for (const s of await db.select().from(serverSnapshot).orderBy(desc(serverSnapshot.createdAt)).all()) {
+    const list = snapshotsByServer.get(s.serverId) ?? [];
+    list.push({ snapshotId: s.snapshotId, version: s.version, createdAt: (s.createdAt as Date).toISOString() });
+    snapshotsByServer.set(s.serverId, list);
+  }
+  for (const e of await db.select().from(serverUpdateEvent).orderBy(desc(serverUpdateEvent.at)).limit(50).all()) {
+    const list = eventsByServer.get(e.serverId) ?? [];
+    if (list.length < 10) {
+      list.push({ at: (e.at as Date).toISOString(), kind: e.kind, fromVersion: e.fromVersion, toVersion: e.toVersion, status: e.status, error: e.error });
+      eventsByServer.set(e.serverId, list);
+    }
+  }
+}
 
 const GAME_LABELS: Record<GameType, string> = {
   'minecraft-java': 'Minecraft (Java)',
@@ -80,13 +100,25 @@ const GAME_LABELS: Record<GameType, string> = {
                 </td>
                 {admin && (
                   <td class="px-4 py-3">
-                    <div class="flex justify-end gap-1">
-                      <AgentInstallDialog client:load serverId={s.id} serverName={s.name} />
-                      <ServerFormDialog
+                    <div class="flex flex-col items-end gap-2">
+                      <div class="flex justify-end gap-1">
+                        <AgentInstallDialog client:load serverId={s.id} serverName={s.name} />
+                        <ServerFormDialog
+                          client:load
+                          server={toServerFormData(s)}
+                        />
+                        <DeleteServerButton client:load id={s.id} name={s.name} />
+                      </div>
+                      <UpdateActions
                         client:load
-                        server={toServerFormData(s)}
+                        serverId={s.id}
+                        policy={s.updatePolicy ?? 'notify'}
+                        currentVersion={s.currentVersion ?? null}
+                        availableVersion={updateState?.availableVersion ?? null}
+                        applyStatus={updateState?.applyStatus ?? null}
+                        snapshots={snapshotsByServer.get(s.id) ?? []}
+                        events={eventsByServer.get(s.id) ?? []}
                       />
-                      <DeleteServerButton client:load id={s.id} name={s.name} />
                     </div>
                   </td>
                 )}
