@@ -46,6 +46,12 @@ export interface AgentDao extends TokenResolver {
   completeEnrollment(serverId: string, agentTokenHash: string, enrolledAt: Date): Promise<void>;
   upsertStatus(row: StatusUpsert): Promise<void>;
   touchLastSeen(serverId: string, at: Date): Promise<void>;
+  setCurrentVersion(serverId: string, version: string | null): Promise<void>;
+  setApplyState(serverId: string, s: { applyStatus: string; applyError: string | null; lastAppliedAt: Date | null }): Promise<void>;
+  replaceSnapshots(serverId: string, rows: Array<{ snapshotId: string; createdAt: Date; version: string | null; sizeBytes: number | null }>): Promise<void>;
+  eventExists(serverId: string, kind: string, at: Date): Promise<boolean>;
+  appendEvent(e: { serverId: string; at: Date; kind: string; fromVersion: string | null; toVersion: string | null; status: string; snapshotId: string | null; error: string | null }): Promise<void>;
+  notifyTargetFor(serverId: string): Promise<{ name: string; webhookUrl: string | null } | null>;
 }
 
 export function createAgentDao(db: Db): AgentDao {
@@ -134,6 +140,37 @@ export function createAgentDao(db: Db): AgentDao {
 
     async touchLastSeen(serverId, at) {
       await db.update(serverAgent).set({ lastSeenAt: at }).where(eq(serverAgent.serverId, serverId));
+    },
+
+    async notifyTargetFor(serverId) {
+      const row = await db.select({ name: servers.name, webhookUrl: servers.discordWebhookUrl })
+        .from(servers).where(eq(servers.id, serverId)).get();
+      return row ?? null;
+    },
+
+    async setCurrentVersion(serverId, version) {
+      await db.update(servers).set({ currentVersion: version }).where(eq(servers.id, serverId));
+    },
+
+    async setApplyState(serverId, s) {
+      const set = { applyStatus: s.applyStatus as never, applyError: s.applyError, lastAppliedAt: s.lastAppliedAt };
+      await db.insert(serverUpdateState).values({ serverId, ...set })
+        .onConflictDoUpdate({ target: serverUpdateState.serverId, set }).run();
+    },
+
+    async replaceSnapshots(serverId, rows) {
+      await db.delete(serverSnapshot).where(eq(serverSnapshot.serverId, serverId));
+      if (rows.length) await db.insert(serverSnapshot).values(rows.map((r) => ({ serverId, ...r }))).run();
+    },
+
+    async eventExists(serverId, kind, at) {
+      const row = await db.select({ id: serverUpdateEvent.id }).from(serverUpdateEvent)
+        .where(and(eq(serverUpdateEvent.serverId, serverId), eq(serverUpdateEvent.kind, kind as never), eq(serverUpdateEvent.at, at))).get();
+      return !!row;
+    },
+
+    async appendEvent(e) {
+      await db.insert(serverUpdateEvent).values({ id: nanoid(12), ...e, kind: e.kind as never, status: e.status as never }).run();
     },
   };
 }

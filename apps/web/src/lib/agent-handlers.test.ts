@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { handleEnroll, handleConfig, handleStatus } from './agent-handlers';
+import { handleEnroll, handleConfig, handleStatus, handleUpdatesReport } from './agent-handlers';
 import { buildAgentConfig, configHash } from './agent-config';
 import { buildProvisioning } from './agent-provisioning';
 import type { AgentDao, ServerRow, StatusUpsert } from './agent-dao';
@@ -22,6 +22,15 @@ const server: ServerRow = {
   serverWorkingDir: null,
   startCommand: null,
   restartSchedule: null,
+  updateSource: null,
+  updatePolicy: null,
+  desiredId: null,
+  desiredKind: null,
+  desiredVersion: null,
+  desiredArtifactUrl: null,
+  desiredArtifactHashAlgo: null,
+  desiredArtifactHash: null,
+  desiredArtifactSize: null,
 };
 
 function fakeDao(overrides: Partial<AgentDao> = {}) {
@@ -43,6 +52,12 @@ function fakeDao(overrides: Partial<AgentDao> = {}) {
     touchLastSeen: async (id) => {
       calls.lastSeen.push(id);
     },
+    setCurrentVersion: async () => {},
+    setApplyState: async () => {},
+    replaceSnapshots: async () => {},
+    eventExists: async () => false,
+    appendEvent: async () => {},
+    notifyTargetFor: async () => ({ name: server.name, webhookUrl: null }),
     ...overrides,
   };
   return { dao, calls };
@@ -142,5 +157,39 @@ describe('handleStatus', () => {
     const { dao } = fakeDao({ serverById: async () => null });
     const res = await handleStatus(dao, 'missing', { status: 'online', configHash: 'x' }, new Date());
     expect(res.status).toBe(401);
+  });
+});
+
+describe('handleUpdatesReport', () => {
+  const noPost = async () => ({ status: 204 });
+  const reportBody = {
+    installedVersion: '1.21.4', applyStatus: 'done', applyError: null,
+    lastEvent: null, snapshots: [],
+  };
+
+  it('401 without a server id', async () => {
+    const { dao } = fakeDao();
+    expect((await handleUpdatesReport(dao, null, reportBody, new Date(), noPost)).status).toBe(401);
+  });
+
+  it('400 on an invalid body', async () => {
+    const { dao } = fakeDao();
+    expect((await handleUpdatesReport(dao, 'srv1', { applyStatus: 'bad' }, new Date(), noPost)).status).toBe(400);
+  });
+
+  it('200 and records current version on a valid report', async () => {
+    const recorded: string[] = [];
+    const { dao } = fakeDao({ setCurrentVersion: async (id, v) => { recorded.push(`${id}=${v}`); } });
+    const r = await handleUpdatesReport(dao, 'srv1', reportBody, new Date(), noPost);
+    expect(r.status).toBe(200);
+    expect(recorded).toEqual(['srv1=1.21.4']);
+  });
+
+  it('posts a failure alert to the webhook on a new failed event', async () => {
+    const posts: string[] = [];
+    const failBody = { ...reportBody, applyStatus: 'failed', lastEvent: { kind: 'auto_revert', fromVersion: '1.21.4', toVersion: '1.21.1', status: 'failed', snapshotId: 's', error: 'boom', at: '2026-06-27T04:05:00Z' } };
+    const { dao } = fakeDao({ notifyTargetFor: async () => ({ name: 'Survival', webhookUrl: 'https://discord.test/hook' }) });
+    await handleUpdatesReport(dao, 'srv1', failBody, new Date(), async (url: string) => { posts.push(url); return { status: 200 }; });
+    expect(posts).toEqual(['https://discord.test/hook']);
   });
 });
