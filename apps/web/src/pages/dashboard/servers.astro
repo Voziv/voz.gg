@@ -75,7 +75,7 @@ const GAME_LABELS: Record<GameType, string> = {
                 <td class="px-4 py-3">
                   <div class="flex flex-wrap gap-1">
                     <StatusBadge status={display.status} players={display.players} maxPlayers={display.maxPlayers} />
-                    <UpdateBadge updateSource={s.updateSource ?? null} currentVersion={s.currentVersion ?? null} availableVersion={updateState?.availableVersion ?? null} lastError={updateState?.lastError ?? null} />
+                    <UpdateBadge updateSource={s.updateSource ?? null} currentVersion={s.currentVersion ?? null} availableVersion={updateState?.availableVersion ?? null} lastError={updateState?.lastError ?? null} applyStatus={updateState?.applyStatus ?? null} />
                   </div>
                 </td>
                 {admin && (
