@@ -1,3 +1,9 @@
+## 0.22.2 (2026-06-27)
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.12.0
+
 ## 0.22.1 (2026-06-27)
 
 ### 🩹 Fixes

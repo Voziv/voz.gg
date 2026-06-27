@@ -1,3 +1,13 @@
+## 0.12.0 (2026-06-27)
+
+### 🚀 Features
+
+- **shared:** add Server row type export ([3653c99](https://github.com/Voziv/voz.gg/commit/3653c99))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.11.0 (2026-06-24)
 
 ### 🚀 Features
