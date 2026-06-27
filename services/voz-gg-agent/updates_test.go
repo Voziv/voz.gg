@@ -316,3 +316,29 @@ func TestAdoptIdentifiesAndMovesJar(t *testing.T) {
 		t.Fatalf("current not created: %v", sys.links)
 	}
 }
+
+func TestReconcileUpdatesInstallAndRemove(t *testing.T) {
+	sys := newFakeUpdSys()
+	var buf bytes.Buffer
+	sc := serverControlCapability{Enabled: true, Slug: "s", WorkingDir: "/srv/s"}
+	if err := reconcileUpdates(sys, updatesCapability{Enabled: true}, sc, "/usr/local/bin/voz-gg-agent", "/etc/voz-gg-agent/monitor.json", &buf); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if _, ok := sys.files["/etc/systemd/system/voz-gg-agent-updates.timer"]; !ok {
+		t.Fatalf("timer not written")
+	}
+	if err := reconcileUpdates(sys, updatesCapability{Enabled: false}, sc, "x", "y", &buf); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+}
+
+func TestParseSnapshotName(t *testing.T) {
+	now := func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }
+	createdAt, version := parseSnapshotName("2026-06-27T040000Z-pre-1.21.1", now)
+	if version != "1.21.1" {
+		t.Fatalf("version = %q", version)
+	}
+	if createdAt != "2026-06-27T04:00:00Z" {
+		t.Fatalf("createdAt = %q", createdAt)
+	}
+}

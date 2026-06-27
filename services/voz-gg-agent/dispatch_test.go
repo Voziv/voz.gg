@@ -62,6 +62,22 @@ func TestDispatchSubcommandHelpExitsZero(t *testing.T) {
 	}
 }
 
+func TestDispatchUpdatesHelpExitsZero(t *testing.T) {
+	if code := dispatch([]string{"updates", "--help"}, io.Discard, io.Discard); code != 0 {
+		t.Errorf("updates --help exit = %d, want 0", code)
+	}
+}
+
+func TestDispatchUpdatesMissingConfigFails(t *testing.T) {
+	var errb bytes.Buffer
+	if code := dispatch([]string{"updates", "--reconcile-once", "-config", "/nonexistent/voz-gg-agent.json"}, io.Discard, &errb); code != 1 {
+		t.Fatalf("updates with missing config exit = %d, want 1", code)
+	}
+	if !strings.Contains(errb.String(), "load config") {
+		t.Fatalf("stderr = %q, want it to mention load config", errb.String())
+	}
+}
+
 func TestDispatchReprovisionMissingConfigFails(t *testing.T) {
 	var errb bytes.Buffer
 	// A nonexistent config can't be loaded → exit 1, no network attempted.

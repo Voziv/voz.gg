@@ -202,6 +202,11 @@ func runSetupWith(opts setupOptions, sys systemOps, enroll enrollFn, stdout, std
 		return 1
 	}
 
+	if err := reconcileUpdates(sys, resp.Provisioning.Capabilities.Updates, sc, opts.ExecPath, opts.ConfigPath, stdout); err != nil {
+		fmt.Fprintf(stderr, "setup: %v\n", err)
+		return 1
+	}
+
 	return 0
 }
 

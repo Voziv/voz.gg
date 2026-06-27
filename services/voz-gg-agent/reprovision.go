@@ -86,6 +86,11 @@ func runReprovisionWith(opts reprovisionOptions, cfg Config, sys systemOps, fetc
 		return 1
 	}
 
+	if err := reconcileUpdates(sys, resp.Provisioning.Capabilities.Updates, sc, opts.ExecPath, opts.ConfigPath, stdout); err != nil {
+		fmt.Fprintf(stderr, "reprovision: %v\n", err)
+		return 1
+	}
+
 	fmt.Fprintf(stdout, "voz-gg-agent reprovisioned as %s:%s\n", runAsUser, runAsGroup)
 	return 0
 }

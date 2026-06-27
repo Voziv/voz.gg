@@ -1,13 +1,23 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
+
+	"voz.gg/services/voz-gg-agent/rcon"
 )
 
 // updatesCapability mirrors apps/web buildProvisioning's capabilities.updates.
@@ -300,4 +310,332 @@ func adoptLayout(a adoptDeps) (updateOutcome, error) {
 		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
 	}
 	return updateOutcome{Kind: "adopt", To: version, SnapshotID: snapID, Status: "success"}, nil
+}
+
+const (
+	updatesUnitName  = "voz-gg-agent-updates.service"
+	updatesTimerName = "voz-gg-agent-updates.timer"
+)
+
+func renderUpdatesService(execPath, configPath, serverWorkingDir, stateDir string) string {
+	return fmt.Sprintf(`[Unit]
+Description=voz.gg agent (updates apply)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%s updates --reconcile-once -config %s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%s %s
+`, execPath, configPath, serverWorkingDir, stateDir)
+}
+
+func renderUpdatesTimer() string {
+	return `[Unit]
+Description=voz.gg agent (updates apply) timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+`
+}
+
+// reconcileUpdates installs/removes the updates timer to match the capability.
+// Like reconcileLogparse it is shared by setup and reprovision. The unit is
+// privileged (writes the server dir, runs systemctl, chowns), so its
+// ReadWritePaths are scoped to the server working dir + the agent state dir.
+func reconcileUpdates(sys systemOps, uc updatesCapability, sc serverControlCapability, execPath, configPath string, stdout io.Writer) error {
+	if !uc.Enabled {
+		if sys.unitInstalled(updatesTimerName) || sys.unitInstalled(updatesUnitName) {
+			_ = sys.run("systemctl", "disable", "--now", updatesTimerName)
+			_ = sys.remove("/etc/systemd/system/" + updatesTimerName)
+			_ = sys.remove("/etc/systemd/system/" + updatesUnitName)
+			_ = sys.run("systemctl", "daemon-reload")
+			fmt.Fprintln(stdout, "voz-gg-agent updates disabled and removed")
+		}
+		return nil
+	}
+	if !sys.hasSystemd() {
+		fmt.Fprintln(stdout, "updates: systemd not found; skipping unit install")
+		return nil
+	}
+	if sc.WorkingDir == "" {
+		return fmt.Errorf("updates enabled but server control has no working dir")
+	}
+	if err := sys.mkdirAll(stateDir, 0o750); err != nil {
+		return fmt.Errorf("mkdir %s: %w", stateDir, err)
+	}
+	svc := renderUpdatesService(execPath, configPath, sc.WorkingDir, stateDir)
+	if err := sys.writeFile("/etc/systemd/system/"+updatesUnitName, []byte(svc), 0o644); err != nil {
+		return err
+	}
+	if err := sys.writeFile("/etc/systemd/system/"+updatesTimerName, []byte(renderUpdatesTimer()), 0o644); err != nil {
+		return err
+	}
+	if err := sys.run("systemctl", "daemon-reload"); err != nil {
+		return err
+	}
+	if err := sys.run("systemctl", "enable", "--now", updatesTimerName); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, "voz-gg-agent updates installed (timer enabled)")
+	return nil
+}
+
+type reportEvent struct {
+	Kind        string `json:"kind"`
+	FromVersion string `json:"fromVersion"`
+	ToVersion   string `json:"toVersion"`
+	Status      string `json:"status"`
+	SnapshotID  string `json:"snapshotId"`
+	Error       string `json:"error"`
+	At          string `json:"at"`
+}
+type reportSnapshot struct {
+	SnapshotID string `json:"snapshotId"`
+	CreatedAt  string `json:"createdAt"`
+	Version    string `json:"version"`
+	SizeBytes  *int64 `json:"sizeBytes"`
+}
+type updatesReportBody struct {
+	InstalledVersion *string          `json:"installedVersion"`
+	ApplyStatus      string           `json:"applyStatus"`
+	ApplyError       *string          `json:"applyError"`
+	LastEvent        *reportEvent     `json:"lastEvent"`
+	Snapshots        []reportSnapshot `json:"snapshots"`
+}
+
+func postUpdatesReport(workerBaseURL, agentToken string, body updatesReportBody) error {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, workerBaseURL+"/api/agents/updates", bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+agentToken)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("updates report returned %d: %s", resp.StatusCode, b)
+	}
+	return nil
+}
+
+func runUpdates(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("updates", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := fs.String("config", defaultConfigPath, "path to the agent config json")
+	reconcileOnce := fs.Bool("reconcile-once", false, "run a single reconcile tick and exit")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	_ = *reconcileOnce // the timer always invokes one-shot; the flag documents intent
+	cfg, err := LoadConfig(*configPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "updates: load config: %v\n", err)
+		return 1
+	}
+	execPath, _ := os.Executable()
+	rconAddr := net.JoinHostPort("127.0.0.1", strconv.Itoa(cfg.RCON.Port))
+	rconExec := func(cmd string) (string, error) { return rcon.Run(rconAddr, cfg.RCON.Password, cmd, 10*time.Second) }
+	return reconcileUpdatesTick(updatesTickDeps{
+		cfg: cfg, configPath: *configPath, execPath: execPath,
+		sys: realSystem{}, now: time.Now, rconExec: rconExec,
+		fetchProvision: httpProvision, save: func(c Config) error { return SaveConfig(*configPath, c) },
+		stdout: stdout, stderr: stderr,
+	})
+}
+
+type updatesTickDeps struct {
+	cfg            Config
+	configPath     string
+	execPath       string
+	sys            systemOps
+	now            func() time.Time
+	rconExec       func(cmd string) (string, error)
+	fetchProvision provisionFn
+	save           func(Config) error
+	stdout, stderr io.Writer
+}
+
+// reconcileUpdatesTick runs one apply reconcile: refresh provisioning, decide the
+// action, gate on the trigger, execute, persist the handled id, and report state.
+// It returns 0 on "nothing to do" and on deferred applies.
+func reconcileUpdatesTick(d updatesTickDeps) int {
+	resp, err := d.fetchProvision(d.cfg.WorkerBaseURL, d.cfg.AgentToken)
+	if err != nil {
+		fmt.Fprintf(d.stderr, "updates: provision fetch: %v\n", err)
+		return 1
+	}
+	uc := resp.Provisioning.Capabilities.Updates
+	sc := resp.Provisioning.Capabilities.ServerControl
+	if !uc.Enabled || sc.WorkingDir == "" {
+		return 0
+	}
+	installed := installedVersion(d.sys, sc.WorkingDir)
+
+	// Adoption: a flat server (no current symlink) is adopted before any apply.
+	if !d.sys.pathExists(currentLink(sc.WorkingDir)) {
+		out, err := adoptLayout(adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser, openJar: openJarFile})
+		report(d, uc, sc, installedVersion(d.sys, sc.WorkingDir), out)
+		if err != nil {
+			fmt.Fprintf(d.stderr, "updates: adoption: %v\n", err)
+			return 0
+		}
+		installed = out.To
+	}
+
+	action := planReconcile(installed, uc.Desired, d.cfg.Updates.HandledDesiredID)
+	if action.Kind == "none" {
+		report(d, uc, sc, installed, updateOutcome{})
+		return 0
+	}
+
+	count, known := rconPlayerCount(d.rconExec)
+	gate := triggerGate{Empty: count == 0, KnownEmpty: known, Now: d.now(), Schedule: sc.RestartSchedule}
+	if action.Kind == "apply" && !shouldApplyNow(gate) {
+		reportPending(d, uc, sc, installed)
+		return 0
+	}
+
+	deps := applyDeps{
+		sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser,
+		desired: uc.Desired, installed: installed,
+		healthCheck: func() error { return rconHealthCheck(d.rconExec) },
+		rconWarn:    func(msg string) { _, _ = d.rconExec("say " + msg) },
+	}
+	var out updateOutcome
+	if action.Kind == "rollback" {
+		out, _ = rollbackUpdate(deps)
+	} else {
+		out, _ = applyUpdate(deps)
+	}
+
+	// Persist handled id so we do not re-run this desired next tick.
+	d.cfg.Updates.HandledDesiredID = uc.Desired.ID
+	if err := d.save(d.cfg); err != nil {
+		fmt.Fprintf(d.stderr, "updates: save handled id: %v\n", err)
+	}
+	report(d, uc, sc, installedVersion(d.sys, sc.WorkingDir), out)
+	return 0
+}
+
+func openJarFile(path string) (io.ReaderAt, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, 0, err
+	}
+	return f, info.Size(), nil
+}
+
+// installedVersion reads the version from the current symlink target dir name.
+func installedVersion(sys systemOps, workDir string) string {
+	target, err := sys.readlink(currentLink(workDir))
+	if err != nil || target == "" {
+		return ""
+	}
+	return filepath.Base(target)
+}
+
+func rconPlayerCount(exec func(string) (string, error)) (int, bool) {
+	out, err := exec("list")
+	if err != nil {
+		return 0, false
+	}
+	return parseOnlinePlayers(out)
+}
+
+func rconHealthCheck(exec func(string) (string, error)) error {
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := exec("list"); err == nil {
+			return nil
+		}
+		time.Sleep(3 * time.Second)
+	}
+	return fmt.Errorf("server did not answer rcon within timeout")
+}
+
+// parseSnapshotName recovers the creation time + pre-apply version encoded in a
+// snapshot dir name ("2006-01-02T150405Z-pre-<version>"). Falls back to now() and
+// "" when the name does not match (defensive; all names we create do match).
+func parseSnapshotName(name string, now func() time.Time) (string, string) {
+	createdAt := now().UTC().Format(time.RFC3339)
+	version := ""
+	if i := strings.Index(name, "-pre-"); i >= 0 {
+		if t, err := time.Parse("2006-01-02T150405Z", name[:i]); err == nil {
+			createdAt = t.UTC().Format(time.RFC3339)
+		}
+		version = name[i+len("-pre-"):]
+	}
+	return createdAt, version
+}
+
+func snapshotInventory(sys systemOps, workDir string, now func() time.Time) []reportSnapshot {
+	names, _ := sys.listDir(snapshotsRoot(workDir))
+	out := make([]reportSnapshot, 0, len(names))
+	for _, n := range names {
+		createdAt, version := parseSnapshotName(n, now)
+		out = append(out, reportSnapshot{SnapshotID: n, CreatedAt: createdAt, Version: version, SizeBytes: nil})
+	}
+	return out
+}
+
+func report(d updatesTickDeps, uc updatesCapability, sc serverControlCapability, installed string, out updateOutcome) {
+	status := "idle"
+	var ev *reportEvent
+	var applyErr *string
+	if out.Status != "" {
+		if out.Status == "success" {
+			status = "done"
+		} else {
+			status = "failed"
+			e := out.Error
+			applyErr = &e
+		}
+		ev = &reportEvent{Kind: out.Kind, FromVersion: out.From, ToVersion: out.To, Status: out.Status, SnapshotID: out.SnapshotID, Error: out.Error, At: d.now().UTC().Format(time.RFC3339)}
+	}
+	var iv *string
+	if installed != "" {
+		iv = &installed
+	}
+	body := updatesReportBody{
+		InstalledVersion: iv, ApplyStatus: status, ApplyError: applyErr, LastEvent: ev,
+		Snapshots: snapshotInventory(d.sys, sc.WorkingDir, d.now),
+	}
+	if err := postUpdatesReport(d.cfg.WorkerBaseURL, d.cfg.AgentToken, body); err != nil {
+		fmt.Fprintf(d.stderr, "updates: report: %v\n", err)
+	}
+}
+
+func reportPending(d updatesTickDeps, uc updatesCapability, sc serverControlCapability, installed string) {
+	var iv *string
+	if installed != "" {
+		iv = &installed
+	}
+	_ = postUpdatesReport(d.cfg.WorkerBaseURL, d.cfg.AgentToken, updatesReportBody{
+		InstalledVersion: iv, ApplyStatus: "pending", Snapshots: snapshotInventory(d.sys, sc.WorkingDir, d.now),
+	})
 }
