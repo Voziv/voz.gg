@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -127,4 +128,109 @@ func snapshotsToPrune(existing []string, keep int) []string {
 		return nil
 	}
 	return sorted[:len(sorted)-keep]
+}
+
+const snapshotRetention = 3
+
+type updateOutcome struct {
+	Kind       string // "apply" | "auto_revert" | "rollback" | "adopt"
+	From       string
+	To         string
+	SnapshotID string
+	Status     string // "success" | "failed"
+	Error      string
+}
+
+type applyDeps struct {
+	sys         systemOps
+	now         func() time.Time
+	workDir     string
+	slug        string
+	serverUser  string
+	desired     *desiredRelease
+	installed   string
+	healthCheck func() error // returns nil once the server answers RCON
+	rconWarn    func(string) // best-effort player warning before a forced stop
+}
+
+const gameUnitPrefix = "voz-gg-"
+
+func gameUnit(slug string) string { return gameUnitPrefix + slug + ".service" }
+
+// applyUpdate runs the full apply lifecycle for a desired apply: snapshot →
+// download+verify → stage release → stop → repoint current → start → health-check,
+// auto-reverting to the snapshot on a failed boot. The server jar hash is the
+// integrity gate; a mismatch aborts before any swap.
+func applyUpdate(d applyDeps) (updateOutcome, error) {
+	art := d.desired.Artifact
+	if art == nil {
+		return updateOutcome{Kind: "apply", Status: "failed", Error: "no artifact in desired"}, fmt.Errorf("no artifact")
+	}
+	now := d.now()
+	snapID := snapshotID(now, d.installed)
+	snapPath := filepath.Join(snapshotsRoot(d.workDir), snapID)
+
+	// 1. Snapshot the working dir (hardlink-based), then prune.
+	if err := d.sys.mkdirAll(snapshotsRoot(d.workDir), 0o750); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	if err := d.sys.copyTreeHardlink(d.workDir, snapPath); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	pruneSnapshots(d.sys, d.workDir)
+
+	// 2. Stage the release: download + verify before any swap.
+	rel := releaseDir(d.workDir, d.desired.Version)
+	if err := d.sys.mkdirAll(rel, 0o755); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	jarPath := filepath.Join(rel, "server.jar")
+	if _, err := d.sys.downloadTo(art.URL, jarPath); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	sum, err := d.sys.hashFile(jarPath, art.HashAlgo)
+	if err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	if sum != art.Hash {
+		_ = d.sys.removeAll(rel)
+		return failed("apply", d.installed, d.desired.Version, snapID, fmt.Errorf("hash mismatch: got %s want %s", sum, art.Hash))
+	}
+	_ = d.sys.chownRecursive(rel, d.serverUser, d.serverUser)
+
+	// 3. Capture the prior current target for possible revert, then swap.
+	priorTarget, _ := d.sys.readlink(currentLink(d.workDir))
+	d.rconWarn("Server updating to " + d.desired.Version + "; restarting shortly")
+	_ = d.sys.run("systemctl", "stop", gameUnit(d.slug))
+	if err := d.sys.symlink(rel, currentLink(d.workDir)); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	_ = d.sys.run("systemctl", "start", gameUnit(d.slug))
+
+	// 4. Health-check; auto-revert on failure.
+	if err := d.healthCheck(); err != nil {
+		_ = d.sys.run("systemctl", "stop", gameUnit(d.slug))
+		if priorTarget != "" {
+			_ = d.sys.symlink(priorTarget, currentLink(d.workDir))
+		}
+		_ = d.sys.run("systemctl", "start", gameUnit(d.slug))
+		return updateOutcome{Kind: "auto_revert", From: d.desired.Version, To: d.installed, SnapshotID: snapID, Status: "failed", Error: err.Error()}, nil
+	}
+
+	return updateOutcome{Kind: "apply", From: d.installed, To: d.desired.Version, SnapshotID: snapID, Status: "success"}, nil
+}
+
+func failed(kind, from, to, snap string, err error) (updateOutcome, error) {
+	return updateOutcome{Kind: kind, From: from, To: to, SnapshotID: snap, Status: "failed", Error: err.Error()}, err
+}
+
+// pruneSnapshots removes the oldest snapshot dirs beyond the retention cap.
+func pruneSnapshots(sys systemOps, workDir string) {
+	names, err := sys.listDir(snapshotsRoot(workDir))
+	if err != nil {
+		return
+	}
+	for _, name := range snapshotsToPrune(names, snapshotRetention) {
+		_ = sys.removeAll(filepath.Join(snapshotsRoot(workDir), name))
+	}
 }

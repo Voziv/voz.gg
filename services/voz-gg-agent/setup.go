@@ -3,10 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	"os"
@@ -66,6 +70,13 @@ type systemOps interface {
 	rename(oldPath, newPath string) error
 	binaryVersion(path string) (string, error)
 	reExec(path string, args []string) error
+	symlink(target, link string) error
+	readlink(path string) (string, error)
+	downloadTo(url, dest string) (int64, error)
+	hashFile(path, algo string) (string, error)
+	copyTreeHardlink(src, dst string) error
+	removeAll(path string) error
+	listDir(path string) ([]string, error)
 }
 
 // enrollFn performs the enroll HTTP call. Abstracted for testing.
@@ -538,6 +549,79 @@ func (realSystem) binaryVersion(path string) (string, error) {
 // /dev/tty prompts in the reconcile phase still work.
 func (realSystem) reExec(path string, args []string) error {
 	return syscall.Exec(path, args, os.Environ())
+}
+
+func (realSystem) symlink(target, link string) error {
+	_ = os.Remove(link)
+	return os.Symlink(target, link)
+}
+func (realSystem) readlink(path string) (string, error) { return os.Readlink(path) }
+func (realSystem) downloadTo(url, dest string) (int64, error) {
+	resp, err := http.Get(url) //nolint:gosec // url is the trusted Worker-supplied desired-release artifact
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("download %s: status %d", url, resp.StatusCode)
+	}
+	tmp := dest + ".part"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return 0, err
+	}
+	n, err := io.Copy(f, resp.Body)
+	f.Close()
+	if err != nil {
+		os.Remove(tmp)
+		return 0, err
+	}
+	if err := os.Rename(tmp, dest); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// hashFile hashes a file with sha1 or sha256. sha1 is used only to match Mojang's
+// published server-jar integrity hash — it is an integrity check, not a security
+// primitive.
+func (realSystem) hashFile(path, algo string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	var h hash.Hash
+	switch algo {
+	case "sha1":
+		h = sha1.New()
+	case "sha256":
+		h = sha256.New()
+	default:
+		return "", fmt.Errorf("unsupported hash algo %q", algo)
+	}
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+func (realSystem) copyTreeHardlink(src, dst string) error {
+	return runLogged("cp", "-al", src, dst)
+}
+func (realSystem) removeAll(path string) error { return os.RemoveAll(path) }
+func (realSystem) listDir(path string) ([]string, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		out = append(out, e.Name())
+	}
+	return out, nil
 }
 
 func runLogged(name string, args ...string) error {

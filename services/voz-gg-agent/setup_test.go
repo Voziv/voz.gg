@@ -106,6 +106,17 @@ func (f *fakeSystem) reExec(path string, args []string) error {
 	return f.reExecErr
 }
 
+// Update-apply systemOps methods are unused by the setup/reprovision tests; the
+// stubs keep fakeSystem satisfying the widened interface. The apply executor is
+// exercised by its own fakeUpdSys in updates_test.go.
+func (f *fakeSystem) symlink(target, link string) error          { return nil }
+func (f *fakeSystem) readlink(path string) (string, error)       { return "", errors.New("not found") }
+func (f *fakeSystem) downloadTo(url, dest string) (int64, error) { return 0, nil }
+func (f *fakeSystem) hashFile(path, algo string) (string, error) { return "", nil }
+func (f *fakeSystem) copyTreeHardlink(src, dst string) error     { return nil }
+func (f *fakeSystem) removeAll(path string) error                { return nil }
+func (f *fakeSystem) listDir(path string) ([]string, error)      { return nil, nil }
+
 func fakeEnroll(resp enrollResponse, err error) enrollFn {
 	return func(string, string) (enrollResponse, error) { return resp, err }
 }

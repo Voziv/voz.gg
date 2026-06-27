@@ -2,9 +2,77 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
+
+type fakeUpdSys struct {
+	files     map[string][]byte
+	dirs      map[string]bool
+	links     map[string]string
+	ran       []string
+	downloads map[string]int64 // url -> size written
+	hashByPath map[string]string
+}
+
+func newFakeUpdSys() *fakeUpdSys {
+	return &fakeUpdSys{
+		files: map[string][]byte{}, dirs: map[string]bool{}, links: map[string]string{},
+		downloads: map[string]int64{}, hashByPath: map[string]string{},
+	}
+}
+
+func (f *fakeUpdSys) hasSystemd() bool                  { return true }
+func (f *fakeUpdSys) mkdirAll(p string, _ uint32) error { f.dirs[p] = true; return nil }
+func (f *fakeUpdSys) writeFile(p string, d []byte, _ uint32) error {
+	f.files[p] = d
+	return nil
+}
+func (f *fakeUpdSys) readFile(p string) ([]byte, error) {
+	if d, ok := f.files[p]; ok {
+		return d, nil
+	}
+	return nil, os.ErrNotExist
+}
+func (f *fakeUpdSys) pathExists(p string) bool {
+	if _, ok := f.files[p]; ok {
+		return true
+	}
+	return f.dirs[p]
+}
+func (f *fakeUpdSys) symlink(target, link string) error { f.links[link] = target; return nil }
+func (f *fakeUpdSys) readlink(p string) (string, error) {
+	if t, ok := f.links[p]; ok {
+		return t, nil
+	}
+	return "", os.ErrNotExist
+}
+func (f *fakeUpdSys) downloadTo(url, dest string) (int64, error) {
+	n := f.downloads[url]
+	f.files[dest] = make([]byte, n)
+	return n, nil
+}
+func (f *fakeUpdSys) hashFile(p, _ string) (string, error)   { return f.hashByPath[p], nil }
+func (f *fakeUpdSys) copyTreeHardlink(src, dst string) error { f.dirs[dst] = true; return nil }
+func (f *fakeUpdSys) removeAll(p string) error               { delete(f.dirs, p); delete(f.files, p); return nil }
+func (f *fakeUpdSys) listDir(p string) ([]string, error)     { return nil, nil }
+func (f *fakeUpdSys) chownRecursive(_, _, _ string) error    { return nil }
+func (f *fakeUpdSys) run(name string, args ...string) error {
+	f.ran = append(f.ran, name+" "+strings.Join(args, " "))
+	return nil
+}
+func (f *fakeUpdSys) groupExists(string) bool             { return true }
+func (f *fakeUpdSys) userExists(string) bool              { return true }
+func (f *fakeUpdSys) createSystemGroup(string) error      { return nil }
+func (f *fakeUpdSys) createSystemUser(string, string) error { return nil }
+func (f *fakeUpdSys) unitInstalled(string) bool           { return true }
+func (f *fakeUpdSys) remove(string) error                 { return nil }
+func (f *fakeUpdSys) rename(string, string) error         { return nil }
+func (f *fakeUpdSys) binaryVersion(string) (string, error) { return "", nil }
+func (f *fakeUpdSys) reExec(string, []string) error       { return nil }
 
 func TestUpdatesCapabilityDecode(t *testing.T) {
 	raw := `{"enabled":true,"policy":"auto","desired":{"id":"apply:1.21.4","kind":"apply","version":"1.21.4","artifact":{"url":"https://x/server.jar","hashAlgo":"sha1","hash":"abc","size":54321},"snapshotId":""}}`
@@ -113,5 +181,78 @@ func TestSnapshotsToPrune(t *testing.T) {
 	}
 	if len(snapshotsToPrune(existing, 4)) != 0 {
 		t.Fatalf("nothing to prune when keep>=len")
+	}
+}
+
+func TestApplyUpdateHappyPath(t *testing.T) {
+	sys := newFakeUpdSys()
+	url := "https://x/server.jar"
+	sys.downloads[url] = 100
+	jarPath := "/srv/s/releases/1.21.4/server.jar"
+	sys.hashByPath[jarPath] = "abc"
+	sys.links["/srv/s/current"] = "/srv/s/releases/1.21.1"
+
+	out, err := applyUpdate(applyDeps{
+		sys:     sys,
+		now:     func() time.Time { return time.Date(2026, 6, 27, 4, 0, 0, 0, time.UTC) },
+		workDir: "/srv/s", slug: "s", serverUser: "mc",
+		desired: &desiredRelease{ID: "apply:1.21.4", Kind: "apply", Version: "1.21.4",
+			Artifact: &desiredArtifact{URL: url, HashAlgo: "sha1", Hash: "abc", Size: 100}},
+		installed:   "1.21.1",
+		healthCheck: func() error { return nil },
+		rconWarn:    func(string) {},
+	})
+	if err != nil {
+		t.Fatalf("apply err: %v", err)
+	}
+	if out.Status != "success" || out.To != "1.21.4" || out.From != "1.21.1" {
+		t.Fatalf("outcome: %+v", out)
+	}
+	if sys.links["/srv/s/current"] != "/srv/s/releases/1.21.4" {
+		t.Fatalf("current not repointed: %v", sys.links)
+	}
+}
+
+func TestApplyUpdateHashMismatchAborts(t *testing.T) {
+	sys := newFakeUpdSys()
+	url := "https://x/server.jar"
+	sys.downloads[url] = 100
+	sys.hashByPath["/srv/s/releases/1.21.4/server.jar"] = "WRONG"
+	sys.links["/srv/s/current"] = "/srv/s/releases/1.21.1"
+	out, err := applyUpdate(applyDeps{
+		sys: sys, now: func() time.Time { return time.Now().UTC() },
+		workDir: "/srv/s", slug: "s", serverUser: "mc",
+		desired: &desiredRelease{ID: "apply:1.21.4", Kind: "apply", Version: "1.21.4",
+			Artifact: &desiredArtifact{URL: url, HashAlgo: "sha1", Hash: "abc", Size: 100}},
+		installed: "1.21.1", healthCheck: func() error { return nil }, rconWarn: func(string) {},
+	})
+	if err == nil && out.Status != "failed" {
+		t.Fatalf("expected failure on hash mismatch, got %+v / %v", out, err)
+	}
+	if sys.links["/srv/s/current"] != "/srv/s/releases/1.21.1" {
+		t.Fatalf("current must not move on hash mismatch")
+	}
+}
+
+func TestApplyUpdateFailedBootReverts(t *testing.T) {
+	sys := newFakeUpdSys()
+	url := "https://x/server.jar"
+	sys.downloads[url] = 100
+	sys.hashByPath["/srv/s/releases/1.21.4/server.jar"] = "abc"
+	sys.links["/srv/s/current"] = "/srv/s/releases/1.21.1"
+	out, _ := applyUpdate(applyDeps{
+		sys: sys, now: func() time.Time { return time.Date(2026, 6, 27, 4, 0, 0, 0, time.UTC) },
+		workDir: "/srv/s", slug: "s", serverUser: "mc",
+		desired: &desiredRelease{ID: "apply:1.21.4", Kind: "apply", Version: "1.21.4",
+			Artifact: &desiredArtifact{URL: url, HashAlgo: "sha1", Hash: "abc", Size: 100}},
+		installed:   "1.21.1",
+		healthCheck: func() error { return errors.New("never came up") },
+		rconWarn:    func(string) {},
+	})
+	if out.Kind != "auto_revert" || out.Status != "failed" {
+		t.Fatalf("expected auto_revert/failed, got %+v", out)
+	}
+	if sys.links["/srv/s/current"] != "/srv/s/releases/1.21.1" {
+		t.Fatalf("auto-revert must restore the old current symlink")
 	}
 }
