@@ -21,6 +21,10 @@ type rconConfig struct {
 	Port     int    `json:"port,omitempty"`
 }
 
+type updatesState struct {
+	HandledDesiredID string `json:"handledDesiredId,omitempty"`
+}
+
 type Config struct {
 	WorkerBaseURL string       `json:"workerBaseUrl"`
 	// IngestBaseURL is the host for high-volume agent ingest (presence). It is a
@@ -32,6 +36,7 @@ type Config struct {
 	ConfigHash    string       `json:"configHash"`
 	Server        ServerConfig `json:"config"`
 	RCON          rconConfig   `json:"rcon,omitempty"`
+	Updates       updatesState `json:"updates,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {

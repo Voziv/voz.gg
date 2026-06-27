@@ -37,6 +37,7 @@ type provisioning struct {
 type capabilities struct {
 	LogParser     logParserCapability     `json:"logParser"`
 	ServerControl serverControlCapability `json:"serverControl"`
+	Updates       updatesCapability       `json:"updates"`
 }
 
 // logParserCapability mirrors apps/web buildProvisioning's capabilities.logParser.
