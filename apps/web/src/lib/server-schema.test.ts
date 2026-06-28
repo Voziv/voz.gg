@@ -293,6 +293,36 @@ describe('parseServerInput discordWebhookUrl', () => {
   });
 });
 
+describe('fabric apply version line', () => {
+  const base = {
+    name: 'MC',
+    gameType: 'minecraft-java',
+    host: 'mc.example.com',
+    port: 25565,
+    serverControlEnabled: true,
+    gameServerUser: 'mc',
+    serverWorkingDir: '/srv/s',
+    startCommand: '/srv/s/run.sh',
+    restartSchedule: '04:00',
+  };
+
+  it('rejects fabric+auto without a version line', () => {
+    const r = parseServerInput({ ...base, updateSource: 'fabric', updatePolicy: 'auto', updateVersionLine: '' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.fieldErrors.updateVersionLine).toBeDefined();
+  });
+
+  it('accepts fabric+notify without a version line', () => {
+    const r = parseServerInput({ ...base, updateSource: 'fabric', updatePolicy: 'notify', updateVersionLine: '' });
+    expect(r.ok).toBe(true);
+  });
+
+  it('accepts fabric+auto with a version line', () => {
+    const r = parseServerInput({ ...base, updateSource: 'fabric', updatePolicy: 'auto', updateVersionLine: '1.21.1' });
+    expect(r.ok).toBe(true);
+  });
+});
+
 describe('updates validation', () => {
   it('allows a notify-policy tracked source without server control (Worker-only)', () => {
     const r = parseServerInput({ ...valid, updateSource: 'vanilla', updatePolicy: 'notify' });
