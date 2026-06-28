@@ -33,6 +33,9 @@ type fakeSystem struct {
 	reExeced          bool
 	reExecArgs        []string
 	reExecErr         error
+
+	runIns     [][]string
+	deepCopies []string
 }
 
 func newFakeSystem() *fakeSystem {
@@ -116,6 +119,15 @@ func (f *fakeSystem) hashFile(path, algo string) (string, error) { return "", ni
 func (f *fakeSystem) copyTreeHardlink(src, dst string) error     { return nil }
 func (f *fakeSystem) removeAll(path string) error                { return nil }
 func (f *fakeSystem) listDir(path string) ([]string, error)      { return nil, nil }
+func (f *fakeSystem) runIn(dir, name string, args ...string) error {
+	f.runIns = append(f.runIns, append([]string{dir, name}, args...))
+	return nil
+}
+func (f *fakeSystem) reflinkCopy(src, dst string) (bool, error) { return false, nil }
+func (f *fakeSystem) copyTreeDeep(src, dst string) error {
+	f.deepCopies = append(f.deepCopies, src+"->"+dst)
+	return nil
+}
 
 func fakeEnroll(resp enrollResponse, err error) enrollFn {
 	return func(string, string) (enrollResponse, error) { return resp, err }
