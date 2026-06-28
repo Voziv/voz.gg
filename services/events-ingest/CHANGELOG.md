@@ -1,3 +1,17 @@
+## 0.4.2 (2026-06-28)
+
+### 🚀 Features
+
+- **web:** wire auto-desired cron pass and updates validation ([1ab74e1](https://github.com/Voziv/voz.gg/commit/1ab74e1))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.13.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.4.1 (2026-06-27)
 
 ### 🧱 Updated Dependencies

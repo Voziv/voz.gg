@@ -1,3 +1,17 @@
+## 0.13.0 (2026-06-28)
+
+### 🚀 Features
+
+- **shared:** pure updater-state report handler ([0b9ed1b](https://github.com/Voziv/voz.gg/commit/0b9ed1b))
+- **shared:** orchestrate auto desired-release resolution ([b490a5c](https://github.com/Voziv/voz.gg/commit/b490a5c))
+- **shared:** plan auto-policy desired release (pure) ([a5b1598](https://github.com/Voziv/voz.gg/commit/a5b1598))
+- **shared:** resolve vanilla server-jar artifact (url + sha1 + size) ([5730605](https://github.com/Voziv/voz.gg/commit/5730605))
+- **shared:** add update-apply schema (desired, snapshots, events) ([9b7ea56](https://github.com/Voziv/voz.gg/commit/9b7ea56))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.12.0 (2026-06-27)
 
 ### 🚀 Features

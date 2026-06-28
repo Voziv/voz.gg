@@ -1,3 +1,23 @@
+## 0.23.0 (2026-06-28)
+
+### 🚀 Features
+
+- **web:** approve/rollback/history update controls ([180ac43](https://github.com/Voziv/voz.gg/commit/180ac43))
+- **web:** show apply-status states on the update badge ([b6f03c8](https://github.com/Voziv/voz.gg/commit/b6f03c8))
+- **web:** wire auto-desired cron pass and updates validation ([1ab74e1](https://github.com/Voziv/voz.gg/commit/1ab74e1))
+- **web:** approve update + request rollback admin actions ([ffe35bc](https://github.com/Voziv/voz.gg/commit/ffe35bc))
+- **web:** accept agent updater-state reports ([ec67ba5](https://github.com/Voziv/voz.gg/commit/ec67ba5))
+- **web:** ship updates capability + desired release to the agent ([0f77df2](https://github.com/Voziv/voz.gg/commit/0f77df2))
+- **shared:** add update-apply schema (desired, snapshots, events) ([9b7ea56](https://github.com/Voziv/voz.gg/commit/9b7ea56))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.13.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.22.2 (2026-06-27)
 
 ### 🧱 Updated Dependencies

@@ -1,3 +1,18 @@
+## 0.9.0 (2026-06-28)
+
+### 🚀 Features
+
+- **voz-gg-agent:** updates subcommand, report client, unit reconcile ([3401c81](https://github.com/Voziv/voz.gg/commit/3401c81))
+- **voz-gg-agent:** rollback executor + guided layout adoption ([73e1f13](https://github.com/Voziv/voz.gg/commit/73e1f13))
+- **voz-gg-agent:** apply executor with verify, swap, and auto-revert ([9c6ce8c](https://github.com/Voziv/voz.gg/commit/9c6ce8c))
+- **voz-gg-agent:** snapshot planning + jar version identification ([b957cfe](https://github.com/Voziv/voz.gg/commit/b957cfe))
+- **voz-gg-agent:** pure apply trigger gate + reconcile decision ([6108957](https://github.com/Voziv/voz.gg/commit/6108957))
+- **voz-gg-agent:** decode updates capability + desired release ([8e01e15](https://github.com/Voziv/voz.gg/commit/8e01e15))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.8.2 (2026-06-24)
 
 ### 🩹 Fixes
