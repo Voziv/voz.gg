@@ -28,6 +28,10 @@ export interface ServerRow {
   desiredArtifactHashAlgo: import('@voz/shared').HashAlgo | null;
   desiredArtifactHash: string | null;
   desiredArtifactSize: number | null;
+  serverJvmArgs: string | null;
+  desiredInstallLoader: 'forge' | 'neoforge' | 'fabric' | null;
+  desiredInstallMcVersion: string | null;
+  desiredInstallLoaderVersion: string | null;
 }
 
 export interface StatusUpsert {
@@ -73,6 +77,7 @@ export function createAgentDao(db: Db): AgentDao {
         serverWorkingDir: servers.serverWorkingDir,
         startCommand: servers.startCommand,
         restartSchedule: servers.restartSchedule,
+        serverJvmArgs: servers.serverJvmArgs,
         updateSource: servers.updateSource,
         updatePolicy: servers.updatePolicy,
         desiredId: serverUpdateState.desiredId,
@@ -82,6 +87,9 @@ export function createAgentDao(db: Db): AgentDao {
         desiredArtifactHashAlgo: serverUpdateState.desiredArtifactHashAlgo,
         desiredArtifactHash: serverUpdateState.desiredArtifactHash,
         desiredArtifactSize: serverUpdateState.desiredArtifactSize,
+        desiredInstallLoader: serverUpdateState.desiredInstallLoader,
+        desiredInstallMcVersion: serverUpdateState.desiredInstallMcVersion,
+        desiredInstallLoaderVersion: serverUpdateState.desiredInstallLoaderVersion,
       })
       .from(servers)
       .leftJoin(serverUpdateState, eq(serverUpdateState.serverId, servers.id))
