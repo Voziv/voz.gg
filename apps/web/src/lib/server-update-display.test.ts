@@ -26,4 +26,19 @@ describe('updateBadge', () => {
     expect(b.kind).toBe('failed');
     expect(b.label).toBe('Check failed');
   });
+  it('shows applying when applyStatus is applying', () => {
+    const b = updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.1', availableVersion: '1.21.4', lastError: null, applyStatus: 'applying' });
+    expect(b.kind).toBe('applying');
+    expect(b.label).toMatch(/1\.21\.4/);
+  });
+  it('shows apply failed when applyStatus is failed', () => {
+    const b = updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.1', availableVersion: '1.21.4', lastError: 'boot failed', applyStatus: 'failed' });
+    expect(b.kind).toBe('failed');
+    expect(b.label).toBe('Apply failed');
+  });
+  it('shows pending when an approved update is queued', () => {
+    const b = updateBadge({ updateSource: 'vanilla', currentVersion: '1.21.1', availableVersion: '1.21.4', lastError: null, applyStatus: 'pending' });
+    expect(b.kind).toBe('available');
+    expect(b.label).toMatch(/pending/i);
+  });
 });

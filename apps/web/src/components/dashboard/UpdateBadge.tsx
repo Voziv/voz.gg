@@ -6,10 +6,11 @@ type Props = {
   currentVersion: string | null;
   availableVersion: string | null;
   lastError: string | null;
+  applyStatus: string | null;
 };
 
-export default function UpdateBadge({ updateSource, currentVersion, availableVersion, lastError }: Props) {
-  const { kind, label } = updateBadge({ updateSource, currentVersion, availableVersion, lastError });
+export default function UpdateBadge({ updateSource, currentVersion, availableVersion, lastError, applyStatus }: Props) {
+  const { kind, label } = updateBadge({ updateSource, currentVersion, availableVersion, lastError, applyStatus });
 
   if (kind === 'untracked') return null;
 

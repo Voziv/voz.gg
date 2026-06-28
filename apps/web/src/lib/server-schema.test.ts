@@ -292,3 +292,30 @@ describe('parseServerInput discordWebhookUrl', () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe('updates validation', () => {
+  it('allows a notify-policy tracked source without server control (Worker-only)', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'vanilla', updatePolicy: 'notify' });
+    expect(r.ok).toBe(true);
+  });
+  it('rejects an approve/auto update source without server control', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'vanilla', updatePolicy: 'approve' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.fieldErrors.updateSource).toMatch(/server management/i);
+  });
+  it('rejects auto policy without a restart schedule', () => {
+    const r = parseServerInput({
+      ...valid, updateSource: 'vanilla', updatePolicy: 'auto',
+      serverControlEnabled: true, gameServerUser: 'mc', serverWorkingDir: '/srv/s', startCommand: '/srv/s/run.sh',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.fieldErrors.restartSchedule).toMatch(/auto/i);
+  });
+  it('accepts a fully-specified auto update server', () => {
+    const r = parseServerInput({
+      ...valid, updateSource: 'vanilla', updatePolicy: 'auto', restartSchedule: '04:00',
+      serverControlEnabled: true, gameServerUser: 'mc', serverWorkingDir: '/srv/s', startCommand: '/srv/s/run.sh',
+    });
+    expect(r.ok).toBe(true);
+  });
+});

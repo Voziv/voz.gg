@@ -127,6 +127,13 @@
       "when": 1782231098097,
       "tag": "0017_smooth_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1782602626474,
+      "tag": "0018_cheerful_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

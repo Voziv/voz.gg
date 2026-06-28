@@ -79,6 +79,21 @@ export type ModpackProvider = (typeof MODPACK_PROVIDERS)[number];
 export const UPDATE_POLICIES = ['notify', 'approve', 'auto'] as const;
 export type UpdatePolicy = (typeof UPDATE_POLICIES)[number];
 
+export const APPLY_STATUSES = ['idle', 'pending', 'downloading', 'applying', 'reverting', 'failed', 'done'] as const;
+export type ApplyStatus = (typeof APPLY_STATUSES)[number];
+
+export const DESIRED_KINDS = ['apply', 'rollback'] as const;
+export type DesiredKind = (typeof DESIRED_KINDS)[number];
+
+export const UPDATE_EVENT_KINDS = ['adopt', 'apply', 'rollback', 'auto_revert'] as const;
+export type UpdateEventKind = (typeof UPDATE_EVENT_KINDS)[number];
+
+export const UPDATE_EVENT_STATUSES = ['success', 'failed'] as const;
+export type UpdateEventStatus = (typeof UPDATE_EVENT_STATUSES)[number];
+
+export const HASH_ALGOS = ['sha1', 'sha256'] as const;
+export type HashAlgo = (typeof HASH_ALGOS)[number];
+
 export const GAME_TYPES = [
   'minecraft-java',
   'minecraft-bedrock',
@@ -162,6 +177,40 @@ export const serverUpdateState = sqliteTable('server_update_state', {
   checkedAt: integer('checked_at', { mode: 'timestamp' }),
   lastError: text('last_error'),
   notifiedVersion: text('notified_version'),
+  desiredId: text('desired_id'),
+  desiredKind: text('desired_kind').$type<DesiredKind>(),
+  desiredVersion: text('desired_version'),
+  desiredArtifactUrl: text('desired_artifact_url'),
+  desiredArtifactHashAlgo: text('desired_artifact_hash_algo').$type<HashAlgo>(),
+  desiredArtifactHash: text('desired_artifact_hash'),
+  desiredArtifactSize: integer('desired_artifact_size'),
+  applyStatus: text('apply_status').$type<ApplyStatus>(),
+  applyError: text('apply_error'),
+  lastAppliedAt: integer('last_applied_at', { mode: 'timestamp' }),
+});
+
+export const serverSnapshot = sqliteTable('server_snapshot', {
+  serverId: text('server_id')
+    .notNull()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  snapshotId: text('snapshot_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  version: text('version'),
+  sizeBytes: integer('size_bytes'),
+}, (t) => ({ pk: primaryKey({ columns: [t.serverId, t.snapshotId] }) }));
+
+export const serverUpdateEvent = sqliteTable('server_update_event', {
+  id: text('id').primaryKey(),
+  serverId: text('server_id')
+    .notNull()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  at: integer('at', { mode: 'timestamp' }).notNull(),
+  kind: text('kind').notNull().$type<UpdateEventKind>(),
+  fromVersion: text('from_version'),
+  toVersion: text('to_version'),
+  status: text('status').notNull().$type<UpdateEventStatus>(),
+  snapshotId: text('snapshot_id'),
+  error: text('error'),
 });
 
 export const serverAgent = sqliteTable('server_agent', {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseUpdatesReport, applyUpdatesReport, formatApplyFailureMessage } from '@voz/shared';
 import type { AgentDao, ServerRow } from './agent-dao';
 import { buildAgentConfig, configHash } from './agent-config';
 import { generateToken, hashToken } from './agent-auth';
@@ -89,4 +90,29 @@ export async function handleStatus(
   await dao.touchLastSeen(serverId, now);
 
   return { status: 200, body: { configHash: (await configResponse(server)).configHash } };
+}
+
+export async function handleUpdatesReport(
+  dao: AgentDao,
+  serverId: string | null,
+  body: unknown,
+  now: Date,
+  postDiscord: (url: string, payload: { content: string }) => Promise<{ status: number }>,
+): Promise<HandlerResult> {
+  if (!serverId) return { status: 401, body: { error: 'Unauthorized.' } };
+  const parsed = parseUpdatesReport(body);
+  if (!parsed.ok) return { status: 400, body: { error: 'Invalid updates report.' } };
+  const { alert } = await applyUpdatesReport(dao, serverId, parsed.body, now);
+  await dao.touchLastSeen(serverId, now);
+  if (alert) {
+    const target = await dao.notifyTargetFor(serverId);
+    if (target?.webhookUrl) {
+      try {
+        await postDiscord(target.webhookUrl, formatApplyFailureMessage(target.name, alert));
+      } catch {
+        // Alerting is best-effort; never fail the report on a webhook error.
+      }
+    }
+  }
+  return { status: 200, body: { ok: true } };
 }

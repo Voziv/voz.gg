@@ -20,3 +20,7 @@ export * from './server-updates/registry';
 export * from './server-updates/dao';
 export * from './server-updates/resolvers/curseforge';
 export * from './server-updates/run';
+export * from './server-updates/artifact';
+export * from './server-updates/desired';
+export * from './server-updates/desired-run';
+export * from './server-updates/updates-report';
