@@ -21,6 +21,7 @@ const fullRow: Server = {
   serverControlEnabled: true,
   serverWorkingDir: '/srv/survival',
   startCommand: '/srv/survival/run.sh',
+  serverJvmArgs: '-Xmx4G',
   restartSchedule: '04:00',
   discordWebhookUrl: 'https://discord.test/hook',
   updateSource: 'neoforge',

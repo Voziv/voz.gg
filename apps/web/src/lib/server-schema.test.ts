@@ -28,6 +28,7 @@ describe('parseServerInput', () => {
         serverControlEnabled: null,
         serverWorkingDir: null,
         startCommand: null,
+        serverJvmArgs: null,
         restartSchedule: null,
         discordWebhookUrl: null,
         updateSource: 'none',
@@ -198,6 +199,28 @@ describe('serverControl', () => {
       startCommand: null,
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('serverJvmArgs', () => {
+  const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
+
+  it('accepts a jvm args string', () => {
+    const r = parseServerInput({ ...base, serverJvmArgs: '-Xmx6G' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.serverJvmArgs).toBe('-Xmx6G');
+  });
+
+  it('coerces empty string to null', () => {
+    const r = parseServerInput({ ...base, serverJvmArgs: '' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.serverJvmArgs).toBeNull();
+  });
+
+  it('defaults to null when absent', () => {
+    const r = parseServerInput(base);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.serverJvmArgs).toBeNull();
   });
 });
 

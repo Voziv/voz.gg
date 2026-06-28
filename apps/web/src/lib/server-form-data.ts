@@ -23,6 +23,7 @@ export const SERVER_FORM_FIELDS = [
   'serverControlEnabled',
   'serverWorkingDir',
   'startCommand',
+  'serverJvmArgs',
   'restartSchedule',
   'updateSource',
   'modpackProvider',

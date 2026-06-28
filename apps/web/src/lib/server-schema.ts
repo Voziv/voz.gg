@@ -59,6 +59,7 @@ const serverSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null))
     .refine((v) => v === null || v.startsWith('/'), 'Start command must be an absolute path (e.g. /home/minecraft/server/run.sh nogui).'),
+  serverJvmArgs: z.string().trim().max(1024).optional().transform((v) => (v && v.length > 0 ? v : null)),
   restartSchedule: z
     .string()
     .trim()
