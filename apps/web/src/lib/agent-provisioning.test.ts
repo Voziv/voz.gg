@@ -17,6 +17,7 @@ function mk(overrides: Partial<ProvisioningInput>): ProvisioningInput {
     serverControlEnabled: null,
     serverWorkingDir: null,
     startCommand: null,
+    serverJvmArgs: null,
     restartSchedule: null,
     updateSource: null,
     updatePolicy: null,
@@ -27,6 +28,9 @@ function mk(overrides: Partial<ProvisioningInput>): ProvisioningInput {
     desiredArtifactHashAlgo: null,
     desiredArtifactHash: null,
     desiredArtifactSize: null,
+    desiredInstallLoader: null,
+    desiredInstallMcVersion: null,
+    desiredInstallLoaderVersion: null,
     ...overrides,
   };
 }
@@ -47,6 +51,7 @@ describe('buildProvisioning', () => {
           serverUser: 'minecraft',
           workingDir: null,
           startCommand: null,
+          jvmArgs: null,
           restartSchedule: '',
           rconPort: 25575,
         },
@@ -80,6 +85,7 @@ describe('buildProvisioning', () => {
           serverUser: 'mc',
           workingDir: null,
           startCommand: null,
+          jvmArgs: null,
           restartSchedule: '',
           rconPort: 25575,
         },
@@ -109,6 +115,7 @@ describe('buildProvisioning', () => {
       serverUser: 'minecraft',
       workingDir: '/home/minecraft/server',
       startCommand: './run.sh nogui',
+      jvmArgs: null,
       restartSchedule: '08:00',
       rconPort: 25575,
     });
@@ -144,6 +151,7 @@ describe('buildProvisioning', () => {
       id: 'apply:1.21.4', kind: 'apply', version: '1.21.4',
       artifact: { url: 'https://x/server.jar', hashAlgo: 'sha1', hash: 'abc', size: 10 },
       snapshotId: null,
+      install: null,
     });
   });
 
@@ -155,7 +163,35 @@ describe('buildProvisioning', () => {
       desiredId: 'rollback:snap-1', desiredKind: 'rollback', desiredVersion: 'snap-1',
     }));
     expect(p.capabilities.updates.desired).toEqual({
-      id: 'rollback:snap-1', kind: 'rollback', version: null, artifact: null, snapshotId: 'snap-1',
+      id: 'rollback:snap-1', kind: 'rollback', version: null, artifact: null, snapshotId: 'snap-1', install: null,
     });
+  });
+});
+
+describe('buildProvisioning loader install', () => {
+  it('ships jvmArgs and the install descriptor', () => {
+    const p = buildProvisioning(mk({
+      gameServerUser: 'minecraft',
+      serverControlEnabled: true, serverWorkingDir: '/srv/mc', startCommand: null,
+      serverJvmArgs: '-Xmx4G', restartSchedule: '04:00',
+      updateSource: 'neoforge', updatePolicy: 'auto',
+      desiredId: 'apply:21.1.234', desiredKind: 'apply', desiredVersion: '21.1.234',
+      desiredArtifactUrl: 'https://x/installer.jar', desiredArtifactHashAlgo: 'sha256',
+      desiredArtifactHash: 'h', desiredArtifactSize: 9,
+      desiredInstallLoader: 'neoforge', desiredInstallMcVersion: '1.21.1', desiredInstallLoaderVersion: '21.1.234',
+    }));
+    expect(p.capabilities.serverControl.jvmArgs).toBe('-Xmx4G');
+    expect(p.capabilities.updates.desired?.install).toEqual({
+      loader: 'neoforge', minecraftVersion: '1.21.1', loaderVersion: '21.1.234',
+    });
+  });
+
+  it('install is null when no loader columns', () => {
+    const p = buildProvisioning(mk({
+      updateSource: 'vanilla',
+      desiredId: 'apply:1.21.4', desiredKind: 'apply', desiredVersion: '1.21.4',
+      desiredInstallLoader: null, desiredInstallMcVersion: null, desiredInstallLoaderVersion: null,
+    }));
+    expect(p.capabilities.updates.desired?.install).toBeNull();
   });
 });
