@@ -9,7 +9,7 @@ export function createServerUpdateActionDao(db: ReturnType<typeof createDb>): Se
   return {
     async loadActionState(serverId) {
       const row = await db
-        .select({ source: servers.updateSource, available: serverUpdateState.availableVersion })
+        .select({ source: servers.updateSource, available: serverUpdateState.availableVersion, versionLine: servers.updateVersionLine })
         .from(servers)
         .leftJoin(serverUpdateState, eq(serverUpdateState.serverId, servers.id))
         .where(eq(servers.id, serverId))
@@ -25,6 +25,9 @@ export function createServerUpdateActionDao(db: ReturnType<typeof createDb>): Se
         desiredArtifactHashAlgo: (d.artifact?.hashAlgo ?? null) as 'sha1' | 'sha256' | null,
         desiredArtifactHash: d.artifact?.hash ?? null,
         desiredArtifactSize: d.artifact?.size ?? null,
+        desiredInstallLoader: d.install?.loader ?? null,
+        desiredInstallMcVersion: d.install?.minecraftVersion ?? null,
+        desiredInstallLoaderVersion: d.install?.loaderVersion ?? null,
         applyStatus: 'pending' as const,
       };
       await db

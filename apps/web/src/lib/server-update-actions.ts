@@ -1,9 +1,9 @@
-import { artifactResolverFor as defaultArtifactResolverFor, desiredGenerationId } from '@voz/shared';
-import type { ArtifactResolver, UpdateSource } from '@voz/shared';
+import { artifactResolverFor as defaultArtifactResolverFor, desiredGenerationId, isLoaderSource, loaderInstallDescriptor } from '@voz/shared';
+import type { ArtifactResolver, InstallDescriptor, UpdateSource } from '@voz/shared';
 
 export interface ServerUpdateActionDao {
-  loadActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; available: string | null } | null>;
-  writeDesired(serverId: string, d: { desiredId: string; kind: 'apply' | 'rollback'; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number } | null; snapshotId: string | null }): Promise<void>;
+  loadActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; available: string | null; versionLine: string | null } | null>;
+  writeDesired(serverId: string, d: { desiredId: string; kind: 'apply' | 'rollback'; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number } | null; snapshotId: string | null; install: InstallDescriptor | null }): Promise<void>;
   snapshotExists(serverId: string, snapshotId: string): Promise<boolean>;
 }
 
@@ -27,9 +27,17 @@ export async function approveUpdate(deps: ServerUpdateActionDeps, serverId: stri
   } catch (err) {
     return { ok: false, error: `Could not resolve the download: ${(err as Error).message}` };
   }
+  let install: InstallDescriptor | null = null;
+  if (isLoaderSource(state.source)) {
+    try {
+      install = loaderInstallDescriptor(state.source, state.available, state.versionLine);
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  }
   await deps.dao.writeDesired(serverId, {
     desiredId: desiredGenerationId('apply', state.available),
-    kind: 'apply', version: state.available, artifact, snapshotId: null,
+    kind: 'apply', version: state.available, artifact, snapshotId: null, install,
   });
   return { ok: true };
 }
@@ -38,7 +46,7 @@ export async function requestRollback(deps: ServerUpdateActionDeps, serverId: st
   if (!(await deps.dao.snapshotExists(serverId, snapshotId))) return { ok: false, error: 'Unknown snapshot.' };
   await deps.dao.writeDesired(serverId, {
     desiredId: desiredGenerationId('rollback', snapshotId),
-    kind: 'rollback', version: snapshotId, artifact: null, snapshotId,
+    kind: 'rollback', version: snapshotId, artifact: null, snapshotId, install: null,
   });
   return { ok: true };
 }
