@@ -11,9 +11,6 @@ describe('planAutoDesired', () => {
     expect(planAutoDesired({ ...base, policy: 'approve' })).toBeNull();
     expect(planAutoDesired({ ...base, policy: 'notify' })).toBeNull();
   });
-  it('returns null when source is not vanilla (apply unsupported)', () => {
-    expect(planAutoDesired({ ...base, source: 'neoforge' })).toBeNull();
-  });
   it('returns null when available equals installed', () => {
     expect(planAutoDesired({ ...base, available: '1.21.1' })).toBeNull();
   });
@@ -25,6 +22,18 @@ describe('planAutoDesired', () => {
   });
   it('is idempotent: null when desired already targets available', () => {
     expect(planAutoDesired({ ...base, currentDesiredVersion: '1.21.4' })).toBeNull();
+  });
+});
+
+describe('planAutoDesired loaders', () => {
+  it('plans for neoforge/forge/fabric', () => {
+    for (const source of ['neoforge', 'forge', 'fabric'] as const) {
+      expect(planAutoDesired({ ...base, source })).toEqual({ version: '1.21.4' });
+    }
+  });
+  it('still rejects modpack and none', () => {
+    expect(planAutoDesired({ ...base, source: 'modpack' as never })).toBeNull();
+    expect(planAutoDesired({ ...base, source: 'none' as never })).toBeNull();
   });
 });
 
