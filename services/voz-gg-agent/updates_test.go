@@ -25,6 +25,9 @@ type fakeUpdSys struct {
 	walk             map[string][]string
 	removedPaths     []string
 	renames          [][2]string
+	// ops records key operations in call order for ordering assertions.
+	// Entries are "removeAll:path", "deepCopy:src->dst", "reflinkCopy:src->dst".
+	ops []string
 }
 
 func newFakeUpdSys() *fakeUpdSys {
@@ -75,6 +78,7 @@ func (f *fakeUpdSys) removeAll(p string) error {
 	delete(f.dirs, p)
 	delete(f.files, p)
 	f.removedPaths = append(f.removedPaths, p)
+	f.ops = append(f.ops, "removeAll:"+p)
 	return nil
 }
 func (f *fakeUpdSys) listDir(p string) ([]string, error)  { return f.listings[p], nil }
@@ -112,6 +116,7 @@ func (f *fakeUpdSys) runIn(string, string, ...string) error { return nil }
 func (f *fakeUpdSys) reflinkCopy(src, dst string) (bool, error) {
 	if f.reflinkSupported {
 		f.reflinkCopies = append(f.reflinkCopies, src+"->"+dst)
+		f.ops = append(f.ops, "reflinkCopy:"+src+"->"+dst)
 		f.dirs[dst] = true
 		return true, nil
 	}
@@ -119,6 +124,7 @@ func (f *fakeUpdSys) reflinkCopy(src, dst string) (bool, error) {
 }
 func (f *fakeUpdSys) copyTreeDeep(src, dst string) error {
 	f.deepCopies = append(f.deepCopies, src+"->"+dst)
+	f.ops = append(f.ops, "deepCopy:"+src+"->"+dst)
 	f.dirs[dst] = true
 	return nil
 }

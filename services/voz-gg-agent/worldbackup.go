@@ -65,7 +65,14 @@ func backupWorld(sys systemOps, workDir, snapPath string, rconExec func(string) 
 	defer func() { _, _ = rconExec("save-on") }()
 
 	for _, name := range worlds {
-		if err := copyWorldDir(sys, filepath.Join(workDir, name), filepath.Join(snapPath, name)); err != nil {
+		// The hardlink snapshot already created snapPath/<world> as a hardlink
+		// to the live world. Remove it first so copyWorldDir writes an
+		// independent copy rather than layering onto hardlinked data.
+		dst := filepath.Join(snapPath, name)
+		if err := sys.removeAll(dst); err != nil {
+			return fmt.Errorf("world backup: clear %s: %w", name, err)
+		}
+		if err := copyWorldDir(sys, filepath.Join(workDir, name), dst); err != nil {
 			return fmt.Errorf("world backup: copy %s: %w", name, err)
 		}
 	}

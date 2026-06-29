@@ -22,6 +22,10 @@ func TestBackupWorldQuiescesAndDeepCopies(t *testing.T) {
 	fs.listings["/srv"] = []string{"world"}
 	fs.files["/srv/world/level.dat"] = []byte("x")
 	fs.dirs["/srv/world"] = true
+	// Simulate the prior copyTreeHardlink having already created the snapshot
+	// world dir as hardlinks to the live world. backupWorld must clear this
+	// hardlinked dir before copying, otherwise the backup is not independent.
+	fs.dirs["/srv/snapshots/snap-1/world"] = true
 
 	var rconCalls []string
 	rconExec := func(cmd string) (string, error) {
@@ -49,6 +53,30 @@ func TestBackupWorldQuiescesAndDeepCopies(t *testing.T) {
 
 	if len(fs.deepCopies) == 0 {
 		t.Fatalf("expected deepCopies when reflinkSupported=false")
+	}
+
+	// The snapshot world dir must be cleared (removeAll) before the independent
+	// copy is made. Verify both happened and that removeAll preceded the copy.
+	const snapWorld = "/srv/snapshots/snap-1/world"
+	const copyOp = "deepCopy:/srv/world->/srv/snapshots/snap-1/world"
+	removeOp := "removeAll:" + snapWorld
+	removeIdx, copyIdx := -1, -1
+	for i, op := range fs.ops {
+		if op == removeOp {
+			removeIdx = i
+		}
+		if op == copyOp {
+			copyIdx = i
+		}
+	}
+	if removeIdx < 0 {
+		t.Fatalf("expected removeAll of snapshot world dir %q; ops=%v", snapWorld, fs.ops)
+	}
+	if copyIdx < 0 {
+		t.Fatalf("expected deepCopy of world into snapshot; ops=%v", fs.ops)
+	}
+	if removeIdx >= copyIdx {
+		t.Fatalf("removeAll (idx %d) must precede deepCopy (idx %d); ops=%v", removeIdx, copyIdx, fs.ops)
 	}
 }
 
