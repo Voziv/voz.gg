@@ -255,6 +255,48 @@ approve / rollback (snapshot picker) / history controls. Pure cores
 the agent's trigger gate / reconcile / snapshot / executor) are fake-tested; migration
 0016/0017 plus 0018 (desired columns, `server_snapshot`, `server_update_event`) back it.
 
+### Loader installers (sub-project 3)
+
+Building on the vanilla apply slice, the agent now applies **Forge, NeoForge, and
+Fabric** updates via their **installer jars**. The Worker resolves each loader's
+installer from its own Maven (NeoForge `.sha256`, Forge/Fabric `.sha1`,
+hash-verifiable) and ships an `install {loader, minecraftVersion, loaderVersion}`
+descriptor alongside `desired.artifact` in `capabilities.updates`. On-host the
+agent downloads + verifies the installer, runs it (`--installServer`; Fabric:
+`server -mcversion <mc> -loader <loader> -downloadMinecraft`) into
+`releases/<version>.staging/`, validates loader markers, **atomically renames** to
+`releases/<version>/`, then runs the existing snapshot → stop → repoint `current` →
+start → RCON health-check → **auto-revert on failed boot** (restores `current`, the
+world, and the prior unit `ExecStart`).
+
+The agent **derives the launch** for loader servers (`deriveLaunch`) and writes it
+into the game unit's `ExecStart`, creating bridge symlinks (`libraries`→`current/…`,
+plus Fabric's `server.jar`/properties) so versioned loader libraries resolve while
+world/mods/config stay in the working dir. `serverJvmArgs` supplies JVM/memory flags
+(default `-Xmx2G`); a user-provided `startCommand` is the fallback only until a
+loader release is installed — on reprovision, `effectiveStartCommand` re-derives the
+launch from the installed release on disk so the derived `ExecStart` is not clobbered.
+
+**Adoption** is loader-aware: `identifyFlatInstall` identifies the loader TYPE from
+disk (the cross-check), but does **not** require the on-disk version to equal
+desired — the normal apply path updates it afterward. The Worker is the source of
+truth for the loader; a flat install that doesn't parse as the declared loader aborts
+loudly and touches nothing. Fabric flat-adoption trusts the Worker-declared loader
+version (the on-disk fabric version is not recoverable from the jar layout).
+
+A real **world backup** (CoW reflink, deep-copy fallback, quiesced via RCON
+`save-off`) is now part of the **shared** snapshot path, so rollback restores the
+world for vanilla and loaders alike; retention stays N=3. Modpacks stay out
+(`artifactResolverFor` returns null). The per-loader recipe lives in one `loaderSpec`
+table (`loaderspec.go`). Migration 0019 adds the nullable `desired_install_*` columns
+and `servers.server_jvm_args`.
+
+**Deferred verification:** the exact loader launch recipes (`loaderSpec` /
+`deriveLaunch` strings, bridge symlinks) reflect documented NeoForge/Forge/Fabric
+conventions but were **not yet verified** against real installer output on a JDK host
+(Task 12 deferred) — verify on a host before trusting on a production server (Fabric
+especially).
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.
