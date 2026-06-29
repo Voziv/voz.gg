@@ -279,6 +279,16 @@ func rollbackUpdate(d applyDeps) (updateOutcome, error) {
 		_ = d.sys.symlink(target, currentLink(d.workDir))
 	}
 	_ = restoreWorld(d.sys, d.workDir, snapPath)
+	// For a loader server the ExecStart embeds a version-specific library path
+	// (e.g. @current/libraries/.../21.1.234/unix_args.txt). After repointing
+	// current to the older release, that path no longer exists, so rewrite the
+	// unit to match the now-installed loader version. For vanilla servers
+	// detectInstalledLoader returns ok=false and nothing changes.
+	if loader, lv, mc, ok := detectInstalledLoader(d.sys, d.workDir); ok {
+		launch := deriveLaunch(loader, lv, mc, d.jvmArgs)
+		_ = writeGameUnitExecStart(d.sys, d.slug, d.serverUser, d.workDir, launch, d.execPath, d.configPath)
+		_ = d.sys.run("systemctl", "daemon-reload")
+	}
 	_ = d.sys.run("systemctl", "start", gameUnit(d.slug))
 	if err := d.healthCheck(); err != nil {
 		return updateOutcome{Kind: "rollback", Status: "failed", SnapshotID: snap, Error: err.Error()}, nil

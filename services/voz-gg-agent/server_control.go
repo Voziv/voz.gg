@@ -331,6 +331,9 @@ func detectInstalledLoader(sys systemOps, workDir string) (string, string, strin
 				if dash := strings.IndexByte(v, '-'); dash >= 0 {
 					return l, v[dash+1:], v[:dash], true
 				}
+				// Forge version without a mc-build dash separator is malformed;
+				// fall through to unknown rather than misclassify as neoforge.
+				return "", "", "", false
 			}
 			return l, v, deriveNeoforgeMcVersionGo(v), true
 		}

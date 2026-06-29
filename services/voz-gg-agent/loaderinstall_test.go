@@ -203,3 +203,51 @@ func TestAdoptLoaderWrongLoaderAborts(t *testing.T) {
 		t.Fatalf("adoption must not touch the install on abort; links=%v", fs.links)
 	}
 }
+
+// TestRollbackRewritesLoaderExecStart verifies that a manual rollback rewrites
+// the game-unit ExecStart to match the rolled-back release. For a loader server
+// the ExecStart embeds a version-specific path; without this fix the old unit
+// (referencing the now-absent release) would leave the server unbootable.
+func TestRollbackRewritesLoaderExecStart(t *testing.T) {
+	fs := newFakeUpdSys()
+	snap := "2026-06-20T040000Z-pre-21.1.234"
+	snapPath := "/srv/snapshots/" + snap
+
+	// Snapshot exists and its current link points to the older 21.1.200 release.
+	fs.dirs[snapPath] = true
+	fs.links[snapPath+"/current"] = "/srv/releases/21.1.200"
+
+	// Live install is 21.1.234; the unit file still references it.
+	fs.links["/srv/current"] = "/srv/releases/21.1.234"
+	unitFile := "/etc/systemd/system/voz-gg-srv.service"
+	fs.files[unitFile] = []byte("ExecStart=java -Xmx4G @current/libraries/net/neoforged/neoforge/21.1.234/unix_args.txt nogui")
+
+	// After repointing current → 21.1.200, detectInstalledLoader walks that dir
+	// and finds the neoforge 21.1.200 marker.
+	fs.walk["/srv/releases/21.1.200"] = []string{
+		"libraries/net/neoforged/neoforge/21.1.200/unix_args.txt",
+	}
+
+	out, err := rollbackUpdate(applyDeps{
+		sys: fs, now: func() time.Time { return time.Now().UTC() },
+		workDir: "/srv", slug: "srv", serverUser: "minecraft",
+		desired:     &desiredRelease{ID: "rollback:" + snap, Kind: "rollback", SnapshotID: snap},
+		installed:   "21.1.234",
+		healthCheck: func() error { return nil },
+		rconWarn:    func(string) {},
+		jvmArgs:     "-Xmx4G",
+		execPath:    "/usr/local/bin/voz-gg-agent",
+		configPath:  "/etc/voz-gg-agent/monitor.json",
+	})
+	if err != nil || out.Kind != "rollback" || out.Status != "success" {
+		t.Fatalf("rollback outcome %+v err %v", out, err)
+	}
+
+	unit := string(fs.files[unitFile])
+	if !strings.Contains(unit, "21.1.200") {
+		t.Fatalf("unit file must reference rolled-back version 21.1.200; got %q", unit)
+	}
+	if strings.Contains(unit, "21.1.234") {
+		t.Fatalf("unit file must not reference stale version 21.1.234 after rollback; got %q", unit)
+	}
+}
