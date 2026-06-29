@@ -23,6 +23,7 @@ type fakeUpdSys struct {
 	reflinkSupported bool
 	listings         map[string][]string
 	removedPaths     []string
+	renames          [][2]string
 }
 
 func newFakeUpdSys() *fakeUpdSys {
@@ -86,7 +87,22 @@ func (f *fakeUpdSys) createSystemGroup(string) error        { return nil }
 func (f *fakeUpdSys) createSystemUser(string, string) error { return nil }
 func (f *fakeUpdSys) unitInstalled(string) bool             { return true }
 func (f *fakeUpdSys) remove(string) error                   { return nil }
-func (f *fakeUpdSys) rename(string, string) error           { return nil }
+func (f *fakeUpdSys) rename(oldPath, newPath string) error {
+	f.renames = append(f.renames, [2]string{oldPath, newPath})
+	return nil
+}
+func (f *fakeUpdSys) renamedTo(target string) bool {
+	for _, r := range f.renames {
+		if r[1] == target {
+			return true
+		}
+	}
+	return false
+}
+func (f *fakeUpdSys) symlinked(link string) bool {
+	_, ok := f.links[link]
+	return ok
+}
 func (f *fakeUpdSys) binaryVersion(string) (string, error)  { return "", nil }
 func (f *fakeUpdSys) reExec(string, []string) error         { return nil }
 func (f *fakeUpdSys) runIn(string, string, ...string) error { return nil }

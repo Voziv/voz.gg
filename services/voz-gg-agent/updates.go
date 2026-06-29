@@ -30,12 +30,19 @@ type updatesCapability struct {
 	Desired *desiredRelease `json:"desired"`
 }
 
+type desiredInstall struct {
+	Loader           string `json:"loader"`
+	MinecraftVersion string `json:"minecraftVersion"`
+	LoaderVersion    string `json:"loaderVersion"`
+}
+
 type desiredRelease struct {
 	ID         string           `json:"id"`
 	Kind       string           `json:"kind"` // "apply" | "rollback"
 	Version    string           `json:"version"`
 	Artifact   *desiredArtifact `json:"artifact"`
 	SnapshotID string           `json:"snapshotId"`
+	Install    *desiredInstall  `json:"install"`
 }
 
 type desiredArtifact struct {
@@ -163,6 +170,9 @@ type applyDeps struct {
 	healthCheck func() error                 // returns nil once the server answers RCON
 	rconWarn    func(string)                 // best-effort player warning before a forced stop
 	rconExec    func(string) (string, error) // full RCON for world quiesce during backup
+	jvmArgs     string
+	execPath    string
+	configPath  string
 }
 
 const gameUnitPrefix = "voz-gg-"
@@ -174,6 +184,9 @@ func gameUnit(slug string) string { return gameUnitPrefix + slug + ".service" }
 // auto-reverting to the snapshot on a failed boot. The server jar hash is the
 // integrity gate; a mismatch aborts before any swap.
 func applyUpdate(d applyDeps) (updateOutcome, error) {
+	if d.desired.Install != nil {
+		return installLoader(d)
+	}
 	art := d.desired.Artifact
 	if art == nil {
 		return updateOutcome{Kind: "apply", Status: "failed", Error: "no artifact in desired"}, fmt.Errorf("no artifact")
@@ -529,6 +542,9 @@ func reconcileUpdatesTick(d updatesTickDeps) int {
 		healthCheck: func() error { return rconHealthCheck(d.rconExec) },
 		rconWarn:    func(msg string) { _, _ = d.rconExec("say " + msg) },
 		rconExec:    d.rconExec,
+		jvmArgs:     sc.JvmArgs,
+		execPath:    d.execPath,
+		configPath:  d.configPath,
 	}
 	var out updateOutcome
 	if action.Kind == "rollback" {

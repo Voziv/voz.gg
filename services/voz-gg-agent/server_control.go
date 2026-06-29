@@ -26,6 +26,7 @@ type serverControlCapability struct {
 	StartCommand    string `json:"startCommand"`
 	RestartSchedule string `json:"restartSchedule"`
 	RconPort        int    `json:"rconPort"`
+	JvmArgs         string `json:"jvmArgs"`
 }
 
 // ensureRconPassword mints the RCON password once when server control is enabled
