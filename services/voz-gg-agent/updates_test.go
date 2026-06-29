@@ -12,18 +12,33 @@ import (
 )
 
 type fakeUpdSys struct {
-	files      map[string][]byte
-	dirs       map[string]bool
-	links      map[string]string
-	ran        []string
-	downloads  map[string]int64 // url -> size written
-	hashByPath map[string]string
+	files            map[string][]byte
+	dirs             map[string]bool
+	links            map[string]string
+	ran              []string
+	downloads        map[string]int64 // url -> size written
+	hashByPath       map[string]string
+	reflinkCopies    []string
+	deepCopies       []string
+	reflinkSupported bool
+	listings         map[string][]string
+	walk             map[string][]string
+	removedPaths     []string
+	renames          [][2]string
+	// ops records key operations in call order for ordering assertions.
+	// Entries are "removeAll:path", "deepCopy:src->dst", "reflinkCopy:src->dst".
+	ops []string
 }
 
 func newFakeUpdSys() *fakeUpdSys {
 	return &fakeUpdSys{
-		files: map[string][]byte{}, dirs: map[string]bool{}, links: map[string]string{},
-		downloads: map[string]int64{}, hashByPath: map[string]string{},
+		files:      map[string][]byte{},
+		dirs:       map[string]bool{},
+		links:      map[string]string{},
+		downloads:  map[string]int64{},
+		hashByPath: map[string]string{},
+		listings:   map[string][]string{},
+		walk:       map[string][]string{},
 	}
 }
 
@@ -59,9 +74,16 @@ func (f *fakeUpdSys) downloadTo(url, dest string) (int64, error) {
 }
 func (f *fakeUpdSys) hashFile(p, _ string) (string, error)   { return f.hashByPath[p], nil }
 func (f *fakeUpdSys) copyTreeHardlink(src, dst string) error { f.dirs[dst] = true; return nil }
-func (f *fakeUpdSys) removeAll(p string) error               { delete(f.dirs, p); delete(f.files, p); return nil }
-func (f *fakeUpdSys) listDir(p string) ([]string, error)     { return nil, nil }
-func (f *fakeUpdSys) chownRecursive(_, _, _ string) error    { return nil }
+func (f *fakeUpdSys) removeAll(p string) error {
+	delete(f.dirs, p)
+	delete(f.files, p)
+	f.removedPaths = append(f.removedPaths, p)
+	f.ops = append(f.ops, "removeAll:"+p)
+	return nil
+}
+func (f *fakeUpdSys) listDir(p string) ([]string, error)  { return f.listings[p], nil }
+func (f *fakeUpdSys) walkFiles(p string) []string         { return f.walk[p] }
+func (f *fakeUpdSys) chownRecursive(_, _, _ string) error { return nil }
 func (f *fakeUpdSys) run(name string, args ...string) error {
 	f.ran = append(f.ran, name+" "+strings.Join(args, " "))
 	return nil
@@ -72,9 +94,40 @@ func (f *fakeUpdSys) createSystemGroup(string) error        { return nil }
 func (f *fakeUpdSys) createSystemUser(string, string) error { return nil }
 func (f *fakeUpdSys) unitInstalled(string) bool             { return true }
 func (f *fakeUpdSys) remove(string) error                   { return nil }
-func (f *fakeUpdSys) rename(string, string) error           { return nil }
+func (f *fakeUpdSys) rename(oldPath, newPath string) error {
+	f.renames = append(f.renames, [2]string{oldPath, newPath})
+	return nil
+}
+func (f *fakeUpdSys) renamedTo(target string) bool {
+	for _, r := range f.renames {
+		if r[1] == target {
+			return true
+		}
+	}
+	return false
+}
+func (f *fakeUpdSys) symlinked(link string) bool {
+	_, ok := f.links[link]
+	return ok
+}
 func (f *fakeUpdSys) binaryVersion(string) (string, error)  { return "", nil }
 func (f *fakeUpdSys) reExec(string, []string) error         { return nil }
+func (f *fakeUpdSys) runIn(string, string, ...string) error { return nil }
+func (f *fakeUpdSys) reflinkCopy(src, dst string) (bool, error) {
+	if f.reflinkSupported {
+		f.reflinkCopies = append(f.reflinkCopies, src+"->"+dst)
+		f.ops = append(f.ops, "reflinkCopy:"+src+"->"+dst)
+		f.dirs[dst] = true
+		return true, nil
+	}
+	return false, nil
+}
+func (f *fakeUpdSys) copyTreeDeep(src, dst string) error {
+	f.deepCopies = append(f.deepCopies, src+"->"+dst)
+	f.ops = append(f.ops, "deepCopy:"+src+"->"+dst)
+	f.dirs[dst] = true
+	return nil
+}
 
 func TestUpdatesCapabilityDecode(t *testing.T) {
 	raw := `{"enabled":true,"policy":"auto","desired":{"id":"apply:1.21.4","kind":"apply","version":"1.21.4","artifact":{"url":"https://x/server.jar","hashAlgo":"sha1","hash":"abc","size":54321},"snapshotId":""}}`

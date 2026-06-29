@@ -60,11 +60,13 @@ describe('initialServerControlValues', () => {
       serverControlEnabled: true,
       serverWorkingDir: '/srv/mc',
       startCommand: './run.sh',
+      serverJvmArgs: '-Xmx4G',
       restartScheduleLocal: '03:00',
     })).toEqual({
       serverControlEnabled: true,
       serverWorkingDir: '/srv/mc',
       startCommand: './run.sh',
+      serverJvmArgs: '-Xmx4G',
       restartTime: '03:00',
     });
   });
@@ -74,6 +76,7 @@ describe('initialServerControlValues', () => {
       serverControlEnabled: false,
       serverWorkingDir: '',
       startCommand: '',
+      serverJvmArgs: '',
       restartTime: '',
     });
   });

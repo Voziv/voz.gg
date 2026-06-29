@@ -36,6 +36,7 @@ export const POST: APIRoute = async (ctx) => {
     serverControlEnabled: parsed.data.serverControlEnabled,
     serverWorkingDir: parsed.data.serverWorkingDir,
     startCommand: parsed.data.startCommand,
+    serverJvmArgs: parsed.data.serverJvmArgs,
     restartSchedule: parsed.data.restartSchedule,
     discordWebhookUrl: parsed.data.discordWebhookUrl,
     updateSource: parsed.data.updateSource,

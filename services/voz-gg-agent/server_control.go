@@ -26,6 +26,7 @@ type serverControlCapability struct {
 	StartCommand    string `json:"startCommand"`
 	RestartSchedule string `json:"restartSchedule"`
 	RconPort        int    `json:"rconPort"`
+	JvmArgs         string `json:"jvmArgs"`
 }
 
 // ensureRconPassword mints the RCON password once when server control is enabled
@@ -274,8 +275,11 @@ func reconcileServerControl(sys systemOps, sc serverControlCapability, rconPassw
 		_ = sys.chownRecursive(propsPath, sc.ServerUser, sc.ServerUser)
 	}
 
-	// Render + install the gameserver unit.
-	unit := renderServerControlUnit(execPath, slug, sc.ServerUser, sc.WorkingDir, sc.StartCommand, configPath)
+	// Render + install the gameserver unit with the effective launch command.
+	// When a loader release is installed under current/, the derived loader
+	// command is used; otherwise the user's startCommand is the fallback.
+	effective := effectiveStartCommand(sys, sc)
+	unit := renderServerControlUnit(execPath, slug, sc.ServerUser, sc.WorkingDir, effective, configPath)
 	if err := sys.writeFile("/etc/systemd/system/"+serverControlUnitName(slug), []byte(unit), 0o644); err != nil {
 		return err
 	}
@@ -311,6 +315,52 @@ func reconcileServerControl(sys systemOps, sc serverControlCapability, rconPassw
 	}
 	fmt.Fprintf(stdout, "voz-gg-agent server control installed for %s (unit %s)\n", slug, serverControlUnitName(slug))
 	return nil
+}
+
+// detectInstalledLoader inspects the release pointed at by current/ and
+// returns (loader, loaderVersion, mcVersion, true) when a loader is found.
+func detectInstalledLoader(sys systemOps, workDir string) (string, string, string, bool) {
+	target, err := sys.readlink(currentLink(workDir))
+	if err != nil || target == "" {
+		return "", "", "", false
+	}
+	listing := sys.walkFiles(target)
+	for _, l := range []string{"neoforge", "forge"} {
+		if v, err := identifyFlatInstall(l, listing); err == nil {
+			if l == "forge" {
+				if dash := strings.IndexByte(v, '-'); dash >= 0 {
+					return l, v[dash+1:], v[:dash], true
+				}
+				// Forge version without a mc-build dash separator is malformed;
+				// fall through to unknown rather than misclassify as neoforge.
+				return "", "", "", false
+			}
+			return l, v, deriveNeoforgeMcVersionGo(v), true
+		}
+	}
+	for _, p := range listing {
+		if fabricLaunchRe.MatchString(p) {
+			return "fabric", "", "", true
+		}
+	}
+	return "", "", "", false
+}
+
+// effectiveStartCommand returns the loader-derived ExecStart when a loader
+// release is installed under current/, otherwise sc.StartCommand.
+func effectiveStartCommand(sys systemOps, sc serverControlCapability) string {
+	if loader, lv, mc, ok := detectInstalledLoader(sys, sc.WorkingDir); ok {
+		return deriveLaunch(loader, lv, mc, sc.JvmArgs)
+	}
+	return sc.StartCommand
+}
+
+// writeGameUnitExecStart rewrites the game-server unit with a new ExecStart
+// (derived from the installed loader). Canonical home; loaderinstall.go
+// delegates here.
+func writeGameUnitExecStart(sys systemOps, slug, user, workingDir, execStart, execPath, configPath string) error {
+	unit := renderServerControlUnit(execPath, slug, user, workingDir, execStart, configPath)
+	return sys.writeFile("/etc/systemd/system/"+serverControlUnitName(slug), []byte(unit), 0o644)
 }
 
 func removeServerControlUnits(sys systemOps, slug string) {

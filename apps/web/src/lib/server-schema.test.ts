@@ -28,6 +28,7 @@ describe('parseServerInput', () => {
         serverControlEnabled: null,
         serverWorkingDir: null,
         startCommand: null,
+        serverJvmArgs: null,
         restartSchedule: null,
         discordWebhookUrl: null,
         updateSource: 'none',
@@ -201,6 +202,28 @@ describe('serverControl', () => {
   });
 });
 
+describe('serverJvmArgs', () => {
+  const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
+
+  it('accepts a jvm args string', () => {
+    const r = parseServerInput({ ...base, serverJvmArgs: '-Xmx6G' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.serverJvmArgs).toBe('-Xmx6G');
+  });
+
+  it('coerces empty string to null', () => {
+    const r = parseServerInput({ ...base, serverJvmArgs: '' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.serverJvmArgs).toBeNull();
+  });
+
+  it('defaults to null when absent', () => {
+    const r = parseServerInput(base);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.serverJvmArgs).toBeNull();
+  });
+});
+
 describe('startCommand absolute path', () => {
   const base = { name: 'MC', gameType: 'minecraft-java', host: 'mc.example.com', port: 25565 };
 
@@ -290,6 +313,36 @@ describe('parseServerInput discordWebhookUrl', () => {
   it('rejects a non-discord url', () => {
     const r = parseServerInput({ ...valid, discordWebhookUrl: 'https://evil.example.com/hook' });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('fabric apply version line', () => {
+  const base = {
+    name: 'MC',
+    gameType: 'minecraft-java',
+    host: 'mc.example.com',
+    port: 25565,
+    serverControlEnabled: true,
+    gameServerUser: 'mc',
+    serverWorkingDir: '/srv/s',
+    startCommand: '/srv/s/run.sh',
+    restartSchedule: '04:00',
+  };
+
+  it('rejects fabric+auto without a version line', () => {
+    const r = parseServerInput({ ...base, updateSource: 'fabric', updatePolicy: 'auto', updateVersionLine: '' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.fieldErrors.updateVersionLine).toBeDefined();
+  });
+
+  it('accepts fabric+notify without a version line', () => {
+    const r = parseServerInput({ ...base, updateSource: 'fabric', updatePolicy: 'notify', updateVersionLine: '' });
+    expect(r.ok).toBe(true);
+  });
+
+  it('accepts fabric+auto with a version line', () => {
+    const r = parseServerInput({ ...base, updateSource: 'fabric', updatePolicy: 'auto', updateVersionLine: '1.21.1' });
+    expect(r.ok).toBe(true);
   });
 });
 

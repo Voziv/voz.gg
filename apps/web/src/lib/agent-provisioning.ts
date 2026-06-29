@@ -13,6 +13,7 @@ export interface Provisioning {
       serverUser: string | null;
       workingDir: string | null;
       startCommand: string | null;
+      jvmArgs: string | null;
       restartSchedule: string;
       rconPort: number;
     };
@@ -27,6 +28,7 @@ export interface Provisioning {
             version: string | null;
             artifact: { url: string; hashAlgo: 'sha1' | 'sha256'; hash: string; size: number } | null;
             snapshotId: string | null;
+            install: { loader: 'forge' | 'neoforge' | 'fabric'; minecraftVersion: string; loaderVersion: string } | null;
           };
     };
   };
@@ -45,6 +47,7 @@ export interface ProvisioningInput {
   serverControlEnabled: boolean | null;
   serverWorkingDir: string | null;
   startCommand: string | null;
+  serverJvmArgs: string | null;
   restartSchedule: string | null;
   updateSource: 'none' | 'vanilla' | 'forge' | 'neoforge' | 'fabric' | 'modpack' | null;
   updatePolicy: 'notify' | 'approve' | 'auto' | null;
@@ -55,6 +58,9 @@ export interface ProvisioningInput {
   desiredArtifactHashAlgo: 'sha1' | 'sha256' | null;
   desiredArtifactHash: string | null;
   desiredArtifactSize: number | null;
+  desiredInstallLoader: 'forge' | 'neoforge' | 'fabric' | null;
+  desiredInstallMcVersion: string | null;
+  desiredInstallLoaderVersion: string | null;
 }
 
 const DEFAULT_RUN_AS = 'voz-gg';
@@ -79,6 +85,7 @@ export function buildProvisioning(server: ProvisioningInput): Provisioning {
         serverUser: server.gameServerUser ?? defaults.gameServerUser ?? null,
         workingDir: server.serverWorkingDir ?? null,
         startCommand: server.startCommand ?? null,
+        jvmArgs: server.serverJvmArgs ?? null,
         restartSchedule: server.restartSchedule ?? '',
         rconPort: 25575,
       },
@@ -99,6 +106,13 @@ export function buildProvisioning(server: ProvisioningInput): Provisioning {
                   }
                 : null,
               snapshotId: server.desiredKind === 'rollback' ? server.desiredVersion : null,
+              install: server.desiredInstallLoader
+                ? {
+                    loader: server.desiredInstallLoader,
+                    minecraftVersion: server.desiredInstallMcVersion ?? '',
+                    loaderVersion: server.desiredInstallLoaderVersion ?? '',
+                  }
+                : null,
             }
           : null,
       },

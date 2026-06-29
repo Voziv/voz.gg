@@ -99,12 +99,17 @@ export function createUpdateDetectionDao(db: Db) {
           installed: row.currentVersion ?? null,
           pinned: row.pinnedVersion ?? null,
           currentDesiredVersion: state?.desiredVersion ?? null,
+          versionLine: row.updateVersionLine ?? null,
         });
       }
       return out;
     },
 
-    async writeDesired(serverId: string, d: { id: string; kind: 'apply' | 'rollback'; version: string | null; artifact: { url: string; hashAlgo: string; hash: string; size: number } | null }) {
+    async writeDesired(serverId: string, d: {
+      id: string; kind: 'apply' | 'rollback'; version: string | null;
+      artifact: { url: string; hashAlgo: string; hash: string; size: number } | null;
+      install?: { loader: 'forge' | 'neoforge' | 'fabric'; minecraftVersion: string; loaderVersion: string } | null;
+    }) {
       const set = {
         desiredId: d.id,
         desiredKind: d.kind,
@@ -113,6 +118,9 @@ export function createUpdateDetectionDao(db: Db) {
         desiredArtifactHashAlgo: (d.artifact?.hashAlgo ?? null) as 'sha1' | 'sha256' | null,
         desiredArtifactHash: d.artifact?.hash ?? null,
         desiredArtifactSize: d.artifact?.size ?? null,
+        desiredInstallLoader: d.install?.loader ?? null,
+        desiredInstallMcVersion: d.install?.minecraftVersion ?? null,
+        desiredInstallLoaderVersion: d.install?.loaderVersion ?? null,
       };
       await db
         .insert(serverUpdateState)
@@ -125,6 +133,7 @@ export function createUpdateDetectionDao(db: Db) {
       await db.update(serverUpdateState).set({
         desiredId: null, desiredKind: null, desiredVersion: null,
         desiredArtifactUrl: null, desiredArtifactHashAlgo: null, desiredArtifactHash: null, desiredArtifactSize: null,
+        desiredInstallLoader: null, desiredInstallMcVersion: null, desiredInstallLoaderVersion: null,
       }).where(eq(serverUpdateState.serverId, serverId)).run();
     },
   };

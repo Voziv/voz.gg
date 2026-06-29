@@ -77,6 +77,10 @@ type systemOps interface {
 	copyTreeHardlink(src, dst string) error
 	removeAll(path string) error
 	listDir(path string) ([]string, error)
+	walkFiles(path string) []string
+	runIn(dir, name string, args ...string) error
+	reflinkCopy(src, dst string) (bool, error)
+	copyTreeDeep(src, dst string) error
 }
 
 // enrollFn performs the enroll HTTP call. Abstracted for testing.
@@ -614,6 +618,70 @@ func (realSystem) copyTreeHardlink(src, dst string) error {
 	return runLogged("cp", "-al", src, dst)
 }
 func (realSystem) removeAll(path string) error { return os.RemoveAll(path) }
+func (realSystem) runIn(dir, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %v: %s", name, err, out)
+	}
+	return nil
+}
+
+// reflinkCopy tries a CoW clone. On Linux it shells out to `cp --reflink=always
+// -a`; on filesystems/platforms without reflink support it returns (false, nil)
+// so the caller falls back to a deep copy.
+func (realSystem) reflinkCopy(src, dst string) (bool, error) {
+	cmd := exec.Command("cp", "--reflink=always", "-a", src, dst)
+	if err := cmd.Run(); err != nil {
+		_ = os.RemoveAll(dst)
+		return false, nil
+	}
+	return true, nil
+}
+
+func (realSystem) copyTreeDeep(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		return copyFileMode(p, target, info.Mode().Perm())
+	})
+}
+
+// copyFileMode copies one file, preserving its permission bits. It is a separate
+// function so each file's descriptors are released as it returns: copying a tree
+// inside a single filepath.WalkDir callback would keep every file's fd open until
+// the entire walk finished and exhaust the open-file limit on a large tree.
+func copyFileMode(srcPath, dstPath string, mode os.FileMode) error {
+	in, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
+}
+
 func (realSystem) listDir(path string) ([]string, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
@@ -627,6 +695,20 @@ func (realSystem) listDir(path string) ([]string, error) {
 		out = append(out, e.Name())
 	}
 	return out, nil
+}
+
+func (realSystem) walkFiles(root string) []string {
+	var out []string
+	_ = filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if rel, relErr := filepath.Rel(root, p); relErr == nil {
+			out = append(out, rel)
+		}
+		return nil
+	})
+	return out
 }
 
 func runLogged(name string, args ...string) error {

@@ -30,12 +30,19 @@ type updatesCapability struct {
 	Desired *desiredRelease `json:"desired"`
 }
 
+type desiredInstall struct {
+	Loader           string `json:"loader"`
+	MinecraftVersion string `json:"minecraftVersion"`
+	LoaderVersion    string `json:"loaderVersion"`
+}
+
 type desiredRelease struct {
 	ID         string           `json:"id"`
 	Kind       string           `json:"kind"` // "apply" | "rollback"
 	Version    string           `json:"version"`
 	Artifact   *desiredArtifact `json:"artifact"`
 	SnapshotID string           `json:"snapshotId"`
+	Install    *desiredInstall  `json:"install"`
 }
 
 type desiredArtifact struct {
@@ -160,8 +167,12 @@ type applyDeps struct {
 	serverUser  string
 	desired     *desiredRelease
 	installed   string
-	healthCheck func() error // returns nil once the server answers RCON
-	rconWarn    func(string) // best-effort player warning before a forced stop
+	healthCheck func() error                 // returns nil once the server answers RCON
+	rconWarn    func(string)                 // best-effort player warning before a forced stop
+	rconExec    func(string) (string, error) // full RCON for world quiesce during backup
+	jvmArgs     string
+	execPath    string
+	configPath  string
 }
 
 const gameUnitPrefix = "voz-gg-"
@@ -173,6 +184,9 @@ func gameUnit(slug string) string { return gameUnitPrefix + slug + ".service" }
 // auto-reverting to the snapshot on a failed boot. The server jar hash is the
 // integrity gate; a mismatch aborts before any swap.
 func applyUpdate(d applyDeps) (updateOutcome, error) {
+	if d.desired.Install != nil {
+		return installLoader(d)
+	}
 	art := d.desired.Artifact
 	if art == nil {
 		return updateOutcome{Kind: "apply", Status: "failed", Error: "no artifact in desired"}, fmt.Errorf("no artifact")
@@ -186,6 +200,9 @@ func applyUpdate(d applyDeps) (updateOutcome, error) {
 		return failed("apply", d.installed, d.desired.Version, snapID, err)
 	}
 	if err := d.sys.copyTreeHardlink(d.workDir, snapPath); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	if err := backupWorld(d.sys, d.workDir, snapPath, d.rconExec); err != nil {
 		return failed("apply", d.installed, d.desired.Version, snapID, err)
 	}
 	pruneSnapshots(d.sys, d.workDir)
@@ -261,6 +278,17 @@ func rollbackUpdate(d applyDeps) (updateOutcome, error) {
 	if err == nil && target != "" {
 		_ = d.sys.symlink(target, currentLink(d.workDir))
 	}
+	_ = restoreWorld(d.sys, d.workDir, snapPath)
+	// For a loader server the ExecStart embeds a version-specific library path
+	// (e.g. @current/libraries/.../21.1.234/unix_args.txt). After repointing
+	// current to the older release, that path no longer exists, so rewrite the
+	// unit to match the now-installed loader version. For vanilla servers
+	// detectInstalledLoader returns ok=false and nothing changes.
+	if loader, lv, mc, ok := detectInstalledLoader(d.sys, d.workDir); ok {
+		launch := deriveLaunch(loader, lv, mc, d.jvmArgs)
+		_ = writeGameUnitExecStart(d.sys, d.slug, d.serverUser, d.workDir, launch, d.execPath, d.configPath)
+		_ = d.sys.run("systemctl", "daemon-reload")
+	}
 	_ = d.sys.run("systemctl", "start", gameUnit(d.slug))
 	if err := d.healthCheck(); err != nil {
 		return updateOutcome{Kind: "rollback", Status: "failed", SnapshotID: snap, Error: err.Error()}, nil
@@ -297,6 +325,9 @@ func adoptLayout(a adoptDeps) (updateOutcome, error) {
 	snapID := snapshotID(a.now(), version)
 	if err := a.sys.mkdirAll(snapshotsRoot(a.workDir), 0o750); err == nil {
 		_ = a.sys.copyTreeHardlink(a.workDir, filepath.Join(snapshotsRoot(a.workDir), snapID))
+		_ = backupWorld(a.sys, a.workDir, filepath.Join(snapshotsRoot(a.workDir), snapID), func(string) (string, error) {
+			return "", fmt.Errorf("no rcon during adopt")
+		})
 	}
 	rel := releaseDir(a.workDir, version)
 	if err := a.sys.mkdirAll(rel, 0o755); err != nil {
@@ -492,8 +523,19 @@ func reconcileUpdatesTick(d updatesTickDeps) int {
 	installed := installedVersion(d.sys, sc.WorkingDir)
 
 	// Adoption: a flat server (no current symlink) is adopted before any apply.
+	// When the desired release carries a loader install descriptor, use the
+	// loader-aware path; otherwise fall back to vanilla jar adoption.
 	if !d.sys.pathExists(currentLink(sc.WorkingDir)) {
-		out, err := adoptLayout(adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser, openJar: openJarFile})
+		var out updateOutcome
+		var err error
+		if uc.Desired != nil && uc.Desired.Install != nil {
+			out, err = adoptLoaderLayout(
+				adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser},
+				uc.Desired.Install, sc.JvmArgs, d.execPath, d.configPath,
+			)
+		} else {
+			out, err = adoptLayout(adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser, openJar: openJarFile})
+		}
 		report(d, uc, sc, installedVersion(d.sys, sc.WorkingDir), out)
 		if err != nil {
 			fmt.Fprintf(d.stderr, "updates: adoption: %v\n", err)
@@ -520,6 +562,10 @@ func reconcileUpdatesTick(d updatesTickDeps) int {
 		desired: uc.Desired, installed: installed,
 		healthCheck: func() error { return rconHealthCheck(d.rconExec) },
 		rconWarn:    func(msg string) { _, _ = d.rconExec("say " + msg) },
+		rconExec:    d.rconExec,
+		jvmArgs:     sc.JvmArgs,
+		execPath:    d.execPath,
+		configPath:  d.configPath,
 	}
 	var out updateOutcome
 	if action.Kind == "rollback" {

@@ -59,6 +59,7 @@ const serverSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null))
     .refine((v) => v === null || v.startsWith('/'), 'Start command must be an absolute path (e.g. /home/minecraft/server/run.sh nogui).'),
+  serverJvmArgs: z.string().trim().max(1024).optional().transform((v) => (v && v.length > 0 ? v : null)),
   restartSchedule: z
     .string()
     .trim()
@@ -105,6 +106,9 @@ const serverSchema = z.object({
   }
   if (data.updateSource === 'forge' || data.updateSource === 'neoforge') {
     if (!data.updateVersionLine) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['updateVersionLine'], message: 'A version line is required for Forge/NeoForge (e.g. 1.21.1).' });
+  }
+  if (data.updateSource === 'fabric' && (data.updatePolicy === 'approve' || data.updatePolicy === 'auto') && !data.updateVersionLine) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['updateVersionLine'], message: 'A version line is required for Fabric automatic updates (e.g. 1.21.1).' });
   }
   // The apply policies (approve/auto) need the agent to manage the unit + RCON, so
   // they require server control. `notify` is Worker-only (sub-project 1) and needs

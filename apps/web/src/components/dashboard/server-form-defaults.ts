@@ -26,6 +26,7 @@ export interface ServerControlValues {
   serverControlEnabled: boolean;
   serverWorkingDir: string;
   startCommand: string;
+  serverJvmArgs: string;
   restartTime: string; // local HH:MM (already converted from stored UTC by the caller)
 }
 
@@ -33,12 +34,14 @@ export function initialServerControlValues(stored?: {
   serverControlEnabled: boolean | null;
   serverWorkingDir: string | null;
   startCommand: string | null;
+  serverJvmArgs: string | null;
   restartScheduleLocal: string | null;
 }): ServerControlValues {
   return {
     serverControlEnabled: stored?.serverControlEnabled ?? false,
     serverWorkingDir: stored?.serverWorkingDir ?? '',
     startCommand: stored?.startCommand ?? '',
+    serverJvmArgs: stored?.serverJvmArgs ?? '',
     restartTime: stored?.restartScheduleLocal ?? '',
   };
 }

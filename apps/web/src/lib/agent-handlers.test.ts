@@ -31,6 +31,10 @@ const server: ServerRow = {
   desiredArtifactHashAlgo: null,
   desiredArtifactHash: null,
   desiredArtifactSize: null,
+  serverJvmArgs: null,
+  desiredInstallLoader: null,
+  desiredInstallMcVersion: null,
+  desiredInstallLoaderVersion: null,
 };
 
 function fakeDao(overrides: Partial<AgentDao> = {}) {

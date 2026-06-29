@@ -99,6 +99,7 @@ export default function ServerFormDialog({ server }: Props) {
             serverControlEnabled: server.serverControlEnabled,
             serverWorkingDir: server.serverWorkingDir,
             startCommand: server.startCommand,
+            serverJvmArgs: server.serverJvmArgs,
             restartScheduleLocal: server.restartSchedule ? utcTimeToLocal(server.restartSchedule) : null,
           }
         : undefined,
@@ -148,6 +149,7 @@ export default function ServerFormDialog({ server }: Props) {
       serverControlEnabled: serverControl.serverControlEnabled,
       serverWorkingDir: serverControl.serverWorkingDir.trim() || null,
       startCommand: serverControl.startCommand.trim() || null,
+      serverJvmArgs: serverControl.serverJvmArgs.trim() || null,
       restartSchedule: serverControl.restartTime ? localTimeToUtc(serverControl.restartTime) : null,
       discordWebhookUrl: form.get('discordWebhookUrl'),
       updateSource: updates.updateSource,
@@ -377,6 +379,17 @@ export default function ServerFormDialog({ server }: Props) {
                 aria-invalid={!!fieldErrors.startCommand}
               />
               <FieldError errors={fieldErrors} field="startCommand" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="serverJvmArgs">JVM args (for loader launches)</Label>
+              <Input
+                id="serverJvmArgs"
+                value={serverControl.serverJvmArgs}
+                onChange={(e) => setServerControl((c) => ({ ...c, serverJvmArgs: e.target.value }))}
+                placeholder="-Xmx4G"
+                aria-invalid={!!fieldErrors.serverJvmArgs}
+              />
+              <FieldError errors={fieldErrors} field="serverJvmArgs" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="restartTime">Nightly restart time (your local time; blank = none)</Label>

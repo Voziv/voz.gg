@@ -1,4 +1,5 @@
 import { planAutoDesired, desiredGenerationId } from './desired';
+import { isLoaderSource, loaderInstallDescriptor, type InstallDescriptor } from './loader-install';
 import type { ArtifactResolver } from './artifact';
 import type { UpdateSource } from '../schema';
 
@@ -12,8 +13,13 @@ export interface ApplyAutoDesiredDeps {
       installed: string | null;
       pinned: string | null;
       currentDesiredVersion: string | null;
+      versionLine: string | null;
     }>>;
-    writeDesired(serverId: string, d: { id: string; kind: 'apply'; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number } }): Promise<void>;
+    writeDesired(serverId: string, d: {
+      id: string; kind: 'apply'; version: string;
+      artifact: { url: string; hashAlgo: string; hash: string; size: number };
+      install: InstallDescriptor | null;
+    }): Promise<void>;
     clearDesired(serverId: string): Promise<void>;
   };
   artifactResolverFor: (source: UpdateSource) => ArtifactResolver | null;
@@ -37,14 +43,19 @@ export async function applyAutoDesired(deps: ApplyAutoDesiredDeps): Promise<void
     });
     if (!plan) continue;
     try {
-      const resolver = deps.artifactResolverFor(input.source as UpdateSource);
+      const source = input.source as UpdateSource;
+      const resolver = deps.artifactResolverFor(source);
       if (!resolver) continue;
       const artifact = await resolver.resolveArtifact(plan.version, globalThis.fetch as never);
+      const install = isLoaderSource(source)
+        ? loaderInstallDescriptor(source, plan.version, input.versionLine)
+        : null;
       await deps.dao.writeDesired(input.serverId, {
         id: desiredGenerationId('apply', plan.version),
         kind: 'apply',
         version: plan.version,
         artifact,
+        install,
       });
     } catch (err) {
       deps.onError?.(input.serverId, err);
