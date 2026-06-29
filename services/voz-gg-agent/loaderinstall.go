@@ -228,11 +228,3 @@ func adoptLoaderLayout(a adoptDeps, inst *desiredInstall, jvmArgs, execPath, con
 
 	return updateOutcome{Kind: "adopt", To: version, SnapshotID: snapID, Status: "success"}, nil
 }
-
-// writeGameUnitExecStart rewrites the game-server unit with a new ExecStart
-// (derived from the installed loader). Task 18 moves this to server_control.go
-// as the canonical home; it lives here for now.
-func writeGameUnitExecStart(sys systemOps, slug, user, workingDir, execStart, execPath, configPath string) error {
-	unit := renderServerControlUnit(execPath, slug, user, workingDir, execStart, configPath)
-	return sys.writeFile("/etc/systemd/system/"+serverControlUnitName(slug), []byte(unit), 0o644)
-}

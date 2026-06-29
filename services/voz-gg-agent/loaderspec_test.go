@@ -47,3 +47,18 @@ func TestIdentifyFlatInstallUnparseable(t *testing.T) {
 		t.Fatal("expected error for unparseable install")
 	}
 }
+
+func TestDeriveNeoforgeMcVersionGo(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"21.1.234", "1.21.1"},
+		{"21.0.5", "1.21"},
+		{"20.4.80", "1.20.4"},
+	}
+	for _, c := range cases {
+		if got := deriveNeoforgeMcVersionGo(c.in); got != c.want {
+			t.Fatalf("deriveNeoforgeMcVersionGo(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

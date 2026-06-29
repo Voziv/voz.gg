@@ -224,3 +224,29 @@ func TestReconcileServerControlDisabledRemoves(t *testing.T) {
 		t.Fatalf("disabled capability should remove the unit; removed=%v", f.removed)
 	}
 }
+
+func TestEffectiveStartCommandDerivesForInstalledLoader(t *testing.T) {
+	f := newFakeUpdSys()
+	f.links["/srv/current"] = "/srv/releases/21.1.234"
+	f.walk["/srv/releases/21.1.234"] = []string{"libraries/net/neoforged/neoforge/21.1.234/unix_args.txt"}
+	sc := serverControlCapability{
+		Enabled: true, Slug: "srv", ServerUser: "minecraft",
+		WorkingDir: "/srv", StartCommand: "ignored", JvmArgs: "-Xmx4G",
+	}
+	got := effectiveStartCommand(f, sc)
+	want := "java -Xmx4G @current/libraries/net/neoforged/neoforge/21.1.234/unix_args.txt nogui"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestEffectiveStartCommandFallsBackToUserCommand(t *testing.T) {
+	f := newFakeUpdSys() // no current symlink → vanilla / unmanaged
+	sc := serverControlCapability{
+		Enabled: true, Slug: "srv", ServerUser: "minecraft",
+		WorkingDir: "/srv", StartCommand: "java -jar current/server.jar nogui",
+	}
+	if got := effectiveStartCommand(f, sc); got != sc.StartCommand {
+		t.Fatalf("expected user command, got %q", got)
+	}
+}

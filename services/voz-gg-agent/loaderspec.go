@@ -79,6 +79,19 @@ func loaderArtifactNames(loader string) []string {
 	return nil
 }
 
+// deriveNeoforgeMcVersionGo converts a NeoForge version (major.minor.build) to
+// its Minecraft version (1.major.minor), collapsing a zero minor to 1.major.
+func deriveNeoforgeMcVersionGo(neoforgeVersion string) string {
+	parts := strings.SplitN(neoforgeVersion, ".", 3)
+	if len(parts) < 2 {
+		return "1." + neoforgeVersion
+	}
+	if parts[1] == "0" {
+		return "1." + parts[0]
+	}
+	return "1." + parts[0] + "." + parts[1]
+}
+
 var neoforgePathRe = regexp.MustCompile(`libraries/net/neoforged/neoforge/([^/]+)/unix_args\.txt`)
 var forgePathRe = regexp.MustCompile(`libraries/net/minecraftforge/forge/([^/]+)/unix_args\.txt`)
 var fabricLaunchRe = regexp.MustCompile(`fabric-server-launch\.jar`)
