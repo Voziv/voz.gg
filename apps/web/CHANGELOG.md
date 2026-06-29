@@ -1,3 +1,22 @@
+## 0.24.0 (2026-06-29)
+
+### 🚀 Features
+
+- **web:** server jvm args form field for loader launches ([e2058e9](https://github.com/Voziv/voz.gg/commit/e2058e9))
+- **web:** require version line for loader apply policies ([8c59f26](https://github.com/Voziv/voz.gg/commit/8c59f26))
+- **web:** approve resolves loader installer + install descriptor ([f853e73](https://github.com/Voziv/voz.gg/commit/f853e73))
+- **web:** project loader install columns in agent dao ([9557495](https://github.com/Voziv/voz.gg/commit/9557495))
+- **web:** ship loader install + jvm args in provisioning ([51e8b90](https://github.com/Voziv/voz.gg/commit/51e8b90))
+- **shared:** add desired-install + server jvm args columns ([9880935](https://github.com/Voziv/voz.gg/commit/9880935))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.14.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.23.0 (2026-06-28)
 
 ### 🚀 Features

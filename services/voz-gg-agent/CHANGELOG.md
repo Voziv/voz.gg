@@ -1,3 +1,23 @@
+## 0.10.0 (2026-06-29)
+
+### 🚀 Features
+
+- **voz-gg-agent:** derive loader launch for the game unit ([f9e2745](https://github.com/Voziv/voz.gg/commit/f9e2745))
+- **voz-gg-agent:** loader-aware adoption with declared-loader cross-check ([142a04b](https://github.com/Voziv/voz.gg/commit/142a04b))
+- **voz-gg-agent:** loader install executor with staged atomic promote ([358ca52](https://github.com/Voziv/voz.gg/commit/358ca52))
+- **voz-gg-agent:** real world backup in snapshot + rollback restore ([3e0a3da](https://github.com/Voziv/voz.gg/commit/3e0a3da))
+- **voz-gg-agent:** systemOps runIn + reflink/deep copy ([fd3268b](https://github.com/Voziv/voz.gg/commit/fd3268b))
+- **voz-gg-agent:** loader spec table + launch derivation ([215da64](https://github.com/Voziv/voz.gg/commit/215da64))
+
+### 🩹 Fixes
+
+- **voz-gg-agent:** make world backup an independent copy ([68e08be](https://github.com/Voziv/voz.gg/commit/68e08be))
+- **voz-gg-agent:** restore loader ExecStart on manual rollback ([bf2f5c9](https://github.com/Voziv/voz.gg/commit/bf2f5c9))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.9.0 (2026-06-28)
 
 ### 🚀 Features

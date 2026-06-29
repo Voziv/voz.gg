@@ -1,3 +1,18 @@
+## 0.14.0 (2026-06-29)
+
+### 🚀 Features
+
+- **shared:** export loader install + artifact resolvers ([dba3c49](https://github.com/Voziv/voz.gg/commit/dba3c49))
+- **shared:** carry loader install descriptor through desired ([193bc9b](https://github.com/Voziv/voz.gg/commit/193bc9b))
+- **shared:** allow loaders through auto-desired planning ([e59194e](https://github.com/Voziv/voz.gg/commit/e59194e))
+- **shared:** loader installer artifact resolvers ([73797f4](https://github.com/Voziv/voz.gg/commit/73797f4))
+- **shared:** pure loader install descriptor ([24751cd](https://github.com/Voziv/voz.gg/commit/24751cd))
+- **shared:** add desired-install + server jvm args columns ([9880935](https://github.com/Voziv/voz.gg/commit/9880935))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.13.0 (2026-06-28)
 
 ### 🚀 Features
