@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // installLoader runs the loader apply lifecycle: snapshot (with world backup) →
@@ -122,6 +123,110 @@ func installLoader(d applyDeps) (updateOutcome, error) {
 		return updateOutcome{Kind: "auto_revert", From: d.desired.Version, To: d.installed, SnapshotID: snapID, Status: "failed", Error: err.Error()}, nil
 	}
 	return updateOutcome{Kind: "apply", From: d.installed, To: d.desired.Version, SnapshotID: snapID, Status: "success"}, nil
+}
+
+// adoptLoaderLayout adopts a flat loader install into the canonical layout:
+// identify the installed version from the file listing (using the Worker-declared
+// loader type as the parser), snapshot, move loader artifacts into
+// releases/<version>/, create bridge symlinks, write the derived launch, and
+// create the current symlink. The loader TYPE is the cross-check; the on-disk
+// version is recovered directly and adopted as-is (it is almost always older than
+// the desired version, which is expected). Aborts on error, touching nothing.
+func adoptLoaderLayout(a adoptDeps, inst *desiredInstall, jvmArgs, execPath, configPath string) (updateOutcome, error) {
+	if inst == nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: "no install descriptor"}, fmt.Errorf("no install descriptor")
+	}
+
+	listing := a.sys.walkFiles(a.workDir)
+
+	var version string
+	switch inst.Loader {
+	case "fabric":
+		// Fabric has no version in its launch jar name; confirm a fabric launch
+		// jar is present then trust the Worker-declared loader version.
+		var found bool
+		for _, p := range listing {
+			if fabricLaunchRe.MatchString(p) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			e := fmt.Errorf("no fabric-server-launch.jar in flat install")
+			return updateOutcome{Kind: "adopt", Status: "failed", Error: e.Error()}, e
+		}
+		version = inst.LoaderVersion
+	default:
+		// neoforge / forge: recover the version from the libraries path.
+		v, err := identifyFlatInstall(inst.Loader, listing)
+		if err != nil {
+			e := fmt.Errorf("cannot identify %s flat install: %w", inst.Loader, err)
+			return updateOutcome{Kind: "adopt", Status: "failed", Error: e.Error()}, e
+		}
+		version = v
+	}
+
+	// Snapshot the pre-adoption state.
+	snapID := snapshotID(a.now(), version)
+	snapPath := filepath.Join(snapshotsRoot(a.workDir), snapID)
+	if err := a.sys.mkdirAll(snapshotsRoot(a.workDir), 0o750); err == nil {
+		_ = a.sys.copyTreeHardlink(a.workDir, snapPath)
+		_ = backupWorld(a.sys, a.workDir, snapPath, func(string) (string, error) {
+			return "", fmt.Errorf("no rcon during adopt")
+		})
+	}
+
+	// Move loader artifacts into releases/<version>/.
+	rel := releaseDir(a.workDir, version)
+	if err := a.sys.mkdirAll(rel, 0o755); err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+	// Track moved artifacts so a mid-loop rename failure can be rolled back,
+	// leaving the flat install intact for the next tick to re-identify.
+	var moved [][2]string
+	for _, name := range loaderArtifactNames(inst.Loader) {
+		src := filepath.Join(a.workDir, name)
+		dst := filepath.Join(rel, name)
+		if a.sys.pathExists(src) {
+			if err := a.sys.rename(src, dst); err != nil {
+				for _, m := range moved {
+					_ = a.sys.rename(m[1], m[0])
+				}
+				return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+			}
+			moved = append(moved, [2]string{src, dst})
+		}
+	}
+	_ = a.sys.chownRecursive(rel, a.serverUser, a.serverUser)
+
+	if err := a.sys.symlink(rel, currentLink(a.workDir)); err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+
+	// Bridge symlinks: working-dir entries → current/ so loader relative paths resolve.
+	for _, b := range bridgesFor(inst.Loader) {
+		link := filepath.Join(a.workDir, b)
+		_ = a.sys.removeAll(link)
+		_ = a.sys.symlink(filepath.Join("current", b), link)
+	}
+
+	// Derive the launch from the RECOVERED on-disk version (which is what `current`
+	// now points at), not the desired version — they normally differ. Forge's
+	// recovered version is the composite <mc>-<build>, so split it for deriveLaunch.
+	launchLoaderVersion := version
+	launchMc := inst.MinecraftVersion
+	if inst.Loader == "forge" {
+		if dash := strings.IndexByte(version, '-'); dash >= 0 {
+			launchMc = version[:dash]
+			launchLoaderVersion = version[dash+1:]
+		}
+	}
+	launch := deriveLaunch(inst.Loader, launchLoaderVersion, launchMc, jvmArgs)
+	if err := writeGameUnitExecStart(a.sys, a.slug, a.serverUser, a.workDir, launch, execPath, configPath); err != nil {
+		return updateOutcome{Kind: "adopt", Status: "failed", Error: err.Error()}, err
+	}
+
+	return updateOutcome{Kind: "adopt", To: version, SnapshotID: snapID, Status: "success"}, nil
 }
 
 // writeGameUnitExecStart rewrites the game-server unit with a new ExecStart

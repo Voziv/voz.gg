@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
+
+var fixedNow = func() time.Time { return time.Unix(1750000000, 0).UTC() }
 
 const loaderInstallerURL = "https://x/installer.jar"
 const loaderInstallerPath = "/srv/.updates-tmp/installer.jar"
@@ -103,5 +106,100 @@ func TestInstallLoaderFailedBootReverts(t *testing.T) {
 	}
 	if string(fs.files[unitFile]) != string(priorUnit) {
 		t.Fatalf("prior unit ExecStart not restored; got %q", fs.files[unitFile])
+	}
+}
+
+// TestAdoptLoaderNeoforgeMatch verifies that a neoforge flat install is adopted
+// at the on-disk version when the listing contains a matching unix_args.txt path.
+func TestAdoptLoaderNeoforgeMatch(t *testing.T) {
+	fs := newFakeUpdSys()
+	fs.walk["/srv"] = []string{"run.sh", "libraries/net/neoforged/neoforge/21.1.234/unix_args.txt"}
+	inst := &desiredInstall{Loader: "neoforge", MinecraftVersion: "1.21.1", LoaderVersion: "21.1.234"}
+	out, err := adoptLoaderLayout(
+		adoptDeps{sys: fs, now: fixedNow, workDir: "/srv", slug: "srv", serverUser: "minecraft"},
+		inst, "", "/bin/agent", "/etc/cfg",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.Status != "success" || out.To != "21.1.234" {
+		t.Fatalf("bad adopt outcome: %+v", out)
+	}
+	if !fs.symlinked("/srv/current") {
+		t.Fatalf("expected current symlink; links=%v", fs.links)
+	}
+	if !fs.symlinked("/srv/libraries") {
+		t.Fatalf("expected libraries bridge symlink; links=%v", fs.links)
+	}
+}
+
+// TestAdoptLoaderOlderOnDiskAdopts verifies that when the on-disk version is
+// older than the Worker-declared desired version, adoption still succeeds at
+// the on-disk version. The loader TYPE is the cross-check, not the version.
+func TestAdoptLoaderOlderOnDiskAdopts(t *testing.T) {
+	fs := newFakeUpdSys()
+	fs.walk["/srv"] = []string{"libraries/net/neoforged/neoforge/21.1.200/unix_args.txt"}
+	inst := &desiredInstall{Loader: "neoforge", MinecraftVersion: "1.21.1", LoaderVersion: "21.1.234"}
+	out, err := adoptLoaderLayout(
+		adoptDeps{sys: fs, now: fixedNow, workDir: "/srv", slug: "srv", serverUser: "minecraft"},
+		inst, "", "/bin/agent", "/etc/cfg",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.Status != "success" || out.To != "21.1.200" {
+		t.Fatalf("expected success with on-disk version 21.1.200; got %+v", out)
+	}
+	unit := string(fs.files["/etc/systemd/system/voz-gg-srv.service"])
+	if !strings.Contains(unit, "21.1.200") {
+		t.Fatalf("unit ExecStart must reference the on-disk version; got %q", unit)
+	}
+	if strings.Contains(unit, "21.1.234") {
+		t.Fatalf("unit ExecStart must not reference the desired version; got %q", unit)
+	}
+}
+
+// TestAdoptLoaderFabric verifies fabric adoption: the on-disk version is not
+// recoverable, so adoption succeeds at the Worker-declared loader version once a
+// fabric launch jar is confirmed present.
+func TestAdoptLoaderFabric(t *testing.T) {
+	fs := newFakeUpdSys()
+	fs.walk["/srv"] = []string{
+		"libraries/net/fabricmc/fabric-loader/0.16.9/fabric-loader-0.16.9.jar",
+		"fabric-server-launch.jar",
+		"fabric-server-launcher.properties",
+	}
+	inst := &desiredInstall{Loader: "fabric", MinecraftVersion: "1.21.1", LoaderVersion: "0.16.9"}
+	out, err := adoptLoaderLayout(
+		adoptDeps{sys: fs, now: fixedNow, workDir: "/srv", slug: "srv", serverUser: "minecraft"},
+		inst, "", "/bin/agent", "/etc/cfg",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.Status != "success" || out.To != "0.16.9" {
+		t.Fatalf("expected fabric success at declared version 0.16.9; got %+v", out)
+	}
+	if !fs.symlinked("/srv/current") {
+		t.Fatalf("expected current symlink; links=%v", fs.links)
+	}
+}
+
+// TestAdoptLoaderWrongLoaderAborts verifies that when the flat install contains
+// no recognisable loader artifacts (e.g. just a vanilla server.jar), adoption
+// aborts with a failed outcome and touches nothing.
+func TestAdoptLoaderWrongLoaderAborts(t *testing.T) {
+	fs := newFakeUpdSys()
+	fs.walk["/srv"] = []string{"server.jar"}
+	inst := &desiredInstall{Loader: "neoforge", MinecraftVersion: "1.21.1", LoaderVersion: "21.1.234"}
+	out, err := adoptLoaderLayout(
+		adoptDeps{sys: fs, now: fixedNow, workDir: "/srv", slug: "srv", serverUser: "minecraft"},
+		inst, "", "/bin/agent", "/etc/cfg",
+	)
+	if err == nil || out.Status != "failed" {
+		t.Fatalf("expected failed outcome for unparseable install; got %+v err %v", out, err)
+	}
+	if fs.symlinked("/srv/current") {
+		t.Fatalf("adoption must not touch the install on abort; links=%v", fs.links)
 	}
 }

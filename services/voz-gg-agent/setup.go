@@ -77,6 +77,7 @@ type systemOps interface {
 	copyTreeHardlink(src, dst string) error
 	removeAll(path string) error
 	listDir(path string) ([]string, error)
+	walkFiles(path string) []string
 	runIn(dir, name string, args ...string) error
 	reflinkCopy(src, dst string) (bool, error)
 	copyTreeDeep(src, dst string) error
@@ -694,6 +695,20 @@ func (realSystem) listDir(path string) ([]string, error) {
 		out = append(out, e.Name())
 	}
 	return out, nil
+}
+
+func (realSystem) walkFiles(root string) []string {
+	var out []string
+	_ = filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if rel, relErr := filepath.Rel(root, p); relErr == nil {
+			out = append(out, rel)
+		}
+		return nil
+	})
+	return out
 }
 
 func runLogged(name string, args ...string) error {

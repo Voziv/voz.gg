@@ -513,8 +513,19 @@ func reconcileUpdatesTick(d updatesTickDeps) int {
 	installed := installedVersion(d.sys, sc.WorkingDir)
 
 	// Adoption: a flat server (no current symlink) is adopted before any apply.
+	// When the desired release carries a loader install descriptor, use the
+	// loader-aware path; otherwise fall back to vanilla jar adoption.
 	if !d.sys.pathExists(currentLink(sc.WorkingDir)) {
-		out, err := adoptLayout(adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser, openJar: openJarFile})
+		var out updateOutcome
+		var err error
+		if uc.Desired != nil && uc.Desired.Install != nil {
+			out, err = adoptLoaderLayout(
+				adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser},
+				uc.Desired.Install, sc.JvmArgs, d.execPath, d.configPath,
+			)
+		} else {
+			out, err = adoptLayout(adoptDeps{sys: d.sys, now: d.now, workDir: sc.WorkingDir, slug: sc.Slug, serverUser: sc.ServerUser, openJar: openJarFile})
+		}
 		report(d, uc, sc, installedVersion(d.sys, sc.WorkingDir), out)
 		if err != nil {
 			fmt.Fprintf(d.stderr, "updates: adoption: %v\n", err)

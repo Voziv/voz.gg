@@ -119,6 +119,7 @@ func (f *fakeSystem) hashFile(path, algo string) (string, error) { return "", ni
 func (f *fakeSystem) copyTreeHardlink(src, dst string) error     { return nil }
 func (f *fakeSystem) removeAll(path string) error                { return nil }
 func (f *fakeSystem) listDir(path string) ([]string, error)      { return nil, nil }
+func (f *fakeSystem) walkFiles(string) []string                  { return nil }
 func (f *fakeSystem) runIn(dir, name string, args ...string) error {
 	f.runIns = append(f.runIns, append([]string{dir, name}, args...))
 	return nil

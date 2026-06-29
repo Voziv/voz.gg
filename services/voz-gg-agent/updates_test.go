@@ -22,6 +22,7 @@ type fakeUpdSys struct {
 	deepCopies       []string
 	reflinkSupported bool
 	listings         map[string][]string
+	walk             map[string][]string
 	removedPaths     []string
 	renames          [][2]string
 }
@@ -34,6 +35,7 @@ func newFakeUpdSys() *fakeUpdSys {
 		downloads:  map[string]int64{},
 		hashByPath: map[string]string{},
 		listings:   map[string][]string{},
+		walk:       map[string][]string{},
 	}
 }
 
@@ -76,6 +78,7 @@ func (f *fakeUpdSys) removeAll(p string) error {
 	return nil
 }
 func (f *fakeUpdSys) listDir(p string) ([]string, error)  { return f.listings[p], nil }
+func (f *fakeUpdSys) walkFiles(p string) []string         { return f.walk[p] }
 func (f *fakeUpdSys) chownRecursive(_, _, _ string) error { return nil }
 func (f *fakeUpdSys) run(name string, args ...string) error {
 	f.ran = append(f.ran, name+" "+strings.Join(args, " "))

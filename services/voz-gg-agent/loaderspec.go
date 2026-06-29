@@ -66,6 +66,19 @@ func markersFor(loader, mc, loaderVersion string) []string {
 	return nil
 }
 
+// loaderArtifactNames lists top-level entries that belong to the versioned
+// release dir (moved during adoption); world/mods/config/snapshots stay in
+// the working dir.
+func loaderArtifactNames(loader string) []string {
+	switch loader {
+	case "neoforge", "forge":
+		return []string{"libraries", "run.sh", "run.bat", "user_jvm_args.txt"}
+	case "fabric":
+		return []string{"libraries", "server.jar", "fabric-server-launch.jar", "fabric-server-launcher.properties"}
+	}
+	return nil
+}
+
 var neoforgePathRe = regexp.MustCompile(`libraries/net/neoforged/neoforge/([^/]+)/unix_args\.txt`)
 var forgePathRe = regexp.MustCompile(`libraries/net/minecraftforge/forge/([^/]+)/unix_args\.txt`)
 var fabricLaunchRe = regexp.MustCompile(`fabric-server-launch\.jar`)
