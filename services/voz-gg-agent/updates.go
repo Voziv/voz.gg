@@ -160,8 +160,9 @@ type applyDeps struct {
 	serverUser  string
 	desired     *desiredRelease
 	installed   string
-	healthCheck func() error // returns nil once the server answers RCON
-	rconWarn    func(string) // best-effort player warning before a forced stop
+	healthCheck func() error                 // returns nil once the server answers RCON
+	rconWarn    func(string)                 // best-effort player warning before a forced stop
+	rconExec    func(string) (string, error) // full RCON for world quiesce during backup
 }
 
 const gameUnitPrefix = "voz-gg-"
@@ -186,6 +187,9 @@ func applyUpdate(d applyDeps) (updateOutcome, error) {
 		return failed("apply", d.installed, d.desired.Version, snapID, err)
 	}
 	if err := d.sys.copyTreeHardlink(d.workDir, snapPath); err != nil {
+		return failed("apply", d.installed, d.desired.Version, snapID, err)
+	}
+	if err := backupWorld(d.sys, d.workDir, snapPath, d.rconExec); err != nil {
 		return failed("apply", d.installed, d.desired.Version, snapID, err)
 	}
 	pruneSnapshots(d.sys, d.workDir)
@@ -261,6 +265,7 @@ func rollbackUpdate(d applyDeps) (updateOutcome, error) {
 	if err == nil && target != "" {
 		_ = d.sys.symlink(target, currentLink(d.workDir))
 	}
+	_ = restoreWorld(d.sys, d.workDir, snapPath)
 	_ = d.sys.run("systemctl", "start", gameUnit(d.slug))
 	if err := d.healthCheck(); err != nil {
 		return updateOutcome{Kind: "rollback", Status: "failed", SnapshotID: snap, Error: err.Error()}, nil
@@ -297,6 +302,9 @@ func adoptLayout(a adoptDeps) (updateOutcome, error) {
 	snapID := snapshotID(a.now(), version)
 	if err := a.sys.mkdirAll(snapshotsRoot(a.workDir), 0o750); err == nil {
 		_ = a.sys.copyTreeHardlink(a.workDir, filepath.Join(snapshotsRoot(a.workDir), snapID))
+		_ = backupWorld(a.sys, a.workDir, filepath.Join(snapshotsRoot(a.workDir), snapID), func(string) (string, error) {
+			return "", fmt.Errorf("no rcon during adopt")
+		})
 	}
 	rel := releaseDir(a.workDir, version)
 	if err := a.sys.mkdirAll(rel, 0o755); err != nil {
@@ -520,6 +528,7 @@ func reconcileUpdatesTick(d updatesTickDeps) int {
 		desired: uc.Desired, installed: installed,
 		healthCheck: func() error { return rconHealthCheck(d.rconExec) },
 		rconWarn:    func(msg string) { _, _ = d.rconExec("say " + msg) },
+		rconExec:    d.rconExec,
 	}
 	var out updateOutcome
 	if action.Kind == "rollback" {
