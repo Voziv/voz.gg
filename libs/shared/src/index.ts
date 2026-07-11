@@ -27,6 +27,7 @@ export * from './server-updates/updates-report';
 export * from './server-updates/loader-install';
 export * from './server-updates/mc-version';
 export * from './server-updates/channel';
+export * from './server-updates/major-detect';
 export { neoforgeArtifactResolver } from './server-updates/resolvers/neoforge-artifact';
 export { forgeArtifactResolver } from './server-updates/resolvers/forge-artifact';
 export { fabricArtifactResolver } from './server-updates/resolvers/fabric-artifact';
