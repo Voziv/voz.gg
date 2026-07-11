@@ -141,6 +141,13 @@
       "when": 1782653512640,
       "tag": "0019_perfect_hiroim",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1783797946411,
+      "tag": "0020_flat_ultimates",
+      "breakpoints": true
     }
   ]
 }
