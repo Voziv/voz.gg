@@ -6,6 +6,7 @@ export interface UpdateActionsInput {
   availableMajorVersion?: string | null;
   applyStatus: string | null;
   snapshots: Array<{ snapshotId: string; version: string | null; createdAt: string }>;
+  serverControlEnabled?: boolean;
 }
 
 export function updateActionsViewModel(input: UpdateActionsInput) {
@@ -15,7 +16,7 @@ export function updateActionsViewModel(input: UpdateActionsInput) {
   return {
     showApprove: input.policy === 'approve' && updateAvailable && !busy,
     showRollback: input.snapshots.length > 0 && !busy,
-    showMajorUpgrade: majorOffered && input.majorPolicy === 'approve' && !busy,
+    showMajorUpgrade: majorOffered && input.majorPolicy === 'approve' && !!input.serverControlEnabled && !busy,
     majorLabel: majorOffered ? `Upgrade to Minecraft ${input.availableMajorVersion}` : '',
     busy,
   };

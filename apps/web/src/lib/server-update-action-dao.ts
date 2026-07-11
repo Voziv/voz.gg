@@ -53,6 +53,7 @@ export function createServerUpdateActionDao(db: ReturnType<typeof createDb>): Se
           versionLine: servers.updateVersionLine,
           channel: servers.updateChannel,
           provider: servers.modpackProvider,
+          serverControlEnabled: servers.serverControlEnabled,
         })
         .from(servers)
         .leftJoin(serverUpdateState, eq(serverUpdateState.serverId, servers.id))
@@ -66,6 +67,7 @@ export function createServerUpdateActionDao(db: ReturnType<typeof createDb>): Se
         versionLine: row.versionLine ?? null,
         channel: row.source ? resolverChannel(row.source, row.channel ?? null) : null,
         provider: row.provider ?? null,
+        serverControlEnabled: row.serverControlEnabled ?? false,
       };
     },
     async advanceMajor(serverId, d) {

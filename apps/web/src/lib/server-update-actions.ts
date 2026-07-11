@@ -7,7 +7,7 @@ export interface ServerUpdateActionDao {
   loadActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; available: string | null; versionLine: string | null } | null>;
   writeDesired(serverId: string, d: { desiredId: string; kind: 'apply' | 'rollback'; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number } | null; snapshotId: string | null; install: InstallDescriptor | null }): Promise<void>;
   snapshotExists(serverId: string, snapshotId: string): Promise<boolean>;
-  loadMajorActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; availableMajor: string | null; installed: string | null; versionLine: string | null; channel: string | null; provider: string | null } | null>;
+  loadMajorActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; availableMajor: string | null; installed: string | null; versionLine: string | null; channel: string | null; provider: string | null; serverControlEnabled: boolean } | null>;
   advanceMajor(serverId: string, d: { versionLine: string; desired: { id: string; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number }; install: { loader: 'forge' | 'neoforge' | 'fabric'; minecraftVersion: string; loaderVersion: string } | null } }): Promise<void>;
 }
 
@@ -62,6 +62,7 @@ export async function approveMajorUpdate(deps: ServerUpdateActionDeps, serverId:
   const state = await deps.dao.loadMajorActionState(serverId);
   if (!state || !state.source || state.source === 'none') return { ok: false, error: 'Server is not tracked for updates.' };
   if (!state.availableMajor) return { ok: false, error: 'No major update is available to approve.' };
+  if (!state.serverControlEnabled) return { ok: false, error: 'Enable server management to apply major updates.' };
   const source = state.source as UpdateSource;
   let overall: OverallLatest | null;
   try {

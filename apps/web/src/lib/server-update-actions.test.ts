@@ -77,7 +77,7 @@ function majorDao(state: any) {
 
 describe('approveMajorUpdate', () => {
   it('resolves the overall latest and advances the server to the new generation', async () => {
-    const dao = majorDao({ source: 'neoforge', availableMajor: '27', installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta' });
+    const dao = majorDao({ source: 'neoforge', availableMajor: '27', installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta', serverControlEnabled: true });
     const res = await approveMajorUpdate({
       dao,
       artifactResolverFor: () => ({ resolveArtifact: async () => installer }),
@@ -91,18 +91,30 @@ describe('approveMajorUpdate', () => {
   });
 
   it('fails when there is no pending major offer', async () => {
-    const dao = majorDao({ source: 'neoforge', availableMajor: null, installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta' });
+    const dao = majorDao({ source: 'neoforge', availableMajor: null, installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta', serverControlEnabled: true });
     const res = await approveMajorUpdate({ dao, resolveOverallLatest: async () => null } as never, 's1');
     expect(res.ok).toBe(false);
   });
 
   it('fails when the overall latest no longer matches the offered generation', async () => {
-    const dao = majorDao({ source: 'neoforge', availableMajor: '27', installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta' });
+    const dao = majorDao({ source: 'neoforge', availableMajor: '27', installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta', serverControlEnabled: true });
     const res = await approveMajorUpdate({
       dao,
       artifactResolverFor: () => ({ resolveArtifact: async () => installer }),
       resolveOverallLatest: async () => ({ version: '26.9.0.1-beta', mcVersion: '26.9', loaderVersion: '26.9.0.1-beta' }),
     } as never, 's1');
     expect(res.ok).toBe(false);
+  });
+
+  it('fails when server control is disabled, even with a pending offer', async () => {
+    const dao = majorDao({ source: 'neoforge', availableMajor: '27', installed: '26.1.0.5-beta', versionLine: '26', channel: 'beta', serverControlEnabled: false });
+    const res = await approveMajorUpdate({
+      dao,
+      artifactResolverFor: () => ({ resolveArtifact: async () => installer }),
+      resolveOverallLatest: async () => ({ version: '27.0.0.1-beta', mcVersion: '27.0', loaderVersion: '27.0.0.1-beta' }),
+    } as never, 's1');
+    expect(res.ok).toBe(false);
+    expect((res as { ok: false; error: string }).error).toMatch(/server management/i);
+    expect(dao.advanced.length).toBe(0);
   });
 });

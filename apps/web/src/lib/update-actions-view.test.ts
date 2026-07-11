@@ -29,20 +29,28 @@ const base = { policy: 'approve', currentVersion: '26.1.0.5-beta', availableVers
 
 describe('major upgrade visibility', () => {
   it('shows the major upgrade when an offer exists and the major policy is approve', () => {
-    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: '27' } as never);
+    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: '27', serverControlEnabled: true } as never);
     expect(vm.showMajorUpgrade).toBe(true);
     expect(vm.majorLabel).toContain('27');
   });
   it('hides the major upgrade for auto major policy (applied automatically)', () => {
-    const vm = updateActionsViewModel({ ...base, majorPolicy: 'auto', availableMajorVersion: '27' } as never);
+    const vm = updateActionsViewModel({ ...base, majorPolicy: 'auto', availableMajorVersion: '27', serverControlEnabled: true } as never);
     expect(vm.showMajorUpgrade).toBe(false);
   });
   it('hides the major upgrade when there is no offer', () => {
-    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: null } as never);
+    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: null, serverControlEnabled: true } as never);
     expect(vm.showMajorUpgrade).toBe(false);
   });
   it('hides the major upgrade while an apply is in flight', () => {
-    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: '27', applyStatus: 'applying' } as never);
+    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: '27', applyStatus: 'applying', serverControlEnabled: true } as never);
+    expect(vm.showMajorUpgrade).toBe(false);
+  });
+  it('hides the major upgrade when server control is disabled, even with an offer and approve policy', () => {
+    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: '27', serverControlEnabled: false } as never);
+    expect(vm.showMajorUpgrade).toBe(false);
+  });
+  it('hides the major upgrade when serverControlEnabled is undefined', () => {
+    const vm = updateActionsViewModel({ ...base, majorPolicy: 'approve', availableMajorVersion: '27' } as never);
     expect(vm.showMajorUpgrade).toBe(false);
   });
 });

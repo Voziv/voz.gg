@@ -144,6 +144,7 @@ export function createUpdateDetectionDao(db: Db) {
       for (const row of rows) {
         const source = row.updateSource;
         if (!source || source === 'none' || source === 'modpack') continue;
+        if (!row.serverControlEnabled) continue;
         const state = stateById.get(row.id);
         out.push({
           serverId: row.id,
