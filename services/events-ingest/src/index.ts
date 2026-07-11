@@ -11,6 +11,7 @@ import {
   resolverFor,
   detectAndNotify,
   applyAutoDesired,
+  detectMajorOffers,
   artifactResolverFor,
   type NotifyMessage,
   type DiscordPayload,
@@ -103,6 +104,13 @@ export default {
           dao,
           artifactResolverFor,
           onError: (id, err) => console.error(`auto-desired failed for ${id}`, err),
+        });
+        await detectMajorOffers({
+          dao,
+          artifactResolverFor,
+          postDiscord,
+          sourceLabels: { vanilla: 'Vanilla', forge: 'Forge', neoforge: 'NeoForge', fabric: 'Fabric' },
+          onError: (id, err) => console.error(`major detect failed for ${id}`, err),
         });
       })(),
     );
