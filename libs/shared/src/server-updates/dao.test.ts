@@ -27,16 +27,16 @@ const base = {
   id: 's1', name: 'S', discordWebhookUrl: null, currentVersion: '26.1.0.5-beta',
   updateVersionLine: null, updateChannel: 'experimental', pinnedVersion: null,
   modpackProvider: null, modpackId: null,
-} as never;
+};
 
 describe('toTrackedServer generation cap', () => {
   it('neoforge caps config.id to the installed leading component and translates the channel', () => {
-    const t = toTrackedServer({ ...base, updateSource: 'neoforge' })!;
+    const t = toTrackedServer({ ...base, updateSource: 'neoforge' } as never)!;
     expect(t.config.id).toBe('26');
     expect(t.config.channel).toBe('beta');
   });
   it('vanilla caps config.id to the installed generation', () => {
-    const t = toTrackedServer({ ...base, updateSource: 'vanilla', currentVersion: '26.1' })!;
+    const t = toTrackedServer({ ...base, updateSource: 'vanilla', currentVersion: '26.1' } as never)!;
     expect(t.config.id).toBe('26');
     expect(t.config.channel).toBe('snapshot');
   });
