@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GAME_TYPES, UPDATE_SOURCES, MODPACK_PROVIDERS, UPDATE_POLICIES } from '@voz/shared';
+import { GAME_TYPES, UPDATE_SOURCES, MODPACK_PROVIDERS, UPDATE_POLICIES, NORMALIZED_CHANNELS } from '@voz/shared';
 
 // A POSIX-ish account/group name, or null when blank. Empty input (the common
 // "leave default" case) becomes null so the Worker applies its own defaults.
@@ -80,9 +80,10 @@ const serverSchema = z.object({
   modpackProvider: z.enum(MODPACK_PROVIDERS).nullish().transform((v) => v ?? null),
   modpackId: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
   updateVersionLine: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
-  updateChannel: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  updateChannel: z.enum(NORMALIZED_CHANNELS).optional().default('stable'),
   pinnedVersion: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
   updatePolicy: z.enum(UPDATE_POLICIES).optional().default('notify'),
+  majorUpdatePolicy: z.enum(UPDATE_POLICIES).optional(),
   currentVersion: z.string().trim().nullish().transform((v) => (v && v.length > 0 ? v : null)),
 }).superRefine((data, ctx) => {
   if (data.serverControlEnabled) {
@@ -141,5 +142,6 @@ export function parseServerInput(raw: unknown): ParseResult {
     }
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.', fieldErrors };
   }
-  return { ok: true, data: parsed.data };
+  const data = { ...parsed.data, majorUpdatePolicy: parsed.data.majorUpdatePolicy ?? (parsed.data.updateSource === 'vanilla' ? 'auto' : 'approve') };
+  return { ok: true, data };
 }

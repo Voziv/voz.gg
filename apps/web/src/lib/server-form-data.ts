@@ -32,6 +32,7 @@ export const SERVER_FORM_FIELDS = [
   'updateChannel',
   'pinnedVersion',
   'updatePolicy',
+  'majorUpdatePolicy',
   'currentVersion',
 ] as const satisfies readonly (keyof Server)[];
 
