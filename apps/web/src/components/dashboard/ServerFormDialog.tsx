@@ -64,13 +64,6 @@ function modpackIdLabel(provider: ModpackProvider): string {
   }
 }
 
-function updateChannelPlaceholder(source: UpdateSource): string {
-  if (source === 'vanilla') return 'release / snapshot';
-  if (source === 'forge' || source === 'neoforge') return 'latest / recommended';
-  if (source === 'fabric' || source === 'modpack') return 'stable / beta / alpha';
-  return '';
-}
-
 function FieldError({ errors, field }: { errors: Record<string, string>; field: string }): JSX.Element | null {
   if (!errors[field]) return null;
   return <p className="text-destructive text-sm mt-1" role="alert">{errors[field]}</p>;
@@ -115,15 +108,17 @@ export default function ServerFormDialog({ server }: Props) {
     pinnedVersion: string;
     currentVersion: string;
     updatePolicy: UpdatePolicy;
+    majorUpdatePolicy: UpdatePolicy;
   }>({
     updateSource: server?.updateSource ?? 'none',
     modpackProvider: server?.modpackProvider ?? 'modrinth',
     modpackId: server?.modpackId ?? '',
     updateVersionLine: server?.updateVersionLine ?? '',
-    updateChannel: server?.updateChannel ?? '',
+    updateChannel: server?.updateChannel === 'experimental' ? 'experimental' : 'stable',
     pinnedVersion: server?.pinnedVersion ?? '',
     currentVersion: server?.currentVersion ?? '',
     updatePolicy: server?.updatePolicy ?? 'notify',
+    majorUpdatePolicy: (server?.majorUpdatePolicy as UpdatePolicy | null) ?? (server?.updateSource === 'vanilla' ? 'auto' : 'approve'),
   });
 
   function handleGameTypeChange(next: GameType) {
@@ -156,9 +151,10 @@ export default function ServerFormDialog({ server }: Props) {
       modpackProvider: updates.updateSource === 'modpack' ? updates.modpackProvider : null,
       modpackId: updates.updateSource === 'modpack' ? (updates.modpackId.trim() || null) : null,
       updateVersionLine: (updates.updateSource === 'forge' || updates.updateSource === 'neoforge') ? (updates.updateVersionLine.trim() || null) : null,
-      updateChannel: updates.updateChannel.trim() || null,
+      updateChannel: updates.updateChannel,
       pinnedVersion: updates.pinnedVersion.trim() || null,
       updatePolicy: updates.updatePolicy,
+      majorUpdatePolicy: updates.majorUpdatePolicy,
       currentVersion: updates.currentVersion.trim() || null,
     };
     setPending(true);
@@ -471,14 +467,16 @@ export default function ServerFormDialog({ server }: Props) {
               </div>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="updateChannel" className="text-muted-foreground">Update channel</Label>
-              <Input
+              <Label htmlFor="updateChannel" className="text-muted-foreground">Release channel</Label>
+              <select
                 id="updateChannel"
                 value={updates.updateChannel}
                 onChange={(e) => setUpdates((c) => ({ ...c, updateChannel: e.target.value }))}
-                placeholder={updateChannelPlaceholder(updates.updateSource)}
-                aria-invalid={!!fieldErrors.updateChannel}
-              />
+                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                <option value="stable">Stable</option>
+                <option value="experimental">Experimental (beta/snapshot)</option>
+              </select>
               <FieldError errors={fieldErrors} field="updateChannel" />
             </div>
             <div className="grid gap-2">
@@ -516,6 +514,22 @@ export default function ServerFormDialog({ server }: Props) {
                 ))}
               </select>
               <FieldError errors={fieldErrors} field="updatePolicy" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="majorUpdatePolicy" className="text-muted-foreground">Major-version updates</Label>
+              <select
+                id="majorUpdatePolicy"
+                value={updates.majorUpdatePolicy}
+                onChange={(e) => setUpdates((c) => ({ ...c, majorUpdatePolicy: e.target.value as UpdatePolicy }))}
+                aria-invalid={!!fieldErrors.majorUpdatePolicy}
+                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                {UPDATE_POLICIES.map((p) => (
+                  <option key={p} value={p}>{UPDATE_POLICY_LABELS[p]}</option>
+                ))}
+              </select>
+              <FieldError errors={fieldErrors} field="majorUpdatePolicy" />
+              <p className="text-xs text-muted-foreground">How to handle a Minecraft major (generation) jump. Auto applies it; Approve posts a Discord notice and waits for a button.</p>
             </div>
           </fieldset>
           </div>
