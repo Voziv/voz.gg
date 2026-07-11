@@ -68,7 +68,7 @@ function majorDao(state: any) {
   return {
     advanced,
     async loadActionState() { return null; },
-    async writeDesired() {},
+    async writeDesired() {/* not exercised by approveMajorUpdate */},
     async snapshotExists() { return false; },
     async loadMajorActionState() { return state; },
     async advanceMajor(id: string, d: any) { advanced.push({ id, ...d }); },
