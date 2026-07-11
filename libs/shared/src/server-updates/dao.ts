@@ -2,6 +2,8 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../client';
 import { servers, serverUpdateState, type ModpackProvider, type UpdateSource } from '../schema';
 import type { TrackedServer } from './detect';
+import { inLineResolverId } from './mc-version';
+import { resolverChannel } from './channel';
 
 const HOSTS: Record<string, string> = {
   vanilla: 'launchermeta.mojang.com',
@@ -31,14 +33,11 @@ export function toTrackedServer(row: ServerRow): TrackedServer | null {
   if (host === 'packwiz' && row.modpackId) {
     try { host = new URL(row.modpackId).host; } catch { host = 'packwiz'; }
   }
-  const id =
-    source === 'modpack' ? (row.modpackId ?? null)
-    : source === 'forge' || source === 'neoforge' ? (row.updateVersionLine ?? null)
-    : null;
+  const id = inLineResolverId(source, row.currentVersion ?? null, row.updateVersionLine ?? null, row.modpackId ?? null);
   return {
     serverId: row.id,
     host,
-    config: { source, provider, id, channel: row.updateChannel ?? null },
+    config: { source, provider, id, channel: resolverChannel(source, row.updateChannel ?? null) },
   };
 }
 
