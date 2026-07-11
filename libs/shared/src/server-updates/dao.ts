@@ -135,6 +135,74 @@ export function createUpdateDetectionDao(db: Db) {
         desiredInstallLoader: null, desiredInstallMcVersion: null, desiredInstallLoaderVersion: null,
       }).where(eq(serverUpdateState.serverId, serverId)).run();
     },
+
+    async loadMajorInputs() {
+      const rows = await db.select().from(servers).all();
+      const states = await db.select().from(serverUpdateState).all();
+      const stateById = new Map(states.map((s) => [s.serverId, s]));
+      const out = [];
+      for (const row of rows) {
+        const source = row.updateSource;
+        if (!source || source === 'none' || source === 'modpack') continue;
+        const state = stateById.get(row.id);
+        out.push({
+          serverId: row.id,
+          name: row.name,
+          source,
+          config: {
+            source,
+            provider: row.modpackProvider ?? null,
+            id: null as string | null,
+            channel: resolverChannel(source, row.updateChannel ?? null),
+          },
+          installed: row.currentVersion ?? null,
+          versionLine: row.updateVersionLine ?? null,
+          majorPolicy: row.majorUpdatePolicy ?? (source === 'vanilla' ? 'auto' : 'approve'),
+          currentDesiredVersion: state?.desiredVersion ?? null,
+          notifiedMajor: state?.notifiedMajorVersion ?? null,
+          webhookUrl: row.discordWebhookUrl ?? null,
+        });
+      }
+      return out;
+    },
+
+    async writeAvailableMajor(serverId: string, generation: string | null) {
+      await db
+        .insert(serverUpdateState)
+        .values({ serverId, availableMajorVersion: generation })
+        .onConflictDoUpdate({ target: serverUpdateState.serverId, set: { availableMajorVersion: generation } })
+        .run();
+    },
+
+    async markNotifiedMajor(serverId: string, generation: string) {
+      await db.update(serverUpdateState).set({ notifiedMajorVersion: generation }).where(eq(serverUpdateState.serverId, serverId)).run();
+    },
+
+    async advanceMajor(serverId: string, d: {
+      versionLine: string;
+      desired: { id: string; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number }; install: { loader: 'forge' | 'neoforge' | 'fabric'; minecraftVersion: string; loaderVersion: string } | null };
+    }) {
+      await db.update(servers).set({ updateVersionLine: d.versionLine }).where(eq(servers.id, serverId)).run();
+      const set = {
+        desiredId: d.desired.id,
+        desiredKind: 'apply' as const,
+        desiredVersion: d.desired.version,
+        desiredArtifactUrl: d.desired.artifact.url,
+        desiredArtifactHashAlgo: d.desired.artifact.hashAlgo as 'sha1' | 'sha256',
+        desiredArtifactHash: d.desired.artifact.hash,
+        desiredArtifactSize: d.desired.artifact.size,
+        desiredInstallLoader: d.desired.install?.loader ?? null,
+        desiredInstallMcVersion: d.desired.install?.minecraftVersion ?? null,
+        desiredInstallLoaderVersion: d.desired.install?.loaderVersion ?? null,
+        applyStatus: 'pending' as const,
+        availableMajorVersion: null,
+      };
+      await db
+        .insert(serverUpdateState)
+        .values({ serverId, ...set })
+        .onConflictDoUpdate({ target: serverUpdateState.serverId, set })
+        .run();
+    },
   };
 }
 
