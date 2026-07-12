@@ -1,15 +1,20 @@
 import { artifactResolverFor as defaultArtifactResolverFor, desiredGenerationId, isLoaderSource, loaderInstallDescriptor } from '@voz/shared';
+import { resolveOverallLatest as defaultResolveOverall, buildMajorDesired, generationOf } from '@voz/shared';
 import type { ArtifactResolver, InstallDescriptor, UpdateSource } from '@voz/shared';
+import type { OverallLatest, ResolverConfig } from '@voz/shared';
 
 export interface ServerUpdateActionDao {
   loadActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; available: string | null; versionLine: string | null } | null>;
   writeDesired(serverId: string, d: { desiredId: string; kind: 'apply' | 'rollback'; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number } | null; snapshotId: string | null; install: InstallDescriptor | null }): Promise<void>;
   snapshotExists(serverId: string, snapshotId: string): Promise<boolean>;
+  loadMajorActionState(serverId: string): Promise<{ source: UpdateSource | 'none' | null; availableMajor: string | null; installed: string | null; versionLine: string | null; channel: string | null; provider: string | null; serverControlEnabled: boolean } | null>;
+  advanceMajor(serverId: string, d: { versionLine: string; desired: { id: string; version: string; artifact: { url: string; hashAlgo: string; hash: string; size: number }; install: { loader: 'forge' | 'neoforge' | 'fabric'; minecraftVersion: string; loaderVersion: string } | null } }): Promise<void>;
 }
 
 export interface ServerUpdateActionDeps {
   dao: ServerUpdateActionDao;
   artifactResolverFor?: (source: UpdateSource) => ArtifactResolver | null;
+  resolveOverallLatest?: (source: UpdateSource, config: ResolverConfig, fetch: never) => Promise<OverallLatest | null>;
 }
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -48,5 +53,33 @@ export async function requestRollback(deps: ServerUpdateActionDeps, serverId: st
     desiredId: desiredGenerationId('rollback', snapshotId),
     kind: 'rollback', version: snapshotId, artifact: null, snapshotId, install: null,
   });
+  return { ok: true };
+}
+
+export async function approveMajorUpdate(deps: ServerUpdateActionDeps, serverId: string): Promise<Result> {
+  const resolverFor = deps.artifactResolverFor ?? defaultArtifactResolverFor;
+  const resolveOverall = deps.resolveOverallLatest ?? defaultResolveOverall;
+  const state = await deps.dao.loadMajorActionState(serverId);
+  if (!state || !state.source || state.source === 'none') return { ok: false, error: 'Server is not tracked for updates.' };
+  if (!state.availableMajor) return { ok: false, error: 'No major update is available to approve.' };
+  if (!state.serverControlEnabled) return { ok: false, error: 'Enable server management to apply major updates.' };
+  const source = state.source as UpdateSource;
+  let overall: OverallLatest | null;
+  try {
+    overall = await resolveOverall(source, { source, provider: state.provider as never, id: null, channel: state.channel }, globalThis.fetch as never);
+  } catch (err) {
+    return { ok: false, error: `Could not resolve the update: ${(err as Error).message}` };
+  }
+  if (!overall || generationOf(overall.mcVersion) !== state.availableMajor) {
+    return { ok: false, error: 'The available major changed; refresh and try again.' };
+  }
+  let desired;
+  try {
+    desired = await buildMajorDesired(source, overall, resolverFor, globalThis.fetch as never);
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  if (!desired) return { ok: false, error: 'Updates are not supported for this source yet.' };
+  await deps.dao.advanceMajor(serverId, { versionLine: desired.versionLine, desired });
   return { ok: true };
 }

@@ -10,14 +10,25 @@ export function isLoaderSource(source: string): source is LoaderSource {
   return source === 'forge' || source === 'neoforge' || source === 'fabric';
 }
 
-// NeoForge versions are <mcMajor>.<mcMinor>.<patch>; the Minecraft line is
-// 1.<mcMajor>.<mcMinor>, collapsing a zero minor to 1.<mcMajor> (e.g. MC 1.21).
+export const NEOFORGE_YEAR_SCHEME_MIN = 26;
+
+// NeoForge switched from <mcMinor>.<mcPatch>.<build> (old scheme, implicitly
+// MC 1.x) to a year-based scheme where the version *is* the Minecraft version
+// (<mcYear>.<mcMinor>.<mcPatch>.<build>), once the leading component reaches
+// NEOFORGE_YEAR_SCHEME_MIN.
 export function deriveNeoforgeMcVersion(neoforgeVersion: string): string {
-  const [major, minor] = neoforgeVersion.split('.');
-  if (!major || minor === undefined) {
+  const core = neoforgeVersion.split('-')[0];
+  const [a, b, c] = core.split('.');
+  const major = Number(a);
+  if (!a || b === undefined || Number.isNaN(major)) {
     throw new Error(`unrecognized neoforge version: ${neoforgeVersion}`);
   }
-  return minor === '0' ? `1.${major}` : `1.${major}.${minor}`;
+  if (major >= NEOFORGE_YEAR_SCHEME_MIN) {
+    // Year-based scheme: a.b.c = Minecraft major.minor.patch; the trailing group is the build.
+    return c && c !== '0' ? `${a}.${b}.${c}` : `${a}.${b}`;
+  }
+  // Old scheme: a = Minecraft minor, b = Minecraft patch (0 omitted); prefixed with 1.
+  return b === '0' ? `1.${a}` : `1.${a}.${b}`;
 }
 
 export function loaderInstallDescriptor(

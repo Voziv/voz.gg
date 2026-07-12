@@ -113,8 +113,11 @@ const GAME_LABELS: Record<GameType, string> = {
                         client:load
                         serverId={s.id}
                         policy={s.updatePolicy ?? 'notify'}
+                        majorPolicy={s.majorUpdatePolicy ?? (s.updateSource === 'vanilla' ? 'auto' : 'approve')}
                         currentVersion={s.currentVersion ?? null}
                         availableVersion={updateState?.availableVersion ?? null}
+                        availableMajorVersion={updateState?.availableMajorVersion ?? null}
+                        serverControlEnabled={s.serverControlEnabled ?? false}
                         applyStatus={updateState?.applyStatus ?? null}
                         snapshots={snapshotsByServer.get(s.id) ?? []}
                         events={eventsByServer.get(s.id) ?? []}

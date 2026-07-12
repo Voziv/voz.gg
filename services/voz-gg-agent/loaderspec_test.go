@@ -62,3 +62,20 @@ func TestDeriveNeoforgeMcVersionGo(t *testing.T) {
 		}
 	}
 }
+
+func TestDeriveNeoforgeMcVersionGoDualScheme(t *testing.T) {
+	cases := map[string]string{
+		"20.2.59":       "1.20.2",
+		"21.1.234":      "1.21.1",
+		"21.0.5":        "1.21",
+		"26.1.0.5-beta": "26.1",
+		"26.2.0.7-beta": "26.2",
+		"26.1.3.10":     "26.1.3",
+		"27.0.0.1":      "27.0",
+	}
+	for in, want := range cases {
+		if got := deriveNeoforgeMcVersionGo(in); got != want {
+			t.Errorf("deriveNeoforgeMcVersionGo(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

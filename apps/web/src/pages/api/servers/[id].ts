@@ -47,6 +47,7 @@ export const PUT: APIRoute = async (ctx) => {
       updateChannel: parsed.data.updateChannel,
       pinnedVersion: parsed.data.pinnedVersion,
       updatePolicy: parsed.data.updatePolicy,
+      majorUpdatePolicy: parsed.data.majorUpdatePolicy,
       currentVersion: parsed.data.currentVersion,
       updatedAt: new Date(),
     })

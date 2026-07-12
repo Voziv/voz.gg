@@ -35,9 +35,10 @@ describe('parseServerInput', () => {
         modpackProvider: null,
         modpackId: null,
         updateVersionLine: null,
-        updateChannel: null,
+        updateChannel: 'stable',
         pinnedVersion: null,
         updatePolicy: 'notify',
+        majorUpdatePolicy: 'approve',
         currentVersion: null,
       });
     }
@@ -270,7 +271,7 @@ describe('server-schema update fields', () => {
   const valid = { name: 'S', gameType: 'minecraft-java', host: '1.1.1.1', port: 25565 };
 
   it('accepts a vanilla update config', () => {
-    const r = parseServerInput({ ...valid, updateSource: 'vanilla', updateChannel: 'release', updatePolicy: 'notify' });
+    const r = parseServerInput({ ...valid, updateSource: 'vanilla', updateChannel: 'stable', updatePolicy: 'notify' });
     expect(r.ok).toBe(true);
   });
   it('requires provider and id for a modpack', () => {
@@ -282,7 +283,7 @@ describe('server-schema update fields', () => {
     }
   });
   it('accepts a fully specified modpack', () => {
-    const r = parseServerInput({ ...valid, updateSource: 'modpack', modpackProvider: 'modrinth', modpackId: 'cobblemon', updateChannel: 'release' });
+    const r = parseServerInput({ ...valid, updateSource: 'modpack', modpackProvider: 'modrinth', modpackId: 'cobblemon', updateChannel: 'stable' });
     expect(r.ok).toBe(true);
   });
   it('requires updateVersionLine for forge', () => {
@@ -370,5 +371,39 @@ describe('updates validation', () => {
       serverControlEnabled: true, gameServerUser: 'mc', serverWorkingDir: '/srv/s', startCommand: '/srv/s/run.sh',
     });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe('major update policy + channel', () => {
+  const valid = { name: 'S', gameType: 'minecraft-java', host: 'h', port: 25565 };
+
+  it('defaults majorUpdatePolicy to auto for vanilla', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'vanilla' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.majorUpdatePolicy).toBe('auto');
+  });
+  it('defaults majorUpdatePolicy to approve for a loader', () => {
+    const r = parseServerInput({
+      ...valid,
+      updateSource: 'neoforge',
+      updateVersionLine: '26',
+      serverControlEnabled: true,
+      gameServerUser: 'mc',
+      serverWorkingDir: '/srv/s',
+      startCommand: '/srv/s/run.sh',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.majorUpdatePolicy).toBe('approve');
+  });
+  it('accepts an explicit majorUpdatePolicy', () => {
+    const r = parseServerInput({ ...valid, updateSource: 'vanilla', majorUpdatePolicy: 'approve' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.majorUpdatePolicy).toBe('approve');
+  });
+  it('defaults updateChannel to stable and accepts experimental', () => {
+    const r1 = parseServerInput({ ...valid, updateSource: 'vanilla' });
+    const r2 = parseServerInput({ ...valid, updateSource: 'vanilla', updateChannel: 'experimental' });
+    if (r1.ok) expect(r1.data.updateChannel).toBe('stable');
+    if (r2.ok) expect(r2.data.updateChannel).toBe('experimental');
   });
 });

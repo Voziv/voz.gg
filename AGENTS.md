@@ -297,6 +297,41 @@ conventions but were **not yet verified** against real installer output on a JDK
 (Task 12 deferred) — verify on a host before trusting on a production server (Fabric
 especially).
 
+### Cross-major-version updates (sub-project 4)
+
+Servers can cross Minecraft **generation** boundaries. A pure comparator
+(`libs/shared/src/server-updates/mc-version.ts`) derives an MC "generation" per
+scheme — old-scheme `1.x` versions key on the feature line (`1.21`); the
+year-based scheme keys on the year (`26`). Minecraft's last `1.x` was `1.21.11`;
+NeoForge encodes the scheme too (leading component ≥ 26 = year-based, MC = the
+version verbatim like `26.1`; < 26 = old, MC = `1.<minor>.<patch>`), gated by the
+constant `NEOFORGE_YEAR_SCHEME_MIN = 26` (in
+`libs/shared/src/server-updates/loader-install.ts`).
+
+In-line detection is **capped to the installed generation** (`inLineResolverId` →
+resolver `config.id`), so `26.1 → 26.2` flows as an ordinary minor under the
+server's `updatePolicy`. A separate pass (`detectMajorOffers` in
+`server-updates/major-run.ts`, built on `major-detect.ts`'s overall-latest
+resolver, run in the events-ingest cron after `applyAutoDesired`) resolves the
+**overall latest** per scheme and, when its generation is newer, acts on the
+per-server `majorUpdatePolicy` (read-time default `auto` for vanilla, `approve`
+for loaders): `auto` advances `updateVersionLine` to the new generation and
+writes the desired install; `approve`/`notify` record
+`serverUpdateState.availableMajorVersion` (the generation) and post a
+one-per-generation Discord notice (dedup via `notifiedMajorVersion`). Admins apply
+a gated jump with **`POST /api/servers/<id>/update/approve-major`**
+(`approveMajorUpdate`), which re-resolves the overall latest, advances the version
+line to the new MC version, and writes the desired install — the agent then
+applies it through the existing sub-project-3 loader flow (no
+capability/provisioning change). Both the `approve-major` route and the `auto`
+cron path produce the install descriptor via `buildMajorDesired`. The server form
+exposes a **Release channel** (`stable | experimental`, translated per scheme by
+`resolverChannel`) and a **Major-version updates** (`notify|approve|auto`)
+control. Migration 0020 adds `servers.major_update_policy` and
+`server_update_state.available_major_version` / `notified_major_version` (all
+additive/nullable). The Go agent's `deriveNeoforgeMcVersionGo` mirrors the
+dual-scheme derivation for flat-install adoption.
+
 ## Tech notes (carried from the source Next.js app, apply when porting UI)
 
 **React islands** — the dashboard ports shadcn/ui components (built on **Base UI**, `base-vega` style) as `@astrojs/react` islands. **Tailwind 4** uses `@tailwindcss/postcss`, CSS-configured with OKLch variables — no `tailwind.config.*`.

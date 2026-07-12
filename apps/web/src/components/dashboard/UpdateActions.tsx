@@ -33,13 +33,26 @@ export default function UpdateActions(props: Props) {
     }
   }
 
-  if (!vm.showApprove && !vm.showRollback && props.events.length === 0) return null;
+  if (!vm.showApprove && !vm.showRollback && !vm.showMajorUpgrade && props.events.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-2">
       {vm.showApprove && (
         <Button disabled={pending} onClick={() => post(`/api/servers/${props.serverId}/update/approve`)}>
           Apply update → {props.availableVersion}
+        </Button>
+      )}
+      {vm.showMajorUpgrade && (
+        <Button
+          variant="destructive"
+          disabled={pending}
+          onClick={() => {
+            if (confirm(`${vm.majorLabel}? This is a major version jump and may affect mods/worlds.`)) {
+              post(`/api/servers/${props.serverId}/update/approve-major`);
+            }
+          }}
+        >
+          {vm.majorLabel}
         </Button>
       )}
       {vm.showRollback && (

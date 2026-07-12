@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -79,12 +80,32 @@ func loaderArtifactNames(loader string) []string {
 	return nil
 }
 
-// deriveNeoforgeMcVersionGo converts a NeoForge version (major.minor.build) to
-// its Minecraft version (1.major.minor), collapsing a zero minor to 1.major.
+// neoforgeYearSchemeMin is the leading version component at which NeoForge
+// switched from <mcMinor>.<mcPatch>.<build> (old scheme, implicitly MC 1.x) to
+// a year-based scheme where the version *is* the Minecraft version
+// (<mcYear>.<mcMinor>.<mcPatch>.<build>).
+const neoforgeYearSchemeMin = 26
+
+// deriveNeoforgeMcVersionGo converts a NeoForge version to its Minecraft
+// version, handling both the old scheme (leading component < 26) and the
+// year-based scheme (leading component >= 26). Used only for flat-install
+// adoption; the normal apply path gets the MC version from the Worker.
+// Returns the input unchanged if it doesn't parse.
 func deriveNeoforgeMcVersionGo(neoforgeVersion string) string {
-	parts := strings.SplitN(neoforgeVersion, ".", 3)
+	core := strings.SplitN(neoforgeVersion, "-", 2)[0]
+	parts := strings.Split(core, ".")
 	if len(parts) < 2 {
-		return "1." + neoforgeVersion
+		return neoforgeVersion
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return neoforgeVersion
+	}
+	if major >= neoforgeYearSchemeMin {
+		if len(parts) >= 3 && parts[2] != "0" {
+			return parts[0] + "." + parts[1] + "." + parts[2]
+		}
+		return parts[0] + "." + parts[1]
 	}
 	if parts[1] == "0" {
 		return "1." + parts[0]
