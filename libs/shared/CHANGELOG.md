@@ -1,3 +1,23 @@
+## 0.15.0 (2026-07-12)
+
+### 🚀 Features
+
+- **shared:** detect and act on major update offers ([f234514](https://github.com/Voziv/voz.gg/commit/f234514))
+- **shared:** resolve overall-latest and decide major offers ([c7f9d34](https://github.com/Voziv/voz.gg/commit/c7f9d34))
+- **shared:** cap in-line update detection to the installed generation ([daeeb9b](https://github.com/Voziv/voz.gg/commit/daeeb9b))
+- **shared:** add major update policy and major-offer state columns ([86ef851](https://github.com/Voziv/voz.gg/commit/86ef851))
+- **shared:** translate normalized update channel per scheme ([c0b0892](https://github.com/Voziv/voz.gg/commit/c0b0892))
+- **shared:** add MC generation comparator and dual-scheme neoforge derivation ([d9405c0](https://github.com/Voziv/voz.gg/commit/d9405c0))
+
+### 🩹 Fixes
+
+- gate major-version update path on server control ([5fb230d](https://github.com/Voziv/voz.gg/commit/5fb230d))
+- **shared:** keep dao.test base object typed so spreads typecheck ([5ca2ef2](https://github.com/Voziv/voz.gg/commit/5ca2ef2))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.14.0 (2026-06-29)
 
 ### 🚀 Features

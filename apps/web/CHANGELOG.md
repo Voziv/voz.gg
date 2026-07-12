@@ -1,3 +1,26 @@
+## 0.25.0 (2026-07-12)
+
+### 🚀 Features
+
+- **web:** dashboard major-version upgrade button ([cbaddd7](https://github.com/Voziv/voz.gg/commit/cbaddd7))
+- **web:** server form controls for channel and major update policy ([3560024](https://github.com/Voziv/voz.gg/commit/3560024))
+- **web:** validate major update policy and normalized channel ([2be39a0](https://github.com/Voziv/voz.gg/commit/2be39a0))
+- **web:** add approve-major update action and route ([25b23e6](https://github.com/Voziv/voz.gg/commit/25b23e6))
+- **shared:** add major update policy and major-offer state columns ([86ef851](https://github.com/Voziv/voz.gg/commit/86ef851))
+
+### 🩹 Fixes
+
+- gate major-version update path on server control ([5fb230d](https://github.com/Voziv/voz.gg/commit/5fb230d))
+- **web:** give stub writeDesired fake a body to satisfy lint ([309de8a](https://github.com/Voziv/voz.gg/commit/309de8a))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.15.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.24.0 (2026-06-29)
 
 ### 🚀 Features

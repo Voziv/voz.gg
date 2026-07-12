@@ -1,3 +1,13 @@
+## 0.11.0 (2026-07-12)
+
+### 🚀 Features
+
+- **voz-gg-agent:** dual-scheme neoforge MC derivation for adoption ([5eee1aa](https://github.com/Voziv/voz.gg/commit/5eee1aa))
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.10.0 (2026-06-29)
 
 ### 🚀 Features

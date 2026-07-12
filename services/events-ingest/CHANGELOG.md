@@ -1,3 +1,17 @@
+## 0.5.0 (2026-07-12)
+
+### 🚀 Features
+
+- **events-ingest:** run major-offer detection in the update cron ([9c1554f](https://github.com/Voziv/voz.gg/commit/9c1554f))
+
+### 🧱 Updated Dependencies
+
+- Updated shared to 0.15.0
+
+### ❤️ Thank You
+
+- Voz @Voziv
+
 ## 0.4.3 (2026-06-29)
 
 ### 🧱 Updated Dependencies
